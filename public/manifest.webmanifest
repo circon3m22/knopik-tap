@@ -1,13 +1,13 @@
 {
   "name": "Knopik Tap",
   "short_name": "Knopik",
-  "description": "Риск-кликер: тапай Кнопика и остановись вовремя.",
+  "description": "Тапай Кнопика, рискуй и защищай монеты в сейфах.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fffdf8",
-  "theme_color": "#fffdf8",
+  "background_color": "#030507",
+  "theme_color": "#030507",
   "lang": "ru",
   "icons": [
     {

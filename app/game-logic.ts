@@ -1,7 +1,7 @@
 export type DogState = "calm" | "warning" | "angry" | "recovering";
 
 export type CoinState = {
-  bankCoins: number;
+  walletCoins: number;
   streakCoins: number;
 };
 
@@ -16,9 +16,20 @@ export type GameStats = {
   totalBites: number;
 };
 
+export type SafeSize = "small" | "medium" | "large";
+
+export type OwnedSafe = {
+  id: string;
+  size: SafeSize;
+  capacity: number;
+  stored: number;
+  purchasedAt: number;
+};
+
 export type SaveData = {
-  version: 1;
-  bankCoins: number;
+  version: 2;
+  walletCoins: number;
+  safes: OwnedSafe[];
   settings: GameSettings;
   tutorialSeen: boolean;
   bestStreak: number;
@@ -26,13 +37,20 @@ export type SaveData = {
   totalBites: number;
 };
 
+export const SAFE_CATALOG = [
+  { size: "small", name: "Малый", capacity: 100, price: 100 },
+  { size: "medium", name: "Средний", capacity: 200, price: 200 },
+  { size: "large", name: "Большой", capacity: 500, price: 500 },
+] as const;
+
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 1 as const;
+export const SAVE_VERSION = 2 as const;
 
 export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
-    bankCoins: 0,
+    walletCoins: 0,
+    safes: [],
     settings: { sound: true, vibration: true },
     tutorialSeen: false,
     bestStreak: 0,
@@ -46,10 +64,38 @@ function safeInteger(value: unknown): number {
   return Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(value)));
 }
 
+function sanitizeSafes(value: unknown): OwnedSafe[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.slice(0, 500).flatMap((item, index) => {
+    if (!item || typeof item !== "object") return [];
+    const candidate = item as Partial<OwnedSafe>;
+    const definition = SAFE_CATALOG.find(
+      (entry) => entry.size === candidate.size,
+    );
+    if (!definition) return [];
+
+    return [
+      {
+        id:
+          typeof candidate.id === "string" && candidate.id.length > 0
+            ? candidate.id
+            : `restored-${index}`,
+        size: definition.size,
+        capacity: definition.capacity,
+        stored: Math.min(definition.capacity, safeInteger(candidate.stored)),
+        purchasedAt: safeInteger(candidate.purchasedAt),
+      },
+    ];
+  });
+}
+
 export function sanitizeSave(value: unknown): SaveData {
   if (!value || typeof value !== "object") return createDefaultSave();
 
   const candidate = value as Partial<SaveData> & {
+    version?: unknown;
+    bankCoins?: unknown;
     sound?: unknown;
     vibration?: unknown;
   };
@@ -60,7 +106,11 @@ export function sanitizeSave(value: unknown): SaveData {
 
   return {
     version: SAVE_VERSION,
-    bankCoins: safeInteger(candidate.bankCoins),
+    walletCoins:
+      candidate.version === 2
+        ? safeInteger(candidate.walletCoins)
+        : safeInteger(candidate.bankCoins),
+    safes: candidate.version === 2 ? sanitizeSafes(candidate.safes) : [],
     settings: {
       sound:
         typeof settings.sound === "boolean" ? settings.sound : true,

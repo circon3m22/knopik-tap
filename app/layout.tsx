@@ -8,7 +8,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#fffdf8",
+  themeColor: "#030507",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,19 +21,19 @@ export async function generateMetadata(): Promise<Metadata> {
     incomingHeaders.get("x-forwarded-proto") ??
     (host.includes("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
-  const socialImage = new URL("/og.png", metadataBase).toString();
+  const socialImage = new URL("/og-arcade.png", metadataBase).toString();
 
   return {
     metadataBase,
     title: "KNOPIK TAP",
     description:
-      "Риск-кликер: тапай Кнопика, собирай монеты и остановись до укуса.",
+      "Тапай Кнопика, рискуй и защищай монеты в сейфах.",
     applicationName: "Knopik Tap",
     manifest: "/manifest.webmanifest",
     formatDetection: { telephone: false },
     appleWebApp: {
       capable: true,
-      statusBarStyle: "default",
+      statusBarStyle: "black-translucent",
       title: "Knopik",
     },
     icons: {
@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: "KNOPIK TAP",
-      description: "Ещё тап — или пора остановиться?",
+      description: "Тапай, рискуй и защищай монеты в сейфах.",
       type: "website",
       locale: "ru_RU",
       images: [{ url: socialImage, width: 1536, height: 1024, alt: "KNOPIK TAP" }],
@@ -50,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "KNOPIK TAP",
-      description: "Ещё тап — или пора остановиться?",
+      description: "Тапай, рискуй и защищай монеты в сейфах.",
       images: [socialImage],
     },
   };

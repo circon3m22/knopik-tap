@@ -10,6 +10,7 @@ import {
   type PointerEvent,
 } from "react";
 import {
+  SAFE_CATALOG,
   SAVE_KEY,
   SAVE_VERSION,
   createDefaultSave,
@@ -20,17 +21,14 @@ import {
   type DogState,
   type GameSettings,
   type GameStats,
+  type OwnedSafe,
+  type SafeSize,
 } from "./game-logic";
 
-type RecoveryOutcome = "saved" | "bitten";
+type RecoveryOutcome = "rested" | "bitten";
 type RecoveryPhase = "settling" | "relaxed";
-type SoundKind = "tap" | "warning" | "bite";
-
-type TapParticle = {
-  id: number;
-  x: number;
-  y: number;
-};
+type SoundKind = "tap" | "warning" | "bite" | "safe";
+type TapParticle = { id: number; x: number; y: number };
 
 const CALM_IDLE_MS = 2_800;
 const WARNING_IDLE_MS = 3_100;
@@ -38,9 +36,9 @@ const ANGRY_LOCK_MS = 2_000;
 const RECOVERY_MS = 1_650;
 
 const tutorialSlides = [
-  "Нажимай на Кнопика и получай монеты",
-  "Когда Кнопик напрягся — остановись",
-  "Нажмёшь ещё раз — он укусит, и монеты серии сгорят",
+  "Тапай Кнопика — монеты попадают на незащищённый баланс",
+  "Когда Кнопик напрягся — остановись и дай ему отдохнуть",
+  "При укусе баланс сгорит. Монеты в купленных сейфах останутся",
 ];
 
 function vibrate(pattern: number | number[], enabled: boolean) {
@@ -49,12 +47,20 @@ function vibrate(pattern: number | number[], enabled: boolean) {
   }
 }
 
+function createSafeId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function Home() {
   const [dogState, setDogState] = useState<DogState>("calm");
   const [coins, setCoins] = useState<CoinState>({
-    bankCoins: 0,
+    walletCoins: 0,
     streakCoins: 0,
   });
+  const [safes, setSafes] = useState<OwnedSafe[]>([]);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
     vibration: true,
@@ -67,17 +73,18 @@ export default function Home() {
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [safesOpen, setSafesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [showFirstHint, setShowFirstHint] = useState(false);
   const [recoveryOutcome, setRecoveryOutcome] =
-    useState<RecoveryOutcome>("saved");
+    useState<RecoveryOutcome>("rested");
   const [recoveryPhase, setRecoveryPhase] =
     useState<RecoveryPhase>("relaxed");
   const [tapPulse, setTapPulse] = useState(0);
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState("");
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
@@ -93,6 +100,7 @@ export default function Home() {
   const relaxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const angryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const transitionTo = useCallback((state: DogState) => {
@@ -129,6 +137,7 @@ export default function Home() {
       relaxTimerRef,
       angryTimerRef,
       flashTimerRef,
+      messageTimerRef,
     ].forEach((timerRef) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -140,7 +149,10 @@ export default function Home() {
       const stored = localStorage.getItem(SAVE_KEY);
       const parsed = stored ? JSON.parse(stored) : createDefaultSave();
       const saved = sanitizeSave(parsed);
-      const loadedCoins = { bankCoins: saved.bankCoins, streakCoins: 0 };
+      const loadedCoins = {
+        walletCoins: saved.walletCoins,
+        streakCoins: 0,
+      };
       const loadedStats = {
         bestStreak: saved.bestStreak,
         totalTaps: saved.totalTaps,
@@ -151,15 +163,14 @@ export default function Home() {
       settingsRef.current = saved.settings;
       statsRef.current = loadedStats;
       setCoins(loadedCoins);
+      setSafes(saved.safes);
       setSettings(saved.settings);
       setStats(loadedStats);
       setTutorialSeen(saved.tutorialSeen);
       setTutorialOpen(!saved.tutorialSeen);
-      setShowFirstHint(!saved.tutorialSeen);
     } catch {
       localStorage.removeItem(SAVE_KEY);
       setTutorialOpen(true);
-      setShowFirstHint(true);
     } finally {
       setHydrated(true);
     }
@@ -183,7 +194,8 @@ export default function Home() {
         SAVE_KEY,
         JSON.stringify({
           version: SAVE_VERSION,
-          bankCoins: coins.bankCoins,
+          walletCoins: coins.walletCoins,
+          safes,
           settings,
           tutorialSeen,
           bestStreak: stats.bestStreak,
@@ -192,15 +204,14 @@ export default function Home() {
         }),
       );
     } catch {
-      // Private browsing and storage quotas must not stop the game.
+      // The game still works when storage is unavailable.
     }
-  }, [coins.bankCoins, hydrated, settings, stats, tutorialSeen]);
+  }, [coins.walletCoins, hydrated, safes, settings, stats, tutorialSeen]);
 
   useEffect(() => clearRoundTimers, [clearRoundTimers]);
 
   const playSound = useCallback((kind: SoundKind) => {
     if (!settingsRef.current.sound) return;
-
     const AudioConstructor =
       window.AudioContext ??
       (window as typeof window & {
@@ -214,43 +225,29 @@ export default function Home() {
       audioContextRef.current = context;
       void context.resume();
       const now = context.currentTime;
-
-      if (kind === "bite") {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = "sawtooth";
-        oscillator.frequency.setValueAtTime(125, now);
-        oscillator.frequency.exponentialRampToValueAtTime(58, now + 0.24);
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.1, now + 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-        oscillator.connect(gain).connect(context.destination);
-        oscillator.start(now);
-        oscillator.stop(now + 0.26);
-        return;
-      }
-
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = kind === "warning" ? "triangle" : "sine";
-      oscillator.frequency.setValueAtTime(kind === "warning" ? 115 : 660, now);
-      if (kind === "warning") {
-        oscillator.frequency.exponentialRampToValueAtTime(82, now + 0.18);
+      oscillator.type = kind === "bite" ? "sawtooth" : kind === "warning" ? "triangle" : "sine";
+      const startFrequency =
+        kind === "bite" ? 125 : kind === "warning" ? 115 : kind === "safe" ? 420 : 660;
+      oscillator.frequency.setValueAtTime(startFrequency, now);
+      if (kind === "bite" || kind === "warning") {
+        oscillator.frequency.exponentialRampToValueAtTime(
+          kind === "bite" ? 58 : 82,
+          now + (kind === "bite" ? 0.24 : 0.18),
+        );
+      } else if (kind === "safe") {
+        oscillator.frequency.exponentialRampToValueAtTime(840, now + 0.16);
       }
+      const duration = kind === "bite" ? 0.26 : kind === "warning" ? 0.21 : kind === "safe" ? 0.18 : 0.06;
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(
-        kind === "warning" ? 0.045 : 0.025,
-        now + 0.008,
-      );
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        now + (kind === "warning" ? 0.2 : 0.055),
-      );
+      gain.gain.exponentialRampToValueAtTime(kind === "bite" ? 0.1 : 0.035, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
       oscillator.connect(gain).connect(context.destination);
       oscillator.start(now);
-      oscillator.stop(now + (kind === "warning" ? 0.21 : 0.06));
+      oscillator.stop(now + duration + 0.01);
     } catch {
-      // Audio is an enhancement; gameplay remains available without it.
+      // Sound is optional.
     }
   }, []);
 
@@ -266,15 +263,7 @@ export default function Home() {
     (outcome: RecoveryOutcome, previousState: DogState) => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
       settleTimerRef.current = null;
-
-      if (outcome === "saved") {
-        const savedCoins = coinsRef.current.streakCoins;
-        updateCoins((current) => ({
-          bankCoins: current.bankCoins + savedCoins,
-          streakCoins: 0,
-        }));
-      }
-
+      updateCoins((current) => ({ ...current, streakCoins: 0 }));
       setRecoveryOutcome(outcome);
       setRecoveryPhase(previousState === "calm" ? "relaxed" : "settling");
       transitionTo("recovering");
@@ -301,7 +290,7 @@ export default function Home() {
           dogStateRef.current === "calm" ||
           dogStateRef.current === "warning"
         ) {
-          beginRecovery("saved", dogStateRef.current);
+          beginRecovery("rested", dogStateRef.current);
         }
       }, state === "warning" ? WARNING_IDLE_MS : CALM_IDLE_MS);
     },
@@ -314,7 +303,7 @@ export default function Home() {
     transitionTo("angry");
     setRecoveryOutcome("bitten");
     setBiteFlash(true);
-    updateCoins((current) => ({ ...current, streakCoins: 0 }));
+    updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
     updateStats((current) => ({
       ...current,
       totalBites: current.totalBites + 1,
@@ -346,7 +335,6 @@ export default function Home() {
       const currentState = dogStateRef.current;
       if (currentState === "angry" || currentState === "recovering") return;
 
-      setShowFirstHint(false);
       setTapPulse((current) => current + 1);
       addParticle(x, y);
       updateStats((current) => ({
@@ -362,7 +350,7 @@ export default function Home() {
       const now = Date.now();
       const nextStreak = coinsRef.current.streakCoins + 1;
       updateCoins((current) => ({
-        ...current,
+        walletCoins: current.walletCoins + 1,
         streakCoins: current.streakCoins + 1,
       }));
       updateStats((current) => ({
@@ -372,29 +360,16 @@ export default function Home() {
 
       tapsInSeriesRef.current += 1;
       if (patienceRef.current === null) {
-        const qaThreshold =
-          location.hostname === "localhost"
-            ? Number(new URLSearchParams(location.search).get("qaThreshold"))
-            : Number.NaN;
-        patienceRef.current = Number.isFinite(qaThreshold)
-          ? Math.min(100, Math.max(5, Math.floor(qaThreshold)))
-          : createPatience(now - lastTapAtRef.current);
+        patienceRef.current = createPatience(now - lastTapAtRef.current);
       }
-
       fatigueRef.current += tapFatigue();
       lastTapAtRef.current = now;
       const thresholdReached =
         tapsInSeriesRef.current >= 5 &&
-        (fatigueRef.current >= patienceRef.current ||
-          (location.hostname === "localhost" &&
-            Number.isFinite(
-              Number(new URLSearchParams(location.search).get("qaThreshold")),
-            ) &&
-            tapsInSeriesRef.current >= patienceRef.current));
+        fatigueRef.current >= patienceRef.current;
 
       playSound("tap");
       vibrate(8, settingsRef.current.vibration);
-
       if (thresholdReached) {
         transitionTo("warning");
         vibrate([24, 36, 24], settingsRef.current.vibration);
@@ -437,6 +412,36 @@ export default function Home() {
     [registerTap],
   );
 
+  const buySafe = useCallback(
+    (size: SafeSize) => {
+      const definition = SAFE_CATALOG.find((entry) => entry.size === size);
+      if (!definition) return;
+      const requiredCoins = definition.price + definition.capacity;
+      if (coinsRef.current.walletCoins < requiredCoins) return;
+
+      updateCoins((current) => ({
+        ...current,
+        walletCoins: current.walletCoins - requiredCoins,
+      }));
+      setSafes((current) => [
+        ...current,
+        {
+          id: createSafeId(),
+          size: definition.size,
+          capacity: definition.capacity,
+          stored: definition.capacity,
+          purchasedAt: Date.now(),
+        },
+      ]);
+      setPurchaseMessage(`${definition.name} сейф заполнен`);
+      playSound("safe");
+      vibrate([20, 30, 45], settingsRef.current.vibration);
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      messageTimerRef.current = setTimeout(() => setPurchaseMessage(""), 1_800);
+    },
+    [playSound, updateCoins],
+  );
+
   const finishTutorial = useCallback(() => {
     setTutorialSeen(true);
     setTutorialOpen(false);
@@ -446,21 +451,22 @@ export default function Home() {
   const resetProgress = useCallback(() => {
     clearRoundTimers();
     const defaults = createDefaultSave();
-    const resetCoins = { bankCoins: 0, streakCoins: 0 };
+    const resetCoins = { walletCoins: 0, streakCoins: 0 };
     const resetStats = { bestStreak: 0, totalTaps: 0, totalBites: 0 };
     coinsRef.current = resetCoins;
     settingsRef.current = defaults.settings;
     statsRef.current = resetStats;
     setCoins(resetCoins);
+    setSafes([]);
     setStats(resetStats);
     setSettings(defaults.settings);
     setTutorialSeen(false);
     setTutorialStep(0);
     setTutorialOpen(true);
+    setSafesOpen(false);
     setSettingsOpen(false);
     setResetConfirmOpen(false);
-    setShowFirstHint(true);
-    setRecoveryOutcome("saved");
+    setRecoveryOutcome("rested");
     setRecoveryPhase("relaxed");
     patienceRef.current = null;
     fatigueRef.current = 0;
@@ -470,18 +476,33 @@ export default function Home() {
     localStorage.removeItem(SAVE_KEY);
   }, [clearRoundTimers, transitionTo]);
 
+  const vaultCoins = useMemo(
+    () => safes.reduce((total, safe) => total + safe.stored, 0),
+    [safes],
+  );
+
+  const moodLabel =
+    dogState === "warning"
+      ? "НАПРЯЖЁН"
+      : dogState === "angry"
+        ? "ЗОЛ"
+        : dogState === "recovering"
+          ? "ОТДЫХАЕТ"
+          : "СПОКОЕН";
+
   const statusText = useMemo(() => {
-    if (dogState === "warning") return "Кнопик напрягся";
-    if (dogState === "angry") return "Кнопик тебя укусил";
+    if (dogState === "warning") return "КНОПИК НАПРЯГСЯ — НЕ ТРОГАЙ";
+    if (dogState === "angry") return "НЕЗАЩИЩЁННЫЕ МОНЕТЫ СГОРЕЛИ";
     if (dogState === "recovering") {
-      return recoveryOutcome === "saved"
-        ? "Монеты сохранены"
-        : "Подожди, пока Кнопик успокоится";
+      return recoveryOutcome === "bitten"
+        ? "СЕЙФЫ ЦЕЛЫ. КНОПИК ОТДЫХАЕТ"
+        : "КНОПИК ОТДЫХАЕТ. БАЛАНС НЕ ЗАЩИЩЁН";
     }
+    if (coins.walletCoins >= 200) return "МОЖНО ЗАПОЛНИТЬ МАЛЫЙ СЕЙФ";
     return coins.streakCoins > 0
-      ? "Ещё тап — или пора остановиться?"
-      : "Тапай Кнопика";
-  }, [coins.streakCoins, dogState, recoveryOutcome]);
+      ? "ЕЩЁ ТАП — ИЛИ ПОРА ОСТАНОВИТЬСЯ?"
+      : "ТАПАЙ КНОПИКА";
+  }, [coins.streakCoins, coins.walletCoins, dogState, recoveryOutcome]);
 
   const dogImageState =
     dogState === "angry"
@@ -490,7 +511,6 @@ export default function Home() {
           (dogState === "recovering" && recoveryPhase === "settling")
         ? "warning"
         : "calm";
-
   const dogDisabled = dogState === "angry" || dogState === "recovering";
 
   return (
@@ -499,69 +519,53 @@ export default function Home() {
       data-state={dogState}
       data-hydrated={hydrated}
     >
-      <div className="ambient-ring ambient-ring-one" aria-hidden="true" />
-      <div className="ambient-ring ambient-ring-two" aria-hidden="true" />
+      <div className="arcade-grid" aria-hidden="true" />
 
-      <header className="top-bar">
-        <div className="brand" aria-label="Knopik Tap">
+      <header className="hud-panel">
+        <div className="brand-lockup" aria-label="Knopik Tap">
           <span>KNOPIK</span>
           <strong>TAP</strong>
         </div>
-
-        <div className="bank-balance" aria-label={`${coins.bankCoins} сохранённых монет`}>
-          <span className="coin-icon" aria-hidden="true">K</span>
-          <span>{coins.bankCoins.toLocaleString("ru-RU")}</span>
+        <div className="hud-stats">
+          <button
+            className="hud-stat hud-stat-button"
+            type="button"
+            aria-label={`Открыть сейфы. В хранилище ${vaultCoins} монет`}
+            onClick={() => setSafesOpen(true)}
+          >
+            <span className="mini-safe" aria-hidden="true"><i /></span>
+            <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
+            <small>В СЕЙФАХ</small>
+          </button>
+          <div className="hud-stat">
+            <span className="coin-icon" aria-hidden="true">K</span>
+            <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+            <small>БАЛАНС</small>
+          </div>
+          <div className="hud-stat">
+            <span className="mood-icon" aria-hidden="true"><i /><i /><b /></span>
+            <strong>{moodLabel}</strong>
+            <small>КНОПИК</small>
+          </div>
         </div>
-
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Открыть настройки"
-          onClick={() => setSettingsOpen(true)}
-        >
-          <span className="settings-icon" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        </button>
       </header>
 
-      <section className="dog-stage" aria-live="polite">
+      <section className="game-zone" aria-live="polite">
         <button
           className={`dog-button tap-${tapPulse % 2 === 0 ? "a" : "b"}`}
           type="button"
           data-testid="knopik"
-          aria-label={
-            dogDisabled
-              ? "Кнопик отдыхает"
-              : "Нажать на Кнопика и получить монету"
-          }
+          aria-label={dogDisabled ? "Кнопик отдыхает" : "Тапнуть Кнопика"}
           disabled={dogDisabled}
           onPointerDown={handlePointerDown}
           onKeyDown={handleKeyDown}
           onContextMenu={(event) => event.preventDefault()}
         >
-          <span className="dog-halo" aria-hidden="true" />
+          <span className="portrait-ring" aria-hidden="true" />
           <span className="dog-images" data-image-state={dogImageState}>
-            <img
-              className="dog-image calm-image"
-              src="/knopik-calm.png"
-              alt=""
-              draggable={false}
-            />
-            <img
-              className="dog-image warning-image"
-              src="/knopik-warning.png"
-              alt=""
-              draggable={false}
-            />
-            <img
-              className="dog-image angry-image"
-              src="/knopik-angry.png"
-              alt=""
-              draggable={false}
-            />
+            <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
+            <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
+            <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
           </span>
           <span className="tap-particles" aria-hidden="true">
             {particles.map((particle) => (
@@ -575,162 +579,131 @@ export default function Home() {
             ))}
           </span>
         </button>
-      </section>
 
-      <section className="round-panel">
-        <div className="streak-count" aria-label={`${coins.streakCoins} монет в текущей серии`}>
-          <strong>{coins.streakCoins}</strong>
-          <span>в серии</span>
+        <div className="wallet-display" aria-label={`${coins.walletCoins} незащищённых монет`}>
+          <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+          <span>НЕЗАЩИЩЁННЫЙ БАЛАНС</span>
+          {coins.streakCoins > 0 && <small>+{coins.streakCoins} ЗА ПОДХОД</small>}
         </div>
         <p className="status-copy" role="status">{statusText}</p>
-        <p className={`first-hint ${showFirstHint ? "visible" : ""}`}>
-          Остановись вовремя — серия сохранится сама
-        </p>
       </section>
+
+      <nav className="bottom-nav" aria-label="Меню игры">
+        <button type="button" onClick={() => setSafesOpen(true)}>
+          <span className="nav-icon safe-nav-icon" aria-hidden="true"><i /></span>
+          <span>СЕЙФЫ</span>
+          {safes.length > 0 && <b>{safes.length}</b>}
+        </button>
+        <button className="active" type="button" aria-current="page" onClick={() => { setSafesOpen(false); setSettingsOpen(false); }}>
+          <span className="nav-icon home-nav-icon" aria-hidden="true"><i /></span>
+          <span>ИГРА</span>
+        </button>
+        <button type="button" onClick={() => setSettingsOpen(true)}>
+          <span className="nav-icon settings-nav-icon" aria-hidden="true"><i /><i /><i /></span>
+          <span>НАСТРОЙКИ</span>
+        </button>
+      </nav>
 
       {tutorialOpen && (
         <div className="modal-backdrop tutorial-backdrop">
-          <section
-            className="tutorial-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="tutorial-title"
-          >
-            <div className="tutorial-mark" aria-hidden="true">
-              <span className="coin-icon">K</span>
-            </div>
+          <section className="tutorial-sheet" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+            <div className="tutorial-badge" aria-hidden="true"><span className="mini-safe"><i /></span></div>
             <p className="sheet-kicker">КАК ИГРАТЬ</p>
             <h1 id="tutorial-title">{tutorialSlides[tutorialStep]}</h1>
             <div className="tutorial-dots" aria-label={`Шаг ${tutorialStep + 1} из 3`}>
-              {tutorialSlides.map((_, index) => (
-                <span className={index === tutorialStep ? "active" : ""} key={index} />
-              ))}
+              {tutorialSlides.map((_, index) => <span className={index === tutorialStep ? "active" : ""} key={index} />)}
             </div>
             <button
               className="primary-button"
               type="button"
-              onClick={() => {
-                if (tutorialStep < tutorialSlides.length - 1) {
-                  setTutorialStep((current) => current + 1);
-                } else {
-                  finishTutorial();
-                }
-              }}
+              onClick={() => tutorialStep < tutorialSlides.length - 1 ? setTutorialStep((current) => current + 1) : finishTutorial()}
             >
-              {tutorialStep === tutorialSlides.length - 1 ? "Играть" : "Дальше"}
+              {tutorialStep === tutorialSlides.length - 1 ? "ИГРАТЬ" : "ДАЛЬШЕ"}
             </button>
           </section>
         </div>
       )}
 
-      {settingsOpen && (
-        <div
-          className="modal-backdrop"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setSettingsOpen(false);
-          }}
-        >
-          <section
-            className="settings-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-title"
-          >
+      {safesOpen && (
+        <div className="modal-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) setSafesOpen(false); }}>
+          <section className="safe-sheet" role="dialog" aria-modal="true" aria-labelledby="safes-title">
             <div className="sheet-heading">
-              <div>
-                <p className="sheet-kicker">KNOPIK TAP</p>
-                <h2 id="settings-title">Настройки</h2>
-              </div>
-              <button
-                className="close-button"
-                type="button"
-                aria-label="Закрыть настройки"
-                onClick={() => setSettingsOpen(false)}
-              >
-                <span aria-hidden="true" />
-              </button>
+              <div><p className="sheet-kicker">ХРАНИЛИЩЕ</p><h2 id="safes-title">Мои сейфы</h2></div>
+              <button className="close-button" type="button" aria-label="Закрыть сейфы" onClick={() => setSafesOpen(false)}><span /></button>
             </div>
 
-            <div className="setting-row">
-              <div>
-                <strong>Звук</strong>
-                <span>Короткие эффекты игры</span>
-              </div>
-              <button
-                className="switch"
-                type="button"
-                role="switch"
-                aria-checked={settings.sound}
-                aria-label="Звук"
-                onClick={() =>
-                  setSettings((current) => ({ ...current, sound: !current.sound }))
-                }
-              >
-                <span />
-              </button>
+            <div className="vault-total">
+              <span className="large-safe" aria-hidden="true"><i /></span>
+              <div><small>ВСЕГО ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong><span>монет</span></div>
             </div>
 
-            <div className="setting-row">
-              <div>
-                <strong>Вибрация</strong>
-                <span>Если устройство поддерживает</span>
-              </div>
-              <button
-                className="switch"
-                type="button"
-                role="switch"
-                aria-checked={settings.vibration}
-                aria-label="Вибрация"
-                onClick={() =>
-                  setSettings((current) => ({
-                    ...current,
-                    vibration: !current.vibration,
-                  }))
-                }
-              >
-                <span />
-              </button>
-            </div>
+            {purchaseMessage && <p className="purchase-message" role="status">{purchaseMessage}</p>}
 
-            <button
-              className="settings-action"
-              type="button"
-              onClick={() => {
-                setSettingsOpen(false);
-                setTutorialStep(0);
-                setTutorialOpen(true);
-              }}
-            >
-              Повторить обучение
-              <span aria-hidden="true">↗</span>
-            </button>
+            <div className="sheet-scroll">
+              <section className="owned-section">
+                <h3>Купленные сейфы</h3>
+                {safes.length === 0 ? (
+                  <p className="empty-safes">Пока пусто. Купленный сейф сразу заполняется и навсегда защищает вклад.</p>
+                ) : (
+                  <div className="owned-safe-list">
+                    {safes.map((safe, index) => {
+                      const definition = SAFE_CATALOG.find((entry) => entry.size === safe.size)!;
+                      return (
+                        <article className={`owned-safe size-${safe.size}`} key={safe.id}>
+                          <span className="mini-safe" aria-hidden="true"><i /></span>
+                          <div><strong>{definition.name} сейф #{index + 1}</strong><small>{safe.stored} / {safe.capacity} монет</small></div>
+                          <b>ПОЛНЫЙ</b>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
 
-            {!resetConfirmOpen ? (
-              <button
-                className="settings-action danger-action"
-                type="button"
-                onClick={() => setResetConfirmOpen(true)}
-              >
-                Сбросить прогресс
-              </button>
-            ) : (
-              <div className="reset-confirm" role="alert">
-                <p>Удалить баланс, рекорды и настройки?</p>
-                <div>
-                  <button type="button" onClick={() => setResetConfirmOpen(false)}>
-                    Отмена
-                  </button>
-                  <button className="confirm-reset" type="button" onClick={resetProgress}>
-                    Сбросить
-                  </button>
+              <section className="safe-shop">
+                <h3>Новый сейф</h3>
+                <p>Нужна сумма на сам сейф и ещё столько же, чтобы сразу его заполнить.</p>
+                <div className="safe-options">
+                  {SAFE_CATALOG.map((safe) => {
+                    const required = safe.price + safe.capacity;
+                    const available = coins.walletCoins >= required;
+                    return (
+                      <article className={`safe-option size-${safe.size}`} key={safe.size}>
+                        <span className="mini-safe" aria-hidden="true"><i /></span>
+                        <div className="safe-option-copy">
+                          <strong>{safe.name}</strong>
+                          <span>Вместимость {safe.capacity}</span>
+                          <small>{safe.price} сейф + {safe.capacity} вклад</small>
+                        </div>
+                        <button type="button" disabled={!available} onClick={() => buySafe(safe.size)}>
+                          {available ? `КУПИТЬ · ${required}` : `НУЖНО ${required}`}
+                        </button>
+                      </article>
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-
-            <div className="stats-line" aria-label="Статистика игры">
-              <span>Лучшая серия <strong>{stats.bestStreak}</strong></span>
-              <span>Укусов <strong>{stats.totalBites}</strong></span>
+              </section>
             </div>
+          </section>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div className="modal-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false); }}>
+          <section className="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div className="sheet-heading">
+              <div><p className="sheet-kicker">KNOPIK TAP</p><h2 id="settings-title">Настройки</h2></div>
+              <button className="close-button" type="button" aria-label="Закрыть настройки" onClick={() => setSettingsOpen(false)}><span /></button>
+            </div>
+            <div className="setting-row"><div><strong>Звук</strong><span>Короткие игровые эффекты</span></div><button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button></div>
+            <div className="setting-row"><div><strong>Вибрация</strong><span>Если устройство поддерживает</span></div><button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button></div>
+            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>ПОВТОРИТЬ ОБУЧЕНИЕ <span>↗</span></button>
+            {!resetConfirmOpen ? (
+              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>СБРОСИТЬ ПРОГРЕСС</button>
+            ) : (
+              <div className="reset-confirm" role="alert"><p>Удалить баланс, сейфы, рекорды и настройки?</p><div><button type="button" onClick={() => setResetConfirmOpen(false)}>ОТМЕНА</button><button className="confirm-reset" type="button" onClick={resetProgress}>СБРОСИТЬ</button></div></div>
+            )}
+            <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
           </section>
         </div>
       )}
