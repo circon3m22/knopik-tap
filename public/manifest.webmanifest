@@ -1,0 +1,20 @@
+{
+  "name": "Knopik Tap",
+  "short_name": "Knopik",
+  "description": "Риск-кликер: тапай Кнопика и остановись вовремя.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fffdf8",
+  "theme_color": "#fffdf8",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/knopik-calm.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
