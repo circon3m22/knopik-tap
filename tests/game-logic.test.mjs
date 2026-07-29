@@ -34,18 +34,20 @@ test("post-ultra fatigue starts at 10-20 and fades after 90 seconds", () => {
   assert.equal(calculateFatigueRatio(FATIGUE_DURATION_MS), 0);
 });
 
-test("ultra tap pays up to 1000 and burns after the deadline", () => {
+test("ultra tap averages 300, caps at 500, and burns after the deadline", () => {
   assert.equal(calculateUltraTapCoins(1_999), 0);
   assert.equal(calculateUltraTapCoins(2_000, 3_000, 200), 200);
-  assert.equal(calculateUltraTapCoins(2_000, 3_000, 600), 600);
-  assert.equal(calculateUltraTapCoins(3_000, 3_000, 200), 290);
+  assert.equal(calculateUltraTapCoins(2_000, 3_000, 400), 400);
+  assert.equal(calculateUltraTapCoins(2_000, 3_000), 300);
+  assert.equal(calculateUltraTapCoins(3_000, 3_000, 200), 250);
+  assert.equal(calculateUltraTapCoins(10_000, 10_000, 400), 500);
   assert.equal(calculateUltraTapCoins(3_001, 3_000), 0);
   assert.equal(isUltraTapOverheated(3_000, 3_000), false);
   assert.equal(isUltraTapOverheated(3_001, 3_000), true);
   assert.equal(chooseUltraTapOverheatDeadline(() => 0), 2_100);
   assert.ok(chooseUltraTapOverheatDeadline(() => 0.999) > 8_000);
   assert.equal(chooseUltraTapTwoSecondReward(() => 0), 200);
-  assert.equal(chooseUltraTapTwoSecondReward(() => 0.999), 600);
+  assert.equal(chooseUltraTapTwoSecondReward(() => 0.999), 400);
 });
 
 test("levels advance every 100 earned coins and cap at ten", () => {

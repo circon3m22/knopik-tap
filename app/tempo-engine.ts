@@ -29,10 +29,10 @@ export const ULTRA_TAP_COMMON_MAX_MS = 5_000;
 export const ULTRA_TAP_RARE_MAX_MS = 8_000;
 export const ULTRA_TAP_MAX_HOLD_MS = 10_000;
 export const ULTRA_TAP_DEFAULT_DEADLINE_MS = 3_000;
-export const ULTRA_TAP_MAX_COINS = 1_000;
+export const ULTRA_TAP_MAX_COINS = 500;
 export const ULTRA_TAP_TWO_SECOND_MIN_COINS = 200;
-export const ULTRA_TAP_TWO_SECOND_MAX_COINS = 600;
-export const ULTRA_TAP_GROWTH_PER_SECOND = 90;
+export const ULTRA_TAP_TWO_SECOND_MAX_COINS = 400;
+export const ULTRA_TAP_GROWTH_PER_SECOND = 50;
 
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -306,7 +306,7 @@ export function chooseUltraTapTwoSecondReward(
 export function sanitizeUltraTapTwoSecondReward(value: number): number {
   return Math.round(
     clamp(
-      finiteOr(value, 400),
+      finiteOr(value, 300),
       ULTRA_TAP_TWO_SECOND_MIN_COINS,
       ULTRA_TAP_TWO_SECOND_MAX_COINS,
     ),
@@ -326,13 +326,13 @@ export function isUltraTapOverheated(
 /**
  * Resolves the reward against the hidden deadline. Releasing before two
  * seconds or strictly after the deadline yields zero. A run starts with its
- * hidden 200-600 reward at two seconds, then grows by only 90 coins per second;
- * reaching 1000 is therefore rare even when the dog holds unusually long.
+ * hidden 200-400 reward at two seconds (300 on average), then grows by 50
+ * coins per second until the hard 500-coin ceiling.
  */
 export function calculateUltraTapCoins(
   holdDurationMs: number,
   overheatDeadlineMs: number = ULTRA_TAP_MAX_HOLD_MS,
-  twoSecondReward: number = 400,
+  twoSecondReward: number = 300,
 ): number {
   const duration = Math.max(0, finiteOr(holdDurationMs, 0));
   const deadline = sanitizeUltraTapDeadline(overheatDeadlineMs);

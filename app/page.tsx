@@ -88,12 +88,13 @@ const LAST_TAP_CHANCE = 0.0025;
 const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 100;
-const HASBIK_HAT_PRICE = 500;
+const HASBIK_HAT_PRICE = 1_000;
 const ZHIVCHIK_PRICE = 100;
 const PITBULL_PRICE = 50;
 const ZHIVCHIK_DURATION_MS = 60_000;
 const ZHIVCHIK_MULTIPLIER = 4;
 const HAT_ULTRA_BONUS_MS = 350;
+const HAT_REWARD_ROLL_FLOOR = 0.18;
 const MAX_CHEAT_COIN_GRANT = 1_000_000_000;
 const RISK_SPIN_MS = 5_400;
 const RISK_RESULT_MS = 1_650;
@@ -939,7 +940,16 @@ export default function Home() {
         chooseUltraTapOverheatDeadline() +
           (hatEquipped ? HAT_ULTRA_BONUS_MS : 0),
       );
-      ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward();
+      ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward(
+        hatEquipped
+          ? () =>
+              Math.min(
+                0.999999999,
+                HAT_REWARD_ROLL_FLOOR +
+                  Math.random() * (1 - HAT_REWARD_ROLL_FLOOR),
+              )
+          : Math.random,
+      );
       ultraAllowedRef.current = currentState !== "tired";
       holdingRef.current = true;
       ultraActiveRef.current = false;
@@ -2323,7 +2333,7 @@ export default function Home() {
               <div className="food-copy">
                 <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
                 <h3>Тюбетейка Хасбика</h3>
-                <p>Сидит между ушами и слегка продлевает безопасное удержание ультра-тапа.</p>
+                <p>Слегка продлевает безопасное удержание и повышает шанс на более крупную награду ультра-тапа.</p>
               </div>
               <div className="food-price"><strong>{hatOwned ? "✓" : HASBIK_HAT_PRICE}</strong><span>{hatOwned ? "твоя" : "монет"}</span></div>
               <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>
