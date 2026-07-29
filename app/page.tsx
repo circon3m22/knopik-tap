@@ -1370,8 +1370,20 @@ export default function Home() {
     vibrate([16, 24, 34], settingsRef.current.vibration);
   }, [getSound, pitbullCount, showRiskNotice, transitionRisk]);
 
-  const toggleSuliman = useCallback(() => {
-    if (cheatCode.trim().toLowerCase() !== "suliman") {
+  const submitCheatCode = useCallback(() => {
+    const normalizedCode = cheatCode.trim().toLowerCase();
+    if (normalizedCode === "many") {
+      updateCoins((current) => ({
+        ...current,
+        walletCoins: current.walletCoins + 500,
+      }));
+      setCheatCode("");
+      setCheatMessage("MANY применён — активные монеты +500");
+      getSound().purchase();
+      vibrate([16, 22, 34], settingsRef.current.vibration);
+      return;
+    }
+    if (normalizedCode !== "suliman") {
       setCheatMessage("Код не найден");
       return;
     }
@@ -1391,7 +1403,7 @@ export default function Home() {
       transitionTo("calm");
     }
     getSound().safe();
-  }, [cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo]);
+  }, [cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo, updateCoins]);
 
   const bounceHat = useCallback((event: PointerEvent<HTMLSpanElement>) => {
     event.preventDefault();
@@ -2323,12 +2335,12 @@ export default function Home() {
               className={`cheat-row ${settings.suliman ? "is-active" : ""}`}
               onSubmit={(event) => {
                 event.preventDefault();
-                toggleSuliman();
+                submitCheatCode();
               }}
             >
               <div>
                 <strong>Чит-код</strong>
-                <span>{settings.suliman ? "Режим SULIMAN активен" : "Введи секретное слово"}</span>
+                <span>{settings.suliman ? "SULIMAN активен · MANY даёт +500" : "Коды SULIMAN и MANY"}</span>
               </div>
               <label>
                 <input
@@ -2344,7 +2356,7 @@ export default function Home() {
                     setCheatMessage("");
                   }}
                 />
-                <button type="submit">{settings.suliman ? "ОТМЕНИТЬ" : "ВВЕСТИ"}</button>
+                <button type="submit">ПРИМЕНИТЬ</button>
               </label>
               {cheatMessage && <small role="status">{cheatMessage}</small>}
             </form>
