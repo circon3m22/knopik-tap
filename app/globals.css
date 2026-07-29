@@ -3403,7 +3403,7 @@ img,
   top: 1.5%;
   left: calc(50% - 13px);
   height: 48.5%;
-  transform: rotate(var(--risk-rotation));
+  transform: rotate(0deg);
   transform-origin: 50% 100%;
   will-change: transform;
 }
@@ -3695,4 +3695,605 @@ img,
   .boost-row button { padding-inline: 4px; gap: 3px; }
   .boost-row button strong { font-size: 6.4px; }
   .wordmark strong { font-size: 17px; }
+}
+
+/* Cohesive game UI — v31 */
+.game-shell {
+  padding:
+    calc(env(safe-area-inset-top) + 10px)
+    clamp(14px, 4vw, 22px)
+    calc(env(safe-area-inset-bottom) + 10px);
+  background-image:
+    radial-gradient(circle at 50% 39%, rgb(255 255 255 / 20%), transparent 34%),
+    linear-gradient(180deg, rgb(255 255 255 / 8%), transparent 32%, rgb(0 0 0 / 8%));
+}
+
+.game-motion-layer {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.app-header {
+  gap: 8px;
+}
+
+.top-bar {
+  min-height: 32px;
+}
+
+.wordmark strong {
+  font-size: clamp(22px, 6vw, 28px);
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 10%);
+}
+
+.level-strip,
+.risk-strip {
+  min-height: 46px;
+  padding: 8px 13px;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 17px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 24%), rgb(255 255 255 / 7%)),
+    rgb(var(--glass) / var(--glass-alpha));
+  box-shadow:
+    0 10px 28px rgb(0 0 0 / 8%),
+    inset 0 1px 0 rgb(255 255 255 / 38%);
+  backdrop-filter: blur(22px) saturate(1.45);
+}
+
+.level-title > span,
+.level-reward small,
+.risk-strip-label {
+  font-size: 7px;
+}
+
+.level-title strong {
+  font-size: 16px;
+}
+
+.level-track {
+  height: 8px;
+  padding: 1px;
+}
+
+.level-reward strong,
+.risk-multiplier {
+  font-size: 11px;
+}
+
+.boost-row {
+  gap: 8px;
+}
+
+.boost-row .inventory-item {
+  position: relative;
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  justify-content: stretch;
+  gap: 8px;
+  padding: 9px 9px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 19px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 30%), rgb(255 255 255 / 8%)),
+    rgb(var(--glass) / calc(var(--glass-alpha) + 0.04));
+  box-shadow:
+    0 12px 30px rgb(0 0 0 / 9%),
+    inset 0 1px 0 rgb(255 255 255 / 48%);
+  backdrop-filter: blur(22px) saturate(1.45);
+}
+
+.boost-row .inventory-item::after {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 18% 8%, rgb(255 255 255 / 26%), transparent 34%);
+  content: "";
+  pointer-events: none;
+}
+
+.boost-row .inventory-item:active:not(:disabled) {
+  transform: translateY(1px) scale(0.975);
+}
+
+.boost-row .inventory-item:disabled {
+  filter: saturate(0.65);
+  opacity: 0.58;
+}
+
+.boost-row .inventory-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: 3px;
+}
+
+.boost-row .inventory-copy strong {
+  width: 100%;
+  font-size: clamp(9px, 2.5vw, 11px);
+  letter-spacing: -0.02em;
+}
+
+.boost-row .inventory-copy small {
+  overflow: hidden;
+  width: 100%;
+  font-size: 6px;
+  font-weight: 760;
+  line-height: 1.15;
+  opacity: 0.62;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-count {
+  position: absolute;
+  z-index: 4;
+  top: 5px;
+  right: 6px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0 5px;
+  border: 1px solid rgb(255 255 255 / 52%);
+  border-radius: 99px;
+  color: #17212c;
+  background: rgb(255 255 255 / 84%);
+  box-shadow: 0 3px 9px rgb(0 0 0 / 12%);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 950;
+}
+
+.boost-row .drink-icon {
+  z-index: 2;
+  width: 26px;
+  height: 37px;
+  flex-basis: 26px;
+  justify-self: center;
+  border-width: 1.5px;
+  border-radius: 7px 7px 10px 10px;
+  transform: none;
+}
+
+.boost-row .drink-icon::before {
+  top: -6px;
+  left: 7px;
+  width: 11px;
+  height: 7px;
+}
+
+.boost-row .drink-icon::after {
+  inset: 9px 3px 4px;
+}
+
+.boost-row .drink-icon i {
+  top: 15px;
+  transform: translateX(-50%) scale(1.25);
+}
+
+.food-icon {
+  width: 28px;
+  height: 34px;
+  flex: 0 0 28px;
+  overflow: hidden;
+  border: 1.5px solid rgb(255 255 255 / 55%);
+  border-radius: 6px 6px 9px 9px;
+  color: #72420f;
+  background: linear-gradient(155deg, #ffe59a, #eea83e 76%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%), 0 4px 10px rgb(88 52 7 / 18%);
+}
+
+.food-icon::before {
+  position: absolute;
+  top: -1px;
+  right: 3px;
+  left: 3px;
+  height: 7px;
+  border-bottom: 1px solid rgb(119 69 11 / 34%);
+  background: repeating-linear-gradient(90deg, #fff0b8 0 3px, #cf8627 3px 5px);
+  content: "";
+}
+
+.food-icon::after {
+  position: absolute;
+  inset: 10px 4px 4px;
+  height: auto;
+  border: 1px solid rgb(119 69 11 / 22%);
+  border-radius: 5px 5px 7px 7px;
+  background: linear-gradient(#fff2c5, #ffd071);
+  content: "";
+}
+
+.food-icon i {
+  z-index: 2;
+  top: 17px;
+  width: 5px;
+  height: 5px;
+  background: #9c5b18;
+  box-shadow: inset -1px -1px 0 rgb(65 36 7 / 20%);
+}
+
+.food-icon i:nth-child(1) { left: 6px; }
+.food-icon i:nth-child(2) { top: 14px; left: 12px; }
+.food-icon i:nth-child(3) { top: 19px; right: 5px; }
+
+.boost-row .food-icon {
+  z-index: 2;
+  justify-self: center;
+  transform: none;
+}
+
+.saved-balance {
+  min-width: 154px;
+  height: 40px;
+  padding: 0 15px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 24%), rgb(255 255 255 / 7%)),
+    rgb(var(--glass) / var(--glass-alpha));
+  box-shadow: 0 9px 24px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 40%);
+}
+
+.saved-balance small {
+  font-size: 6px;
+}
+
+.saved-balance strong {
+  font-size: 16px;
+}
+
+.game-stage {
+  padding: 4px 0 2px;
+}
+
+.dog-button,
+.risk-ear-arrows {
+  width: min(77vw, 352px, calc(100dvh - 445px));
+}
+
+.game-data {
+  min-height: 104px;
+  gap: 8px;
+  margin-top: -7px;
+}
+
+.wallet-balance {
+  min-height: 58px;
+  padding: 3px 18px;
+}
+
+.wallet-balance strong {
+  font-size: clamp(39px, 11vw, 52px);
+}
+
+.coin-mark {
+  width: 42px;
+  height: 42px;
+}
+
+.quick-save-button {
+  display: grid;
+  width: min(100%, 260px);
+  min-height: 44px;
+  grid-template-columns: 24px auto minmax(84px, auto);
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 18px;
+  font-size: 9px;
+}
+
+.quick-save-button small {
+  display: block;
+  min-width: 84px;
+  font-size: 7px;
+  text-align: right;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.quick-save-button:disabled {
+  opacity: 0.52;
+}
+
+.risk-dial {
+  background:
+    radial-gradient(circle, transparent 0 54%, rgb(0 0 0 / 30%) 55% 100%),
+    conic-gradient(from 0deg, #a6f23d 0deg var(--risk-chance), #292e38 var(--risk-chance) 360deg);
+  transform: none !important;
+  transition: background 120ms linear;
+}
+
+.risk-dial::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-conic-gradient(from 0deg, rgb(255 255 255 / 20%) 0deg 0.65deg, transparent 0.65deg 10deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 77%, #000 78% 100%);
+  mask: radial-gradient(circle, transparent 0 77%, #000 78% 100%);
+  content: "";
+  opacity: 0.55;
+}
+
+.risk-wheel-glass {
+  background:
+    radial-gradient(circle at 35% 24%, rgb(255 255 255 / 14%), transparent 30%),
+    linear-gradient(145deg, rgb(255 255 255 / 8%), transparent 42% 68%, rgb(0 0 0 / 24%));
+}
+
+.risk-pointer {
+  top: 1.5%;
+  left: calc(50% - 13px);
+  height: 48.5%;
+  transform: rotate(var(--risk-rotation));
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+
+.risk-spinning .risk-pointer {
+  animation: risk-pointer-spin var(--risk-spin-duration) cubic-bezier(0.08, 0.72, 0.06, 1) both;
+  transition: none;
+}
+
+.risk-result .risk-pointer,
+.risk-returning .risk-pointer {
+  transform: rotate(var(--risk-rotation));
+}
+
+.risk-center {
+  width: 41%;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(17 20 25 / 97%);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 48%), inset 0 1px 0 rgb(255 255 255 / 10%);
+}
+
+.risk-center small {
+  font-size: 6px;
+}
+
+.risk-center strong {
+  font-size: clamp(27px, 8vw, 36px);
+}
+
+.risk-center em {
+  font-size: 7px;
+}
+
+.bottom-bar {
+  margin: 5px 0 0;
+  padding: 6px;
+  border-radius: 28px;
+}
+
+.bottom-bar button {
+  min-height: 58px;
+  border-radius: 22px;
+  font-size: 9px;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  align-items: stretch;
+  padding: 0;
+  color: #182430;
+  background: #f2f5f7;
+  backdrop-filter: none;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .sheet {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  padding:
+    calc(env(safe-area-inset-top) + 22px)
+    clamp(18px, 5vw, 32px)
+    calc(env(safe-area-inset-bottom) + 28px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% -5%, rgb(112 176 235 / 16%), transparent 31%),
+    #f2f5f7;
+  box-shadow: none;
+  animation: full-page-in 280ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .sheet > * {
+  width: min(100%, 720px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.sheet-heading {
+  position: sticky;
+  z-index: 4;
+  top: calc(env(safe-area-inset-top) * -1 - 22px);
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 2px 0 14px;
+  background: linear-gradient(#f2f5f7 78%, transparent);
+}
+
+.sheet-heading h2 {
+  font-size: clamp(30px, 8vw, 42px);
+  letter-spacing: -0.055em;
+}
+
+.sheet-kicker {
+  margin-bottom: 5px;
+  font-size: 9px;
+}
+
+.close-button {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+  border: 1px solid #d8e0e6;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 8px 20px rgb(31 55 77 / 8%);
+}
+
+.close-button span::before,
+.close-button span::after {
+  top: 21px;
+  left: 12px;
+  width: 20px;
+}
+
+.shop-wallet {
+  min-height: 62px;
+  padding: 12px 16px;
+  border: 1px solid #dbe6ee;
+  border-radius: 19px;
+  background: rgb(255 255 255 / 72%);
+}
+
+.shop-wallet span {
+  font-size: 8px;
+}
+
+.shop-wallet strong {
+  font-size: 26px;
+}
+
+.shop-categories {
+  position: sticky;
+  z-index: 3;
+  top: 69px;
+  margin-bottom: 16px;
+  padding: 5px;
+  border-radius: 18px;
+  background: rgb(226 233 239 / 92%);
+  backdrop-filter: blur(18px);
+}
+
+.shop-categories button {
+  min-height: 45px;
+  border-radius: 14px;
+  font-size: 10px;
+}
+
+.shop-card {
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 17px;
+  border-color: #dce4e9;
+  border-radius: 23px;
+  box-shadow: 0 16px 36px rgb(28 52 73 / 7%);
+}
+
+.food-pack,
+.drink-pack,
+.hat-preview {
+  width: 78px;
+  height: 78px;
+  border-radius: 22px;
+}
+
+.food-pack .food-icon {
+  transform: scale(1.75);
+}
+
+.food-copy h3 {
+  font-size: 16px;
+}
+
+.food-copy p {
+  font-size: 10px;
+}
+
+.food-price strong {
+  font-size: 23px;
+}
+
+.shop-card > .shop-buy-button {
+  min-height: 52px;
+  border-radius: 16px;
+  font-size: 10px;
+}
+
+.setting-row {
+  min-height: 82px;
+  padding: 0 2px;
+}
+
+.setting-row strong {
+  font-size: 15px;
+}
+
+.setting-row > div span {
+  font-size: 10px;
+}
+
+.cheat-row {
+  padding: 17px;
+  border-radius: 20px;
+}
+
+.cheat-row strong {
+  font-size: 14px;
+}
+
+.cheat-row span,
+.cheat-row > small {
+  font-size: 9px;
+}
+
+.settings-action {
+  min-height: 62px;
+  font-size: 12px;
+}
+
+@keyframes risk-pointer-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(var(--risk-rotation)); }
+}
+
+@keyframes full-page-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-height: 740px) {
+  .app-header { gap: 5px; }
+  .top-bar { min-height: 26px; }
+  .wordmark strong { font-size: 20px; }
+  .level-strip,
+  .risk-strip { min-height: 40px; padding-block: 6px; }
+  .boost-row .inventory-item { min-height: 56px; padding-block: 7px; }
+  .boost-row .drink-icon { transform: scale(0.86); }
+  .boost-row .food-icon { transform: scale(0.86); }
+  .saved-balance { height: 34px; }
+  .dog-button { width: min(70vw, 306px, calc(100dvh - 410px)); }
+  .game-data { min-height: 90px; }
+  .bottom-bar button { min-height: 51px; }
+}
+
+@media (max-width: 370px) {
+  .boost-row { gap: 5px; }
+  .boost-row .inventory-item {
+    min-height: 60px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 5px;
+    padding: 7px 6px;
+  }
+  .boost-row .inventory-copy strong { font-size: 8px; }
+  .boost-row .inventory-copy small { display: none; }
+  .boost-row .drink-icon { transform: scale(0.85); }
+  .boost-row .food-icon { transform: scale(0.85); }
+  .inventory-count { top: 4px; right: 4px; }
+  .quick-save-button { grid-template-columns: 22px auto minmax(78px, auto); }
+  .shop-card { grid-template-columns: 68px minmax(0, 1fr) auto; padding: 13px; }
+  .food-pack,
+  .drink-pack,
+  .hat-preview { width: 64px; height: 64px; }
 }

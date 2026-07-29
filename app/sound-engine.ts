@@ -74,6 +74,75 @@ export class KnopikSoundEngine {
     this.noiseHit(now, 0.055, 950 + force * 850, 2.4, 0.028 + force * 0.014);
   }
 
+  nav(direction = 0) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const base = 360 + clamp(direction, -1, 1) * 45;
+    this.tonalHit(now, {
+      type: "sine",
+      from: base,
+      to: base * 1.34,
+      duration: 0.12,
+      gain: 0.028,
+      attack: 0.004,
+    });
+    this.tonalHit(now + 0.035, {
+      type: "triangle",
+      from: base * 1.48,
+      to: base * 1.2,
+      duration: 0.1,
+      gain: 0.016,
+      attack: 0.003,
+    });
+  }
+
+  purchase() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.noiseHit(now, 0.08, 1_900, 3.4, 0.025);
+    [440, 554.37, 659.25].forEach((frequency, index) => {
+      this.tonalHit(now + index * 0.055, {
+        type: index === 1 ? "triangle" : "sine",
+        from: frequency,
+        to: frequency * 1.025,
+        duration: 0.24,
+        gain: 0.027 - index * 0.003,
+        attack: 0.006,
+      });
+    });
+  }
+
+  itemUse(kind: "food" | "drink" = "food") {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    if (kind === "drink") {
+      this.filteredSweep(now, 0.28, 780, 3_300, 0.032);
+      this.noiseHit(now, 0.17, 2_650, 4.2, 0.03);
+      this.tonalHit(now + 0.045, {
+        type: "sine",
+        from: 420,
+        to: 740,
+        duration: 0.3,
+        gain: 0.03,
+        attack: 0.012,
+      });
+      return;
+    }
+    this.noiseHit(now, 0.12, 1_100, 1.8, 0.038);
+    this.tonalHit(now + 0.02, {
+      type: "triangle",
+      from: 210,
+      to: 142,
+      duration: 0.18,
+      gain: 0.034,
+      attack: 0.008,
+      lowpass: 720,
+    });
+  }
+
   warning(level = 0.65) {
     const ctx = this.ready();
     if (!ctx) return;
@@ -217,27 +286,38 @@ export class KnopikSoundEngine {
     const now = ctx.currentTime;
     this.tonalHit(now, {
       type: "triangle",
-      from: edge ? 245 : 410,
-      to: edge ? 190 : 330,
-      duration: 0.07,
-      gain: edge ? 0.025 : 0.034,
+      from: edge ? 205 : 520,
+      to: edge ? 154 : 350,
+      duration: edge ? 0.105 : 0.062,
+      gain: edge ? 0.024 : 0.038,
       attack: 0.003,
+      lowpass: edge ? 720 : 1_900,
     });
+    this.noiseHit(now, edge ? 0.055 : 0.034, edge ? 620 : 2_100, edge ? 1.4 : 3.2, edge ? 0.014 : 0.02);
   }
 
   riskSpin() {
     const ctx = this.ready();
     if (!ctx) return;
     const now = ctx.currentTime;
-    this.filteredSweep(now, 1.35, 420, 3_500, 0.055);
+    this.filteredSweep(now, 4.7, 260, 2_800, 0.042);
     this.tonalHit(now, {
-      type: "sawtooth",
-      from: 72,
-      to: 156,
-      duration: 1.15,
-      gain: 0.034,
-      attack: 0.06,
-      lowpass: 900,
+      type: "triangle",
+      from: 88,
+      to: 174,
+      duration: 3.8,
+      gain: 0.026,
+      attack: 0.09,
+      lowpass: 1_100,
+    });
+    this.tonalHit(now + 0.1, {
+      type: "sine",
+      from: 132,
+      to: 82,
+      duration: 4.9,
+      gain: 0.018,
+      attack: 0.12,
+      lowpass: 620,
     });
   }
 

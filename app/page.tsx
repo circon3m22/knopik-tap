@@ -92,8 +92,8 @@ const HASBIK_HAT_PRICE = 500;
 const ZHIVCHIK_PRICE = 150;
 const PITBULL_PRICE = 50;
 const ZHIVCHIK_DURATION_MS = 60_000;
-const RISK_SPIN_MS = 3_650;
-const RISK_RESULT_MS = 1_350;
+const RISK_SPIN_MS = 5_400;
+const RISK_RESULT_MS = 1_650;
 const RISK_RECOVERY_MIN_MS = 30_000;
 const RISK_RECOVERY_SPREAD_MS = 30_000;
 const SAVE_RECOVERY_MIN_MS = 20_000;
@@ -212,6 +212,7 @@ export default function Home() {
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
   const [riskBetAmount, setRiskBetAmount] = useState(0);
   const [riskRotation, setRiskRotation] = useState(0);
+  const [riskSpinNonce, setRiskSpinNonce] = useState(0);
   const [riskResult, setRiskResult] = useState<"win" | "lose" | null>(null);
   const [riskPayout, setRiskPayout] = useState(0);
   const [riskMessage, setRiskMessage] = useState("");
@@ -1085,7 +1086,8 @@ export default function Home() {
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
-    setRiskRotation(0);
+    setRiskRotation(1_800 + outcome.finalAngle);
+    setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
     setRiskStats((current) => ({
@@ -1099,19 +1101,19 @@ export default function Home() {
 
     riskTransitionTimerRef.current = setTimeout(() => {
       transitionRisk("spinning");
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          setRiskRotation(1_440 + outcome.finalAngle);
-        });
-      });
 
       if (!reducedMotion) {
-        riskTickTimerRef.current = setInterval(() => {
+        let tickIndex = 0;
+        const scheduleTick = () => {
           if (riskPhaseRef.current !== "spinning") return;
-          getSound().riskTick();
-          vibrate(4, settingsRef.current.vibration);
-        }, 260);
-        riskSlowTimerRef.current = setTimeout(() => getSound().riskSlow(), 2_450);
+          getSound().riskTick(tickIndex > 17);
+          if (tickIndex % 4 === 0) vibrate(3, settingsRef.current.vibration);
+          const nextDelay = Math.min(470, 64 + tickIndex * 15);
+          tickIndex += 1;
+          riskTickTimerRef.current = setTimeout(scheduleTick, nextDelay);
+        };
+        scheduleTick();
+        riskSlowTimerRef.current = setTimeout(() => getSound().riskSlow(), 3_450);
       }
 
       riskSpinTimerRef.current = setTimeout(() => {
@@ -1119,7 +1121,7 @@ export default function Home() {
           clearInterval(riskTickTimerRef.current);
           riskTickTimerRef.current = null;
         }
-        const mathematicallyWon = outcome.finalAngle < riskChance * 3.6;
+        const mathematicallyWon = outcome.won;
         setRiskResult(mathematicallyWon ? "win" : "lose");
         setRiskPayout(mathematicallyWon ? outcome.payout : 0);
         transitionRisk("result");
@@ -1286,7 +1288,7 @@ export default function Home() {
     setFoodCount((current) => Math.min(10, current + quantity));
     setFoodQuantity(1);
     setShopMessage(`Корм ×${quantity} добавлен в запас`);
-    getSound().safe();
+    getSound().purchase();
     vibrate([16, 22, 34], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
@@ -1307,7 +1309,7 @@ export default function Home() {
     setDrinkCount((current) => Math.min(10, current + quantity));
     setDrinkQuantity(1);
     setShopMessage(`Живчик ×${quantity} добавлен в запас`);
-    getSound().safe();
+    getSound().purchase();
     vibrate([14, 20, 30], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
@@ -1319,7 +1321,7 @@ export default function Home() {
     const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
     boostUntilRef.current = nextBoostUntil;
     setBoostUntil(nextBoostUntil);
-    getSound().levelUp();
+    getSound().itemUse("drink");
     vibrate([16, 20, 34], settingsRef.current.vibration);
   }, [drinkCount, getSound]);
 
@@ -1338,7 +1340,7 @@ export default function Home() {
     setPitbullCount((current) => Math.min(10, current + quantity));
     setPitbullQuantity(1);
     setShopMessage(`Питбуль ×${quantity} добавлен в запас`);
-    getSound().safe();
+    getSound().purchase();
     vibrate([18, 20, 34], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
@@ -1440,8 +1442,9 @@ export default function Home() {
       navDidDragRef.current = false;
       return;
     }
+    getSound().nav(index - 1);
     selectNavigation(index);
-  }, [selectNavigation]);
+  }, [getSound, selectNavigation]);
 
   const buyOrToggleHat = useCallback(() => {
     if (!hatOwned) {
@@ -1457,7 +1460,7 @@ export default function Home() {
       setHatEquipped((current) => !current);
       setShopMessage(hatEquipped ? "Тюбетейка снята" : "Тюбетейка надета");
     }
-    getSound().safe();
+    getSound().purchase();
     vibrate(22, settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
@@ -1480,7 +1483,7 @@ export default function Home() {
     resetSeries();
     transitionTo("calm");
     setShopMessage("Кнопик поел и снова спокоен");
-    getSound().safe();
+    getSound().itemUse("food");
     vibrate([18, 24, 38], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
@@ -1563,6 +1566,7 @@ export default function Home() {
     (dogState === "recovering" && fatigueUntil > Date.now());
   const canFeedDog = isDogTired && foodCount > 0;
   const canSave = !vaultLocked && coins.walletCoins >= 2;
+  const saveAmount = Math.floor(coins.walletCoins / 2);
   const foodTotalPrice = foodQuantity * DOG_FOOD_PRICE;
   const remainingFoodSlots = Math.max(0, 10 - foodCount);
   const canBuyFood =
@@ -1723,6 +1727,7 @@ export default function Home() {
     "--ultra-fill": `${Math.round(ultraCharge * 1000) / 10}%`,
     "--risk-chance": `${riskChance * 3.6}deg`,
     "--risk-rotation": `${riskRotation}deg`,
+    "--risk-spin-duration": `${RISK_SPIN_MS}ms`,
   } as CSSProperties;
 
   return (
@@ -1829,17 +1834,20 @@ export default function Home() {
           </div>
         )}
         <div className="boost-row" aria-label="Предметы Кнопика">
-          <button type="button" disabled={!canFeedDog} onClick={feedDog}>
+          <button className="inventory-item inventory-food" type="button" disabled={!canFeedDog} onClick={feedDog}>
             <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
-            <span><strong>Корм</strong><small>{foodCount}</small></span>
+            <span className="inventory-copy"><strong>Корм</strong><small>Снять усталость</small></span>
+            <b className="inventory-count">{foodCount}</b>
           </button>
-          <button type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
+          <button className="inventory-item inventory-zhivchik" type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
             <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
-            <span><strong>{boostSeconds > 0 ? `×2 ${boostSeconds}с` : "Живчик"}</strong><small>{drinkCount}</small></span>
+            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×2 · ${boostSeconds}с` : "Живчик"}</strong><small>Двойной тап</small></span>
+            <b className="inventory-count">{drinkCount}</b>
           </button>
-          <button type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
+          <button className="inventory-item inventory-pitbull" type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
             <span className="drink-icon drink-pitbull" aria-hidden="true"><i /></span>
-            <span><strong>Питбуль</strong><small>{pitbullCount}</small></span>
+            <span className="inventory-copy"><strong>Питбуль</strong><small>Открыть рулетку</small></span>
+            <b className="inventory-count">{pitbullCount}</b>
           </button>
         </div>
         <div
@@ -2000,7 +2008,7 @@ export default function Home() {
                   <span className="risk-dial">
                     <span className="risk-wheel-glass" />
                   </span>
-                  <span className="risk-pointer"><i /></span>
+                  <span className="risk-pointer" key={`risk-pointer-${riskSpinNonce}`}><i /></span>
                   <span className="risk-center">
                     <small>{riskPhase === "selecting" ? "НАЖМИ · ИГРАТЬ" : "ВЫИГРЫШНЫЙ СЕКТОР"}</small>
                     <strong>{riskChance}%</strong>
@@ -2052,7 +2060,7 @@ export default function Home() {
           >
             <span className="safe-icon" aria-hidden="true"><i /></span>
             <span>ЗАСЕЙВИТЬ</span>
-            {canSave && <small>В СЕЙФ +{Math.floor(coins.walletCoins / 2).toLocaleString("ru-RU")}</small>}
+            <small>В СЕЙФ +{saveAmount.toLocaleString("ru-RU")}</small>
           </button>
         </div>
       </section>
