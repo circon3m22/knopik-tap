@@ -13,7 +13,9 @@
 
 /* Supabase account and cloud-save surfaces */
 .auth-screen {
-  min-height: 100svh;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
@@ -255,11 +257,11 @@ body {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #f7f9fc;
+  background: #071126;
 }
 
 html {
-  min-height: 100%;
+  min-height: 100dvh;
   color-scheme: only light;
 }
 
