@@ -1183,8 +1183,9 @@ img,
 }
 
 .tutorial-visual span {
-  font-size: 27px;
-  font-weight: 850;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.045em;
 }
 
 .tutorial-visual i {
