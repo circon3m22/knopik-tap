@@ -4297,3 +4297,85 @@ img,
   .drink-pack,
   .hat-preview { width: 64px; height: 64px; }
 }
+
+/* Persistent navigation and corrected roulette geometry — v32 */
+.modal-backdrop:not(.tutorial-backdrop) {
+  z-index: 50;
+  padding: 0 0 calc(env(safe-area-inset-bottom) + 82px);
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .sheet {
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 28px;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .sheet-heading {
+  justify-content: flex-start;
+  padding-right: 0;
+}
+
+.bottom-bar {
+  z-index: 70;
+}
+
+.risk-wheel-shell {
+  inset: 2.8%;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.risk-wheel,
+.risk-dial {
+  aspect-ratio: 1;
+}
+
+.game-shell .risk-pointer {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: none;
+  transform: rotate(0deg);
+  transform-origin: 50% 50%;
+}
+
+.game-shell .risk-pointer::before {
+  top: 7%;
+  left: 50%;
+  width: 4px;
+  height: 43%;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #fff 0%, #f2f5f8 72%, #aeb6c0 100%);
+  box-shadow: 0 0 12px rgb(255 255 255 / 42%), 0 3px 7px rgb(0 0 0 / 28%);
+  transform: translateX(-50%);
+}
+
+.game-shell .risk-pointer i {
+  top: 2.5%;
+  left: 50%;
+  border-top: 19px solid #fff;
+  border-right: 11px solid transparent;
+  border-left: 11px solid transparent;
+  filter: drop-shadow(0 3px 5px rgb(0 0 0 / 42%));
+  transform: translateX(-50%);
+}
+
+.game-shell.risk-spinning .risk-pointer {
+  animation: risk-pointer-spin var(--risk-spin-duration) cubic-bezier(0.08, 0.72, 0.06, 1) both;
+}
+
+.game-shell.risk-result .risk-pointer,
+.game-shell.risk-returning .risk-pointer {
+  transform: rotate(var(--risk-rotation));
+}
+
+.risk-center {
+  z-index: 10;
+}
+
+@media (max-height: 650px) {
+  .modal-backdrop:not(.tutorial-backdrop) {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 75px);
+  }
+}

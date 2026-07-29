@@ -2175,10 +2175,9 @@ export default function Home() {
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+          <section className="sheet shop-sheet" aria-labelledby="shop-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Забота о Кнопике</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => selectNavigation(1)}><span /></button>
             </div>
 
             <div className="shop-wallet">
@@ -2308,10 +2307,9 @@ export default function Home() {
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <section className="sheet settings-sheet" aria-labelledby="settings-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK TAP</p><h2 id="settings-title">Настройки</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => selectNavigation(1)}><span /></button>
             </div>
             <div className="setting-row">
               <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
