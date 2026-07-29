@@ -23,7 +23,16 @@ body {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #eef2f6;
+  background: #1478ed;
+}
+
+html {
+  min-height: 100%;
+  color-scheme: only light;
+}
+
+body {
+  min-height: 100dvh;
 }
 
 body,
