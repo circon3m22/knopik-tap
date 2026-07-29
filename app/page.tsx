@@ -180,6 +180,7 @@ export default function Home() {
   const holdPointRef = useRef({ x: 50, y: 50 });
   const holdingRef = useRef(false);
   const ultraActiveRef = useRef(false);
+  const ultraAllowedRef = useRef(true);
   const overheatTriggeredRef = useRef(false);
   const ultraDeadlineRef = useRef(3_000);
   const ultraTwoSecondRewardRef = useRef(400);
@@ -708,6 +709,7 @@ export default function Home() {
       holdStartRef.current = performance.now();
       ultraDeadlineRef.current = chooseUltraTapOverheatDeadline();
       ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward();
+      ultraAllowedRef.current = currentState !== "tired";
       holdingRef.current = true;
       ultraActiveRef.current = false;
       overheatTriggeredRef.current = false;
@@ -719,6 +721,7 @@ export default function Home() {
         const elapsed = performance.now() - holdStartRef.current;
 
         if (
+          ultraAllowedRef.current &&
           elapsed >= ULTRA_VISUAL_DELAY_MS &&
           !ultraActiveRef.current
         ) {
@@ -740,6 +743,7 @@ export default function Home() {
         }
 
         if (
+          ultraAllowedRef.current &&
           isUltraTapOverheated(elapsed, ultraDeadlineRef.current) &&
           !overheatTriggeredRef.current
         ) {
@@ -759,6 +763,12 @@ export default function Home() {
 
       if (cancelled) {
         stopHoldVisual("cancel");
+        return;
+      }
+
+      if (!ultraAllowedRef.current) {
+        stopHoldVisual("cancel");
+        registerTap(point.x, point.y);
         return;
       }
 
@@ -1070,6 +1080,7 @@ export default function Home() {
   const gameStyle = {
     "--calm-scene": tempoSceneColor(averageInterval, seriesTaps > 0),
     "--level-progress": levelProgress,
+    "--ultra-progress": `${Math.min(100, ultraPreview / 10)}%`,
   } as CSSProperties;
 
   return (
@@ -1120,7 +1131,7 @@ export default function Home() {
       >
         <div className="dog-stage">
           <div className="ultra-aura" aria-hidden="true">
-            {Array.from({ length: 10 }, (_, index) => (
+            {Array.from({ length: 16 }, (_, index) => (
               <i key={index} />
             ))}
           </div>

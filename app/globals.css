@@ -809,8 +809,16 @@ img,
   align-content: center;
   border-radius: 50%;
   color: white;
-  background: rgb(22 16 12 / 72%);
-  box-shadow: 0 12px 34px rgb(0 0 0 / 28%);
+  border: 2px solid rgb(255 221 120 / 78%);
+  background:
+    radial-gradient(circle, rgb(18 10 8 / 90%) 0 58%, transparent 59%),
+    conic-gradient(#fff0a1 var(--ultra-progress), #ff5b18 0, rgb(63 18 8 / 84%) 0);
+  box-shadow:
+    0 16px 40px rgb(0 0 0 / 38%),
+    0 0 28px rgb(255 92 21 / 54%),
+    inset 0 0 22px rgb(255 186 55 / 24%);
+  animation: ultra-readout-pulse 420ms ease-in-out infinite alternate;
+  backdrop-filter: blur(5px);
   pointer-events: none;
 }
 
@@ -834,18 +842,45 @@ img,
 .ultra-aura {
   position: absolute;
   z-index: 2;
-  width: min(88vw, 420px, calc(100dvh - 320px));
+  width: min(96vw, 468px, calc(100dvh - 285px));
   min-width: 225px;
   aspect-ratio: 1;
   opacity: 0;
   pointer-events: none;
-  transform: scale(0.82);
-  transition: opacity 240ms ease, transform 240ms ease;
+  transform: scale(0.74) rotate(-4deg);
+  filter: drop-shadow(0 0 28px rgb(255 76 16 / 55%));
+  transition: opacity 180ms ease, transform 260ms cubic-bezier(0.18, 0.78, 0.2, 1);
 }
 
 .ultra-active .ultra-aura {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1) rotate(0);
+}
+
+.ultra-aura::before,
+.ultra-aura::after {
+  position: absolute;
+  border-radius: 50%;
+  content: "";
+}
+
+.ultra-aura::before {
+  inset: 6%;
+  border: 5px solid transparent;
+  background:
+    linear-gradient(#0000, #0000) padding-box,
+    conic-gradient(from 20deg, #ffe69a, #ff7a19, #ed2b16, #ffbd3d, #fff0ad, #ff5a18) border-box;
+  box-shadow:
+    0 0 24px rgb(255 92 23 / 66%),
+    inset 0 0 28px rgb(255 110 24 / 38%);
+  animation: ultra-ring-spin 1.15s linear infinite;
+}
+
+.ultra-aura::after {
+  inset: -3%;
+  border: 2px solid rgb(255 224 150 / 62%);
+  box-shadow: 0 0 32px rgb(255 74 15 / 44%);
+  animation: ultra-shockwave 880ms ease-out infinite;
 }
 
 .ultra-aura i {
@@ -855,7 +890,9 @@ img,
   height: 54px;
   border-radius: 48% 52% 58% 42% / 66% 56% 44% 34%;
   background: linear-gradient(180deg, #ffe071, #ff7a1a 58%, #ee3c20);
-  box-shadow: 0 0 22px rgb(255 92 25 / 62%);
+  box-shadow:
+    0 0 22px rgb(255 92 25 / 72%),
+    0 0 42px rgb(255 56 10 / 34%);
   filter: blur(0.2px);
   animation: flame-dance 520ms ease-in-out infinite alternate;
   transform: translate(-50%, -50%) rotate(4deg) scale(var(--flame-scale));
@@ -871,6 +908,22 @@ img,
 .ultra-aura i:nth-child(8) { top: 60%; left: 4%; --flame-scale: 0.82; animation-delay: -410ms; }
 .ultra-aura i:nth-child(9) { top: 30%; left: 6%; --flame-scale: 1.08; animation-delay: -270ms; }
 .ultra-aura i:nth-child(10) { top: 10%; left: 25%; --flame-scale: 0.78; animation-delay: -40ms; }
+.ultra-aura i:nth-child(11) { top: 2%; left: 38%; --flame-scale: 0.72; animation-delay: -220ms; }
+.ultra-aura i:nth-child(12) { top: 21%; left: 89%; --flame-scale: 0.76; animation-delay: -370ms; }
+.ultra-aura i:nth-child(13) { top: 49%; left: 99%; --flame-scale: 0.92; animation-delay: -150ms; }
+.ultra-aura i:nth-child(14) { top: 82%; left: 88%; --flame-scale: 0.72; animation-delay: -330ms; }
+.ultra-aura i:nth-child(15) { top: 98%; left: 61%; --flame-scale: 0.88; animation-delay: -70ms; }
+.ultra-aura i:nth-child(16) { top: 74%; left: 7%; --flame-scale: 0.7; animation-delay: -450ms; }
+
+.ultra-active .portrait-surface {
+  animation: ultra-core-pulse 420ms ease-in-out infinite alternate;
+  border-color: rgb(255 230 164 / 94%);
+}
+
+.ultra-active .dog-images,
+.ultra-active .dog-ears {
+  filter: saturate(1.1) contrast(1.035);
+}
 
 .game-data {
   display: grid;
@@ -1905,6 +1958,34 @@ img,
     opacity: 1;
     transform: translate(-50%, -58%) rotate(7deg) scale(var(--flame-scale));
   }
+}
+
+@keyframes ultra-ring-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ultra-shockwave {
+  0% { opacity: 0.8; transform: scale(0.92); }
+  100% { opacity: 0; transform: scale(1.14); }
+}
+
+@keyframes ultra-core-pulse {
+  from {
+    box-shadow:
+      0 22px 46px rgb(0 0 0 / 20%),
+      0 0 18px rgb(255 122 24 / 42%);
+  }
+  to {
+    box-shadow:
+      0 24px 54px rgb(0 0 0 / 24%),
+      0 0 44px rgb(255 75 15 / 78%),
+      inset 0 0 28px rgb(255 190 72 / 24%);
+  }
+}
+
+@keyframes ultra-readout-pulse {
+  from { transform: scale(0.98); }
+  to { transform: scale(1.025); }
 }
 
 @keyframes level-ring {
