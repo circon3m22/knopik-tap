@@ -501,6 +501,9 @@ img,
 .dog-images[data-image-state="joy-3"] .joy-3-image,
 .dog-images[data-image-state="happy"] .happy-image,
 .dog-images[data-image-state="warning"] .warning-image,
+.dog-images[data-image-state="rage-1"] .rage-1-image,
+.dog-images[data-image-state="rage-2"] .rage-2-image,
+.dog-images[data-image-state="rage-3"] .rage-3-image,
 .dog-images[data-image-state="angry"] .angry-image {
   opacity: 1;
 }
