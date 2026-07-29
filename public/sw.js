@@ -1,9 +1,11 @@
-const CACHE_NAME = "knopik-tap-v11";
+const CACHE_NAME = "knopik-tap-v12";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
   "/knopik-calm.png",
   "/knopik-happy.png",
+  "/knopik-ear-left.png",
+  "/knopik-ear-right.png",
   "/knopik-warning.png",
   "/knopik-angry.png",
 ];

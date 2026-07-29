@@ -1053,11 +1053,9 @@ export default function Home() {
               <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
               <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
             </span>
-            <span className="dog-ears" data-image-state={dogImageState} aria-hidden="true">
-              <img className="dog-ear-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
-              <img className="dog-ear-image happy-image" src="/knopik-happy.png" alt="" draggable={false} />
-              <img className="dog-ear-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
-              <img className="dog-ear-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
+            <span className="dog-ears" aria-hidden="true">
+              <img className="dog-ear dog-ear-left" src="/knopik-ear-left.png" alt="" draggable={false} />
+              <img className="dog-ear dog-ear-right" src="/knopik-ear-right.png" alt="" draggable={false} />
             </span>
             <span className="tap-particles" aria-hidden="true">
               {particles.map((particle) => (

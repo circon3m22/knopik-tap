@@ -25,6 +25,8 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /data-testid="knopik"/);
   assert.match(html, /knopik-calm\.png/);
   assert.match(html, /knopik-happy\.png/);
+  assert.match(html, /knopik-ear-left\.png/);
+  assert.match(html, /knopik-ear-right\.png/);
   assert.match(html, /knopik-warning\.png/);
   assert.match(html, /knopik-angry\.png/);
   assert.match(html, /Экран белый, пока Кнопик спокоен/);
@@ -54,6 +56,8 @@ test("ships PWA assets and removes the temporary starter", async () => {
   await Promise.all([
     access(new URL("../public/knopik-calm.png", import.meta.url)),
     access(new URL("../public/knopik-happy.png", import.meta.url)),
+    access(new URL("../public/knopik-ear-left.png", import.meta.url)),
+    access(new URL("../public/knopik-ear-right.png", import.meta.url)),
     access(new URL("../public/knopik-warning.png", import.meta.url)),
     access(new URL("../public/knopik-angry.png", import.meta.url)),
     access(new URL("../public/og-minimal.png", import.meta.url)),

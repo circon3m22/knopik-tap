@@ -507,52 +507,47 @@ img,
   z-index: 4;
   inset: 3.2%;
   pointer-events: none;
-  -webkit-mask-image:
-    radial-gradient(ellipse 22% 32% at 20% 13%, #000 64%, transparent 71%),
-    radial-gradient(ellipse 22% 32% at 80% 13%, #000 64%, transparent 71%);
-  -webkit-mask-repeat: no-repeat;
-  mask-image:
-    radial-gradient(ellipse 22% 32% at 20% 13%, #000 64%, transparent 71%),
-    radial-gradient(ellipse 22% 32% at 80% 13%, #000 64%, transparent 71%);
-  mask-repeat: no-repeat;
   animation: calm-breathe 3.7s ease-in-out infinite;
 }
 
-.dog-ear-image {
+.dog-ear {
   position: absolute;
-  inset: 0;
+  top: 0;
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 24%;
-  opacity: 0;
+  height: 39.88%;
+  object-fit: contain;
   pointer-events: none;
-  transform: translateY(-0.9%);
-  transform-origin: 50% 38%;
-  animation: ear-alive 3.8s ease-in-out infinite;
-  transition: opacity 130ms ease;
+  will-change: transform;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 72%, transparent 98%);
+  mask-image: linear-gradient(to bottom, #000 0 72%, transparent 98%);
 }
 
-.state-tired .dog-ear-image,
-.state-recovering .dog-ear-image {
+.dog-ear-left {
+  left: 2.79%;
+  width: 36.29%;
+  transform-origin: 84% 88%;
+  animation: left-ear-alive 3.8s ease-in-out infinite;
+}
+
+.dog-ear-right {
+  left: 60.61%;
+  width: 36.61%;
+  transform-origin: 16% 88%;
+  animation: right-ear-alive 3.8s ease-in-out infinite;
+}
+
+.state-tired .dog-ear,
+.state-recovering .dog-ear {
   animation-duration: 4.6s;
 }
 
-.state-warning .dog-ear-image,
-.state-angry .dog-ear-image {
+.state-warning .dog-ear,
+.state-angry .dog-ear {
   animation-duration: 2.7s;
 }
 
-.state-calm.is-happy .dog-ear-image {
-  animation-duration: 2.15s;
-}
-
-.dog-ears[data-image-state="calm"] .calm-image,
-.dog-ears[data-image-state="happy"] .happy-image,
-.dog-ears[data-image-state="warning"] .warning-image,
-.dog-ears[data-image-state="angry"] .angry-image {
-  opacity: 1;
+.state-calm.is-happy .dog-ear {
+  animation-duration: 1.9s;
 }
 
 .state-tired .dog-images {
@@ -583,7 +578,7 @@ img,
 }
 
 .state-calm.is-happy .dog-ears {
-  animation: happy-ear-wiggle 2.4s ease-in-out infinite;
+  animation: happy-breathe 2.2s ease-in-out infinite;
 }
 
 .state-calm.is-happy .portrait-surface {
@@ -1759,19 +1754,20 @@ img,
   72% { transform: translateY(-1px) scale(1.004); }
 }
 
-@keyframes happy-ear-wiggle {
-  0%, 58%, 100% { transform: translateY(0) rotate(0); }
-  64% { transform: translateY(-1px) rotate(-0.35deg); }
-  70% { transform: translateY(-1.4px) rotate(0.38deg); }
-  76% { transform: translateY(-0.6px) rotate(-0.18deg); }
-  82% { transform: translateY(0) rotate(0); }
+@keyframes left-ear-alive {
+  0%, 43%, 100% { transform: translateY(0) rotate(0); }
+  51% { transform: translateY(-0.35%) rotate(-0.9deg); }
+  59% { transform: translateY(-0.65%) rotate(1.15deg); }
+  68% { transform: translateY(-0.2%) rotate(-0.32deg); }
+  76% { transform: translateY(0) rotate(0); }
 }
 
-@keyframes ear-alive {
-  0%, 46%, 100% { transform: translateY(-0.9%) rotate(0); }
-  52% { transform: translateY(-1.15%) rotate(-0.22deg); }
-  58% { transform: translateY(-1.28%) rotate(0.25deg); }
-  64% { transform: translateY(-1%) rotate(-0.1deg); }
+@keyframes right-ear-alive {
+  0%, 43%, 100% { transform: translateY(0) rotate(0); }
+  51% { transform: translateY(-0.35%) rotate(0.9deg); }
+  59% { transform: translateY(-0.65%) rotate(-1.15deg); }
+  68% { transform: translateY(-0.2%) rotate(0.32deg); }
+  76% { transform: translateY(0) rotate(0); }
 }
 
 @keyframes tired-breathe {
