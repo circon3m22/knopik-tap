@@ -159,6 +159,8 @@ export default function Home() {
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
   const [joyFrame, setJoyFrame] = useState(0);
   const [rageFrame, setRageFrame] = useState(0);
+  const [joySpriteReady, setJoySpriteReady] = useState(false);
+  const [rageSpriteReady, setRageSpriteReady] = useState(false);
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
@@ -947,6 +949,10 @@ export default function Home() {
       setJoyFrame(0);
       return;
     }
+    if (!joySpriteReady) {
+      setJoyFrame(0);
+      return;
+    }
 
     const targetFrame = isHappy ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -964,12 +970,16 @@ export default function Home() {
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [dogState, isHappy]);
+  }, [dogState, isHappy, joySpriteReady]);
 
   useEffect(() => {
     const reversingAfterBite =
       dogState === "recovering" && recoveryReason === "bite";
     if (dogState !== "angry" && !reversingAfterBite) {
+      setRageFrame(0);
+      return;
+    }
+    if (!rageSpriteReady) {
       setRageFrame(0);
       return;
     }
@@ -990,11 +1000,12 @@ export default function Home() {
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [dogState, recoveryReason]);
+  }, [dogState, rageSpriteReady, recoveryReason]);
 
   const showRageSequence =
-    dogState === "angry" ||
-    (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
+    rageSpriteReady &&
+    (dogState === "angry" ||
+      (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0));
   const isEmotionShifting =
     (dogState === "calm" &&
       ((isHappy && joyFrame < 4) || (!isHappy && joyFrame > 0))) ||
@@ -1007,7 +1018,9 @@ export default function Home() {
           dogState === "warning" ||
           (dogState === "recovering" && recoveryReason === "ultra")
         ? "warning"
-        : "joy";
+        : joySpriteReady
+          ? "joy"
+          : "calm";
   const dogDisabled = dogState === "angry" || dogState === "recovering";
   const multiplier = levelMultiplier(levelState.level);
   const levelBonus = Math.round((multiplier - 1) * 100);
@@ -1107,9 +1120,27 @@ export default function Home() {
               ))}
             </span>
             <span className="dog-images" data-image-state={dogImageState}>
-              <span
-                className="dog-image emotion-sprite joy-sprite"
-                style={{ backgroundPosition: `${joyFrame * 25}% center` }}
+              <img
+                className="dog-image calm-image"
+                src="/knopik-calm.png"
+                alt=""
+                draggable={false}
+                loading="eager"
+                decoding="sync"
+              />
+              <img
+                className="dog-image emotion-strip joy-strip"
+                src="/knopik-joy-sprite.png"
+                alt=""
+                draggable={false}
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
+                style={{ transform: `translate3d(-${joyFrame * 20}%, 0, 0)` }}
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  void image.decode().catch(() => undefined).then(() => setJoySpriteReady(true));
+                }}
               />
               <img
                 className="dog-image warning-image"
@@ -1119,9 +1150,19 @@ export default function Home() {
                 loading="eager"
                 decoding="sync"
               />
-              <span
-                className="dog-image emotion-sprite rage-sprite"
-                style={{ backgroundPosition: `${rageFrame * 25}% center` }}
+              <img
+                className="dog-image emotion-strip rage-strip"
+                src="/knopik-rage-sprite.png"
+                alt=""
+                draggable={false}
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
+                style={{ transform: `translate3d(-${rageFrame * 20}%, 0, 0)` }}
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  void image.decode().catch(() => undefined).then(() => setRageSpriteReady(true));
+                }}
               />
             </span>
             <span className="dog-ears" aria-hidden="true">

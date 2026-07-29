@@ -495,23 +495,20 @@ img,
   transition: none;
 }
 
-.emotion-sprite {
-  background-repeat: no-repeat;
-  background-size: 500% 100%;
-  background-color: transparent;
+.emotion-strip {
+  right: auto;
+  width: 500%;
+  max-width: none;
+  object-fit: fill;
+  object-position: left center;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
-.joy-sprite {
-  background-image: url("/knopik-joy-sprite.png");
-}
-
-.rage-sprite {
-  background-image: url("/knopik-rage-sprite.png");
-}
-
-.dog-images[data-image-state="joy"] .joy-sprite,
+.dog-images[data-image-state="calm"] .calm-image,
+.dog-images[data-image-state="joy"] .joy-strip,
 .dog-images[data-image-state="warning"] .warning-image,
-.dog-images[data-image-state="rage"] .rage-sprite {
+.dog-images[data-image-state="rage"] .rage-strip {
   opacity: 1;
 }
 
