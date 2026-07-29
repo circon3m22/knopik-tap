@@ -115,6 +115,26 @@ test("risk inventory and active balance migrate safely", () => {
   assert.equal(saved.lastRiskChance, 70);
 });
 
+test("pitbull inventory and suliman mode persist safely", () => {
+  const saved = sanitizeSave({
+    version: 9,
+    walletCoins: 500,
+    drinkCount: 3,
+    pitbullCount: 4,
+    settings: { sound: true, vibration: false, suliman: true },
+  });
+  assert.equal(saved.pitbullCount, 4);
+  assert.equal(saved.settings.suliman, true);
+
+  const legacy = sanitizeSave({
+    version: 8,
+    pitbullCount: 9,
+    settings: { sound: true, vibration: true },
+  });
+  assert.equal(legacy.pitbullCount, 0);
+  assert.equal(legacy.settings.suliman, false);
+});
+
 test("risk wheel resolves payout and final angle from the configured chance", () => {
   const win = createRiskOutcome(20, 1_000, (() => {
     const rolls = [0.1, 0.5];

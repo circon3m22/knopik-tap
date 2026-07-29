@@ -8,6 +8,7 @@ export type CoinState = {
 export type GameSettings = {
   sound: boolean;
   vibration: boolean;
+  suliman: boolean;
 };
 
 export type GameStats = {
@@ -17,11 +18,12 @@ export type GameStats = {
 };
 
 export type SaveData = {
-  version: 8;
+  version: 9;
   vaultCoins: number;
   walletCoins: number;
   foodCount: number;
   drinkCount: number;
+  pitbullCount: number;
   hatOwned: boolean;
   hatEquipped: boolean;
   riskFatigueUntil: number;
@@ -42,7 +44,7 @@ export type SaveData = {
 };
 
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 8 as const;
+export const SAVE_VERSION = 9 as const;
 
 export function createDefaultSave(): SaveData {
   return {
@@ -51,6 +53,7 @@ export function createDefaultSave(): SaveData {
     walletCoins: 0,
     foodCount: 0,
     drinkCount: 0,
+    pitbullCount: 0,
     hatOwned: false,
     hatEquipped: false,
     riskFatigueUntil: 0,
@@ -60,7 +63,7 @@ export function createDefaultSave(): SaveData {
     lastRiskBet: 0,
     lastRiskChance: 50,
     boostUntil: 0,
-    settings: { sound: true, vibration: true },
+    settings: { sound: true, vibration: true, suliman: false },
     tutorialSeen: false,
     bestStreak: 0,
     totalTaps: 0,
@@ -101,16 +104,21 @@ export function sanitizeSave(value: unknown): SaveData {
     safes?: unknown;
     sound?: unknown;
     vibration?: unknown;
+    suliman?: unknown;
   };
   const settings =
     candidate.settings && typeof candidate.settings === "object"
       ? candidate.settings
-      : { sound: candidate.sound, vibration: candidate.vibration };
+      : {
+          sound: candidate.sound,
+          vibration: candidate.vibration,
+          suliman: candidate.suliman,
+        };
 
   return {
     version: SAVE_VERSION,
     vaultCoins:
-      candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8
+      candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9
         ? safeInteger(candidate.vaultCoins)
         : candidate.version === 2 ||
             candidate.version === 3 ||
@@ -118,46 +126,50 @@ export function sanitizeSave(value: unknown): SaveData {
           ? legacyVaultCoins(candidate.safes)
           : safeInteger(candidate.bankCoins),
     walletCoins:
-      candidate.version === 7 || candidate.version === 8
+      candidate.version === 7 || candidate.version === 8 || candidate.version === 9
         ? safeInteger(candidate.walletCoins)
         : 0,
     foodCount:
-      candidate.version === 6 || candidate.version === 7 || candidate.version === 8
+      candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9
         ? Math.min(10, safeInteger(candidate.foodCount))
         : 0,
     drinkCount:
-      candidate.version === 8 ? Math.min(10, safeInteger(candidate.drinkCount)) : 0,
+      candidate.version === 8 || candidate.version === 9 ? Math.min(10, safeInteger(candidate.drinkCount)) : 0,
+    pitbullCount:
+      candidate.version === 9 ? Math.min(10, safeInteger(candidate.pitbullCount)) : 0,
     hatOwned:
-      (candidate.version === 6 || candidate.version === 7 || candidate.version === 8) &&
+      (candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9) &&
       typeof candidate.hatOwned === "boolean"
         ? candidate.hatOwned
         : false,
     hatEquipped:
-      (candidate.version === 6 || candidate.version === 7 || candidate.version === 8) &&
+      (candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9) &&
       candidate.hatOwned === true
         ? candidate.hatEquipped !== false
         : false,
     riskFatigueUntil:
-      candidate.version === 7 || candidate.version === 8
+      candidate.version === 7 || candidate.version === 8 || candidate.version === 9
         ? safeInteger(candidate.riskFatigueUntil)
         : 0,
-    riskSpins: candidate.version === 7 || candidate.version === 8 ? safeInteger(candidate.riskSpins) : 0,
-    riskWins: candidate.version === 7 || candidate.version === 8 ? safeInteger(candidate.riskWins) : 0,
-    riskLosses: candidate.version === 7 || candidate.version === 8 ? safeInteger(candidate.riskLosses) : 0,
+    riskSpins: candidate.version === 7 || candidate.version === 8 || candidate.version === 9 ? safeInteger(candidate.riskSpins) : 0,
+    riskWins: candidate.version === 7 || candidate.version === 8 || candidate.version === 9 ? safeInteger(candidate.riskWins) : 0,
+    riskLosses: candidate.version === 7 || candidate.version === 8 || candidate.version === 9 ? safeInteger(candidate.riskLosses) : 0,
     lastRiskBet:
-      candidate.version === 7 || candidate.version === 8 ? safeInteger(candidate.lastRiskBet) : 0,
+      candidate.version === 7 || candidate.version === 8 || candidate.version === 9 ? safeInteger(candidate.lastRiskBet) : 0,
     lastRiskChance:
-      candidate.version === 7 || candidate.version === 8 ? safeRiskChance(candidate.lastRiskChance) : 50,
+      candidate.version === 7 || candidate.version === 8 || candidate.version === 9 ? safeRiskChance(candidate.lastRiskChance) : 50,
     boostUntil:
-      candidate.version === 8 ? safeInteger(candidate.boostUntil) : 0,
+      candidate.version === 8 || candidate.version === 9 ? safeInteger(candidate.boostUntil) : 0,
     settings: {
       sound:
         typeof settings.sound === "boolean" ? settings.sound : true,
       vibration:
         typeof settings.vibration === "boolean" ? settings.vibration : true,
+      suliman:
+        typeof settings.suliman === "boolean" ? settings.suliman : false,
     },
     tutorialSeen:
-      (candidate.version === 4 || candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8) &&
+      (candidate.version === 4 || candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9) &&
       typeof candidate.tutorialSeen === "boolean"
         ? candidate.tutorialSeen
         : false,
@@ -170,15 +182,16 @@ export function sanitizeSave(value: unknown): SaveData {
       candidate.version === 5 ||
       candidate.version === 6 ||
       candidate.version === 7 ||
-      candidate.version === 8
+      candidate.version === 8 ||
+      candidate.version === 9
         ? safeInteger(candidate.ultraFatigueUntil)
         : 0,
     level:
-      candidate.version === 4 || candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8
+      candidate.version === 4 || candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9
         ? Math.min(10, Math.max(1, safeInteger(candidate.level)))
         : 1,
     levelCoins:
-      candidate.version === 4 || candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8
+      candidate.version === 4 || candidate.version === 5 || candidate.version === 6 || candidate.version === 7 || candidate.version === 8 || candidate.version === 9
         ? Math.min(100, safeInteger(candidate.levelCoins))
         : 0,
   };

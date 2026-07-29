@@ -21,13 +21,13 @@ export async function generateMetadata(): Promise<Metadata> {
     incomingHeaders.get("x-forwarded-proto") ??
     (host.includes("localhost") ? "http" : "https");
   const metadataBase = new URL(`${protocol}://${host}`);
-  const socialImage = new URL("/og-minimal.png", metadataBase).toString();
+  const socialImage = new URL("/og.png", metadataBase).toString();
 
   return {
     metadataBase,
     title: "KNOPIK TAP",
     description:
-      "Тапай быстрее, заряжай ультра-тап и защищай половину монет в бесплатном сейфе.",
+      "Тапай Кнопика, собирай монеты, покупай напитки и испытывай удачу в рулетке.",
     applicationName: "Knopik Tap",
     manifest: "/manifest.webmanifest",
     formatDetection: { telephone: false },
@@ -47,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: "KNOPIK TAP",
-      description: "Тапай. Рискуй. Сохраняй.",
+      description: "Тапай. Покупай. Попади в выигрышный сектор.",
       type: "website",
       locale: "ru_RU",
       images: [{ url: socialImage, width: 1536, height: 1024, alt: "KNOPIK TAP" }],
@@ -55,7 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "KNOPIK TAP",
-      description: "Тапай. Рискуй. Сохраняй.",
+      description: "Тапай. Покупай. Попади в выигрышный сектор.",
       images: [socialImage],
     },
   };

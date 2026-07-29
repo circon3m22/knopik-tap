@@ -24,6 +24,7 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /apple-touch-icon-v2\.png/);
   assert.match(html, /icon-192-v2\.png/);
+  assert.match(html, /og\.png/);
   assert.match(html, /data-testid="knopik"/);
   assert.match(html, /knopik-joy-sprite-earless\.png/);
   assert.match(html, /knopik-rage-sprite-earless\.png/);
@@ -35,7 +36,10 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /class="saved-balance(?:\s|\")/);
   assert.match(html, /class="bottom-bar"/);
   assert.match(html, /class="quick-save-button"/);
-  assert.match(html, /class="feed-control"/);
+  assert.match(html, /class="boost-row"/);
+  assert.match(html, /drink-pitbull/);
+  assert.match(html, /class="nav-thumb"/);
+  assert.doesNotMatch(html, /НЕЗАЩИЩЁННЫЕ МОНЕТЫ/);
   assert.doesNotMatch(html, /state-copy|moment-message/);
   assert.doesNotMatch(html, /series-track/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
@@ -67,6 +71,7 @@ test("ships PWA assets and removes the temporary starter", async () => {
     access(new URL("../public/icon-192-v2.png", import.meta.url)),
     access(new URL("../public/icon-512-v2.png", import.meta.url)),
     access(new URL("../public/og-minimal.png", import.meta.url)),
+    access(new URL("../public/og.png", import.meta.url)),
     access(new URL("../public/sw.js", import.meta.url)),
   ]);
 });

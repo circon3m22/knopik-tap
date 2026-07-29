@@ -47,7 +47,6 @@ import {
   type LevelState,
 } from "./level-engine";
 import {
-  RISK_OPTIONS,
   createRiskOutcome,
   riskMultiplier,
   type RiskChance,
@@ -91,8 +90,8 @@ const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 100;
 const HASBIK_HAT_PRICE = 500;
 const ZHIVCHIK_PRICE = 150;
+const PITBULL_PRICE = 50;
 const ZHIVCHIK_DURATION_MS = 60_000;
-const RISK_HOLD_MS = 800;
 const RISK_SPIN_MS = 3_650;
 const RISK_RESULT_MS = 1_350;
 const RISK_RECOVERY_MIN_MS = 30_000;
@@ -164,12 +163,15 @@ export default function Home() {
   const [foodQuantity, setFoodQuantity] = useState(1);
   const [drinkCount, setDrinkCount] = useState(0);
   const [drinkQuantity, setDrinkQuantity] = useState(1);
+  const [pitbullCount, setPitbullCount] = useState(0);
+  const [pitbullQuantity, setPitbullQuantity] = useState(1);
   const [hatOwned, setHatOwned] = useState(false);
   const [hatEquipped, setHatEquipped] = useState(false);
   const [boostUntil, setBoostUntil] = useState(0);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
     vibration: true,
+    suliman: false,
   });
   const [stats, setStats] = useState<GameStats>({
     bestStreak: 0,
@@ -185,6 +187,7 @@ export default function Home() {
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
+  const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -201,6 +204,9 @@ export default function Home() {
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
   const [shopMessage, setShopMessage] = useState("");
+  const [cheatCode, setCheatCode] = useState("");
+  const [cheatMessage, setCheatMessage] = useState("");
+  const [hatBounce, setHatBounce] = useState(0);
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
@@ -210,7 +216,6 @@ export default function Home() {
   const [riskPayout, setRiskPayout] = useState(0);
   const [riskMessage, setRiskMessage] = useState("");
   const [riskShake, setRiskShake] = useState(0);
-  const [riskHoldActive, setRiskHoldActive] = useState(false);
   const [riskFatigueUntil, setRiskFatigueUntil] = useState(0);
   const [riskStats, setRiskStats] = useState<RiskStats>({
     spins: 0,
@@ -257,7 +262,6 @@ export default function Home() {
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveFlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const riskHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskSpinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -270,6 +274,8 @@ export default function Home() {
   const rageSpriteImageRef = useRef<HTMLImageElement | null>(null);
   const walletBalanceRef = useRef<HTMLDivElement | null>(null);
   const savedBalanceRef = useRef<HTMLDivElement | null>(null);
+  const navDragStartRef = useRef(0);
+  const navDidDragRef = useRef(false);
   const earTapStateRef = useRef({
     left: { count: 0, lastAt: 0 },
     right: { count: 0, lastAt: 0 },
@@ -450,6 +456,7 @@ export default function Home() {
       setVaultCoins(saved.vaultCoins);
       setFoodCount(saved.foodCount);
       setDrinkCount(saved.drinkCount);
+      setPitbullCount(saved.pitbullCount);
       setHatOwned(saved.hatOwned);
       setHatEquipped(saved.hatEquipped);
       setBoostUntil(saved.boostUntil > Date.now() ? saved.boostUntil : 0);
@@ -520,6 +527,7 @@ export default function Home() {
             walletCoins: coins.walletCoins,
             foodCount,
             drinkCount,
+            pitbullCount,
             hatOwned,
             hatEquipped,
             riskFatigueUntil,
@@ -551,6 +559,7 @@ export default function Home() {
     boostUntil,
     foodCount,
     drinkCount,
+    pitbullCount,
     hatEquipped,
     hatOwned,
     hydrated,
@@ -594,7 +603,6 @@ export default function Home() {
         clearTimeout(saveFlightTimerRef.current);
       }
       [
-        riskHoldTimerRef,
         riskTransitionTimerRef,
         riskSpinTimerRef,
         riskSlowTimerRef,
@@ -678,6 +686,12 @@ export default function Home() {
 
   const triggerBite = useCallback(
     (fromOverheat = false) => {
+      if (settingsRef.current.suliman) {
+        if (holdingRef.current) stopHoldVisual("cancel");
+        transitionTo("calm");
+        resetSeries();
+        return;
+      }
       clearRoundTimers();
       if (holdingRef.current) {
         stopHoldVisual(fromOverheat ? "overheat" : "cancel");
@@ -715,6 +729,7 @@ export default function Home() {
       beginRecovery,
       clearRoundTimers,
       getSound,
+      resetSeries,
       stopHoldVisual,
       transitionTo,
       updateCoins,
@@ -741,32 +756,8 @@ export default function Home() {
     [beginRecovery, resetSeries],
   );
 
-  const changeRiskChance = useCallback(
-    (direction: -1 | 1) => {
-      if (riskPhaseRef.current !== "selecting") return;
-      setRiskChance((current) => {
-        const currentIndex = RISK_OPTIONS.findIndex(
-          (option) => option.chance === current,
-        );
-        const nextIndex = Math.min(
-          RISK_OPTIONS.length - 1,
-          Math.max(0, currentIndex + direction),
-        );
-        const nextChance = RISK_OPTIONS[nextIndex].chance;
-        getSound().riskTick(nextChance === current);
-        vibrate(nextChance === current ? 5 : 11, settingsRef.current.vibration);
-        return nextChance;
-      });
-    },
-    [getSound],
-  );
-
   const handleEarTap = useCallback(
     (ear: "left" | "right") => {
-      if (riskPhaseRef.current === "selecting") {
-        changeRiskChance(ear === "left" ? -1 : 1);
-        return;
-      }
       if (riskPhaseRef.current !== "normal") return;
       const currentState = dogStateRef.current;
       if (
@@ -778,6 +769,11 @@ export default function Home() {
       }
 
       getSound().unlock();
+      if (settingsRef.current.suliman) {
+        getSound().tap(0.25);
+        vibrate(8, settingsRef.current.vibration);
+        return;
+      }
       const now = performance.now();
       const previous = earTapStateRef.current[ear];
       const nextCount = now - previous.lastAt <= 2_500 ? previous.count + 1 : 1;
@@ -795,7 +791,7 @@ export default function Home() {
       transitionTo("warning");
       armIdleTimer("warning");
     },
-    [armIdleTimer, changeRiskChance, getSound, transitionTo, triggerBite],
+    [armIdleTimer, getSound, transitionTo, triggerBite],
   );
 
   const addParticle = useCallback((
@@ -872,6 +868,12 @@ export default function Home() {
       }));
       getSound().tap(tempoRatio);
       vibrate(7, settingsRef.current.vibration);
+
+      if (settingsRef.current.suliman) {
+        if (currentState !== "calm") transitionTo("calm");
+        armIdleTimer("calm");
+        return;
+      }
 
       if (currentState === "tired" && Math.random() < TIRED_SNAP_CHANCE) {
         triggerBite();
@@ -1099,7 +1101,7 @@ export default function Home() {
       transitionRisk("spinning");
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
-          setRiskRotation(1_440 + ((360 - outcome.finalAngle) % 360));
+          setRiskRotation(1_440 + outcome.finalAngle);
         });
       });
 
@@ -1170,63 +1172,6 @@ export default function Home() {
     transitionTo,
     updateCoins,
   ]);
-
-  const cancelRiskHold = useCallback(() => {
-    if (riskHoldTimerRef.current) {
-      clearTimeout(riskHoldTimerRef.current);
-      riskHoldTimerRef.current = null;
-    }
-    setRiskHoldActive(false);
-  }, []);
-
-  const handleRiskHoldStart = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-      if (
-        riskPhaseRef.current === "transition" ||
-        riskPhaseRef.current === "spinning" ||
-        riskPhaseRef.current === "result" ||
-        holdingRef.current ||
-        dogStateRef.current === "angry" ||
-        dogStateRef.current === "recovering"
-      ) {
-        return;
-      }
-      event.preventDefault();
-      getSound().unlock();
-      event.currentTarget.setPointerCapture(event.pointerId);
-      cancelRiskHold();
-      setRiskHoldActive(true);
-      riskHoldTimerRef.current = setTimeout(() => {
-        setRiskHoldActive(false);
-        riskHoldTimerRef.current = null;
-        if (riskPhaseRef.current === "normal") {
-          riskCommittedRef.current = false;
-          setRiskResult(null);
-          setRiskPayout(0);
-          transitionRisk("selecting");
-          getSound().riskEnter();
-          vibrate([14, 24, 26], settingsRef.current.vibration);
-        } else if (riskPhaseRef.current === "selecting") {
-          transitionRisk("normal");
-          getSound().riskEnter();
-          vibrate(14, settingsRef.current.vibration);
-        }
-      }, RISK_HOLD_MS);
-    },
-    [cancelRiskHold, getSound, transitionRisk],
-  );
-
-  const handleRiskHoldEnd = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      cancelRiskHold();
-    },
-    [cancelRiskHold],
-  );
 
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLButtonElement>) => {
@@ -1378,6 +1323,126 @@ export default function Home() {
     vibrate([16, 20, 34], settingsRef.current.vibration);
   }, [drinkCount, getSound]);
 
+  const buyPitbull = useCallback(() => {
+    const availableSlots = Math.max(0, 10 - pitbullCount);
+    const quantity = Math.min(
+      availableSlots,
+      Math.max(1, Math.floor(pitbullQuantity)),
+    );
+    const totalPrice = quantity * PITBULL_PRICE;
+    if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
+    updateCoins((current) => ({
+      ...current,
+      walletCoins: current.walletCoins - totalPrice,
+    }));
+    setPitbullCount((current) => Math.min(10, current + quantity));
+    setPitbullQuantity(1);
+    setShopMessage(`Питбуль ×${quantity} добавлен в запас`);
+    getSound().safe();
+    vibrate([18, 20, 34], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [getSound, pitbullCount, pitbullQuantity, updateCoins]);
+
+  const activatePitbull = useCallback(() => {
+    if (
+      pitbullCount < 1 ||
+      riskPhaseRef.current !== "normal" ||
+      fatigueUntilRef.current > Date.now() ||
+      dogStateRef.current !== "calm"
+    ) return;
+    if (coinsRef.current.walletCoins < 1) {
+      showRiskNotice("Сначала заработай монеты");
+      return;
+    }
+    setPitbullCount((current) => Math.max(0, current - 1));
+    setShopOpen(false);
+    setSettingsOpen(false);
+    riskCommittedRef.current = false;
+    setRiskBetAmount(coinsRef.current.walletCoins);
+    setRiskResult(null);
+    setRiskPayout(0);
+    setRiskRotation(0);
+    transitionRisk("selecting");
+    getSound().riskEnter();
+    vibrate([16, 24, 34], settingsRef.current.vibration);
+  }, [getSound, pitbullCount, showRiskNotice, transitionRisk]);
+
+  const toggleSuliman = useCallback(() => {
+    if (cheatCode.trim().toLowerCase() !== "suliman") {
+      setCheatMessage("Код не найден");
+      return;
+    }
+    const nextEnabled = !settingsRef.current.suliman;
+    setSettings((current) => ({ ...current, suliman: nextEnabled }));
+    setCheatCode("");
+    setCheatMessage(
+      nextEnabled ? "SULIMAN включён — Кнопик спокоен" : "SULIMAN выключен",
+    );
+    if (nextEnabled) {
+      clearRoundTimers();
+      stopHoldVisual("cancel");
+      resetSeries();
+      fatigueUntilRef.current = 0;
+      setFatigueUntil(0);
+      setRiskFatigueUntil(0);
+      transitionTo("calm");
+    }
+    getSound().safe();
+  }, [cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo]);
+
+  const bounceHat = useCallback((event: PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setHatBounce((current) => current + 1);
+    registerTap(50, 16);
+  }, [registerTap]);
+
+  const selectNavigation = useCallback((index: number) => {
+    setShopOpen(index === 0);
+    setSettingsOpen(index === 2);
+    if (index !== 2) setResetConfirmOpen(false);
+  }, []);
+
+  const moveNavigationThumb = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
+      selectNavigation(Math.floor(ratio * 3));
+    },
+    [selectNavigation],
+  );
+
+  const handleNavigationDown = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return;
+      navDragStartRef.current = event.clientX;
+      navDidDragRef.current = false;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      moveNavigationThumb(event);
+    },
+    [moveNavigationThumb],
+  );
+
+  const handleNavigationMove = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+      if (Math.abs(event.clientX - navDragStartRef.current) > 8) {
+        navDidDragRef.current = true;
+      }
+      moveNavigationThumb(event);
+    },
+    [moveNavigationThumb],
+  );
+
+  const clickNavigation = useCallback((index: number) => {
+    if (navDidDragRef.current) {
+      navDidDragRef.current = false;
+      return;
+    }
+    selectNavigation(index);
+  }, [selectNavigation]);
+
   const buyOrToggleHat = useCallback(() => {
     if (!hatOwned) {
       if (coinsRef.current.walletCoins < HASBIK_HAT_PRICE) return;
@@ -1450,6 +1515,8 @@ export default function Home() {
     setFoodQuantity(1);
     setDrinkCount(0);
     setDrinkQuantity(1);
+    setPitbullCount(0);
+    setPitbullQuantity(1);
     boostUntilRef.current = 0;
     setBoostUntil(0);
     setHatOwned(false);
@@ -1477,6 +1544,8 @@ export default function Home() {
     setRecoveryReason("rest");
     setLevelBurstVisible(false);
     setShopMessage("");
+    setCheatCode("");
+    setCheatMessage("");
     resetSeries();
     transitionTo("calm");
     localStorage.removeItem(SAVE_KEY);
@@ -1507,12 +1576,16 @@ export default function Home() {
     remainingDrinkSlots > 0 &&
     drinkQuantity <= remainingDrinkSlots &&
     coins.walletCoins >= drinkTotalPrice;
+  const remainingPitbullSlots = Math.max(0, 10 - pitbullCount);
+  const pitbullTotalPrice = pitbullQuantity * PITBULL_PRICE;
+  const canBuyPitbull =
+    remainingPitbullSlots > 0 &&
+    pitbullQuantity <= remainingPitbullSlots &&
+    coins.walletCoins >= pitbullTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
-  const riskIndex = RISK_OPTIONS.findIndex(
-    (option) => option.chance === riskChance,
-  );
   const selectedRiskMultiplier = riskMultiplier(riskChance);
   const riskMode = riskPhase !== "normal";
+  const navIndex = shopOpen ? 0 : settingsOpen ? 2 : 1;
 
   const tempoRatio =
     seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
@@ -1716,16 +1789,8 @@ export default function Home() {
       <div className="game-motion-layer">
       <header className="app-header">
         <div className="top-bar">
-          <div className="wordmark" aria-label="Knopik Tap">
-            <strong>KNOPIK <small>TAP</small></strong>
-          </div>
-          <div
-            ref={savedBalanceRef}
-            className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
-            aria-label={`Сохранено ${vaultCoins} монет`}
-          >
-            <span className="safe-icon" aria-hidden="true"><i /></span>
-            <span><small>СОХРАНЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+          <div className="wordmark" aria-label="Knopik">
+            <strong>KNOPIK</strong>
           </div>
         </div>
         {!riskMode ? (
@@ -1745,47 +1810,52 @@ export default function Home() {
           </div>
         ) : (
           <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
-            <span className="risk-strip-label">ШАНС</span>
-            <div className="risk-scale-window">
-              <div
-                className="risk-scale-values"
-                style={{ transform: `translate3d(calc(50% - ${riskIndex * 46 + 23}px), 0, 0)` }}
-              >
-                {RISK_OPTIONS.map((option) => (
-                  <span className={option.chance === riskChance ? "selected" : ""} key={option.chance}>
-                    {option.chance}%
-                  </span>
-                ))}
-              </div>
-            </div>
+            <span className="risk-strip-label">СЕКТОР {riskChance}%</span>
+            <input
+              type="range"
+              min="10"
+              max="90"
+              step="10"
+              value={riskChance}
+              aria-label="Размер выигрышного сектора"
+              onChange={(event) => {
+                const nextChance = Number(event.currentTarget.value) as RiskChance;
+                setRiskChance(nextChance);
+                getSound().riskTick();
+                vibrate(8, settingsRef.current.vibration);
+              }}
+            />
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
         )}
+        <div className="boost-row" aria-label="Предметы Кнопика">
+          <button type="button" disabled={!canFeedDog} onClick={feedDog}>
+            <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
+            <span><strong>Корм</strong><small>{foodCount}</small></span>
+          </button>
+          <button type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
+            <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
+            <span><strong>{boostSeconds > 0 ? `×2 ${boostSeconds}с` : "Живчик"}</strong><small>{drinkCount}</small></span>
+          </button>
+          <button type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
+            <span className="drink-icon drink-pitbull" aria-hidden="true"><i /></span>
+            <span><strong>Питбуль</strong><small>{pitbullCount}</small></span>
+          </button>
+        </div>
+        <div
+          ref={savedBalanceRef}
+          className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
+          aria-label={`Баланс сейфа ${vaultCoins} монет`}
+        >
+          <span className="safe-icon" aria-hidden="true"><i /></span>
+          <span><small>БАЛАНС СЕЙФА</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+        </div>
       </header>
 
       <section
         className="game-stage"
       >
         <div className="dog-stage">
-          <div className="feed-control">
-            <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
-            <strong>{foodCount}</strong>
-            <button type="button" disabled={!canFeedDog} onClick={feedDog}>
-              {isDogTired ? "ПОКОРМИТЬ" : "КОРМ"}
-            </button>
-            <span className="inventory-divider" />
-            <span className="drink-icon" aria-hidden="true">Ж</span>
-            <strong>{drinkCount}</strong>
-            <button type="button" disabled={drinkCount < 1} onClick={activateDrink}>
-              {boostSeconds > 0 ? `×2 ${boostSeconds}с` : "ВЫПИТЬ"}
-            </button>
-          </div>
-          {riskPhase === "selecting" && (
-            <div className="risk-ear-arrows" aria-hidden="true">
-              <span className={`risk-ear-arrow risk-ear-arrow-left ${riskChance === 10 ? "edge" : ""}`}>←</span>
-              <span className={`risk-ear-arrow risk-ear-arrow-right ${riskChance === 90 ? "edge" : ""}`}>→</span>
-            </div>
-          )}
           <button
             className={`dog-button ${tapVariant}`}
             type="button"
@@ -1868,13 +1938,22 @@ export default function Home() {
                 draggable={false}
               />
               {hatOwned && hatEquipped && (
-                <img
-                  className="dog-hat"
-                  src="/hasbik-tubeteika.png"
-                  alt=""
-                  aria-hidden="true"
-                  draggable={false}
-                />
+                <>
+                  <img
+                    className={`dog-hat ${hatBounce ? "hat-jump" : ""}`}
+                    key={`hat-${hatBounce}`}
+                    src="/hasbik-tubeteika.png"
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                  />
+                  <span
+                    className="hat-hit-zone"
+                    onPointerDown={bounceHat}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                </>
               )}
             </span>
             <span className="ear-hit-zones" aria-hidden="true">
@@ -1915,9 +1994,7 @@ export default function Home() {
                 </span>
               ))}
             </span>
-            {(riskPhase === "transition" ||
-              riskPhase === "spinning" ||
-              riskPhase === "result") && (
+            {riskPhase !== "normal" && (
               <span className={`risk-wheel-shell ${riskResult ? `is-${riskResult}` : ""}`}>
                 <span className="risk-wheel">
                   <span className="risk-dial">
@@ -1925,9 +2002,9 @@ export default function Home() {
                   </span>
                   <span className="risk-pointer"><i /></span>
                   <span className="risk-center">
-                    <small>ШАНС ВЫИГРЫША</small>
+                    <small>{riskPhase === "selecting" ? "НАЖМИ · ИГРАТЬ" : "ВЫИГРЫШНЫЙ СЕКТОР"}</small>
                     <strong>{riskChance}%</strong>
-                    <em>×{selectedRiskMultiplier} · {riskBetAmount.toLocaleString("ru-RU")}</em>
+                    <em>×{selectedRiskMultiplier} · {(riskBetAmount || coins.walletCoins).toLocaleString("ru-RU")}</em>
                   </span>
                   {riskPhase === "result" && (
                     <span className="risk-result-copy">
@@ -1956,21 +2033,14 @@ export default function Home() {
         <div className="game-data">
           <div
             ref={walletBalanceRef}
-            className={`wallet-balance ${balanceVariant} ${riskHoldActive ? "is-risk-holding" : ""}`}
-            role="button"
-            tabIndex={0}
-            aria-label={`Активные монеты ${coins.walletCoins}. Удерживайте, чтобы ${riskPhase === "selecting" ? "закрыть" : "открыть"} режим риска`}
-            onPointerDown={handleRiskHoldStart}
-            onPointerUp={handleRiskHoldEnd}
-            onPointerCancel={handleRiskHoldEnd}
-            onContextMenu={(event) => event.preventDefault()}
+            className={`wallet-balance ${balanceVariant}`}
+            aria-label={`Активные монеты ${coins.walletCoins}`}
           >
-            <span className="coin-mark" aria-hidden="true">K</span>
+            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
             <div>
               <strong className="balance-number" key={`balance-${balancePulse}`}>
                 {coins.walletCoins.toLocaleString("ru-RU")}
               </strong>
-              <small>НЕЗАЩИЩЁННЫЕ МОНЕТЫ</small>
             </div>
           </div>
           {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
@@ -1987,25 +2057,29 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="bottom-bar">
-        <button type="button" onClick={() => setShopOpen(true)}>
-          <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
+      <footer
+        className="bottom-bar"
+        style={{ "--nav-index": navIndex } as CSSProperties}
+        onPointerDown={handleNavigationDown}
+        onPointerMove={handleNavigationMove}
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+      >
+        <span className="nav-thumb" aria-hidden="true" />
+        <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
+          <span className="shop-icon" aria-hidden="true"><i /></span>
           <span>Магазин</span>
         </button>
-        <button type="button" onClick={() => setSettingsOpen(true)}>
+        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
+          <span className="home-icon" aria-hidden="true"><i /></span>
+          <span>Главная</span>
+        </button>
+        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
           <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
           <span>Настройки</span>
-        </button>
-        <button
-          className="help-button"
-          type="button"
-          onClick={() => {
-            setTutorialStep(0);
-            setTutorialOpen(true);
-          }}
-        >
-          <span aria-hidden="true">?</span>
-          <span>Как играть</span>
         </button>
       </footer>
       </div>
@@ -2090,13 +2164,13 @@ export default function Home() {
         <div
           className="modal-backdrop"
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setShopOpen(false);
+            if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
           <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Забота о Кнопике</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setShopOpen(false)}><span /></button>
+              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => selectNavigation(1)}><span /></button>
             </div>
 
             <div className="shop-wallet">
@@ -2104,8 +2178,30 @@ export default function Home() {
               <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
             </div>
 
+            <div className="shop-categories" role="tablist" aria-label="Разделы магазина">
+              <button
+                className={shopCategory === "food" ? "active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={shopCategory === "food"}
+                onClick={() => setShopCategory("food")}
+              >
+                Еда и напитки
+              </button>
+              <button
+                className={shopCategory === "clothes" ? "active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={shopCategory === "clothes"}
+                onClick={() => setShopCategory("clothes")}
+              >
+                Одежда
+              </button>
+            </div>
+
             {shopMessage && <p className="purchase-message" role="status">{shopMessage}</p>}
 
+            {shopCategory === "food" && <>
             <article className="shop-card food-card">
               <span className="food-pack" aria-hidden="true">
                 <span className="food-icon"><i /><i /><i /></span>
@@ -2131,7 +2227,7 @@ export default function Home() {
             </article>
 
             <article className="shop-card drink-card">
-              <span className="drink-pack" aria-hidden="true"><b>Ж</b><i>×2</i></span>
+              <span className="drink-pack zhivchik-pack" aria-hidden="true"><span className="drink-icon drink-zhivchik"><i /></span><b>×2</b></span>
               <div className="food-copy">
                 <small>ЗАПАС {drinkCount}/10</small>
                 <h3>Напиток «Живчик»</h3>
@@ -2152,6 +2248,30 @@ export default function Home() {
               </button>
             </article>
 
+            <article className="shop-card pitbull-card">
+              <span className="drink-pack pitbull-pack" aria-hidden="true"><span className="drink-icon drink-pitbull"><i /></span><b>RISK</b></span>
+              <div className="food-copy">
+                <small>ЗАПАС {pitbullCount}/10</small>
+                <h3>Напиток «Питбуль»</h3>
+                <p>Одноразово открывает рулетку. Выбери размер цветного сектора и попади в него стрелкой.</p>
+              </div>
+              <div className="food-price"><strong>{PITBULL_PRICE}</strong><span>монет</span></div>
+              <div className="quantity-picker" aria-label="Количество напитков Питбуль">
+                <button type="button" aria-label="Уменьшить количество" disabled={pitbullQuantity <= 1} onClick={() => setPitbullQuantity((current) => Math.max(1, current - 1))}>−</button>
+                <strong>{pitbullQuantity}</strong>
+                <button type="button" aria-label="Увеличить количество" disabled={pitbullQuantity >= remainingPitbullSlots} onClick={() => setPitbullQuantity((current) => Math.min(remainingPitbullSlots, current + 1))}>+</button>
+              </div>
+              <button className="shop-buy-button pitbull-action" type="button" disabled={!canBuyPitbull} onClick={buyPitbull}>
+                {remainingPitbullSlots === 0
+                  ? "ЗАПАС ПОЛОН"
+                  : canBuyPitbull
+                    ? `КУПИТЬ ×${pitbullQuantity} · ${pitbullTotalPrice}`
+                    : `НУЖНО ${pitbullTotalPrice}`}
+              </button>
+            </article>
+            </>}
+
+            {shopCategory === "clothes" && (
             <article className={`shop-card hat-card ${hatOwned ? "owned" : ""}`}>
               <span className="hat-preview" aria-hidden="true">
                 <img src="/hasbik-tubeteika.png" alt="" draggable={false} />
@@ -2168,6 +2288,7 @@ export default function Home() {
                   : canBuyHat ? `КУПИТЬ · ${HASBIK_HAT_PRICE}` : `НУЖНО ${HASBIK_HAT_PRICE}`}
               </button>
             </article>
+            )}
           </section>
         </div>
       )}
@@ -2176,13 +2297,13 @@ export default function Home() {
         <div
           className="modal-backdrop"
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setSettingsOpen(false);
+            if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
           <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK TAP</p><h2 id="settings-title">Настройки</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setSettingsOpen(false)}><span /></button>
+              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => selectNavigation(1)}><span /></button>
             </div>
             <div className="setting-row">
               <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
@@ -2192,6 +2313,35 @@ export default function Home() {
               <div><strong>Вибрация</strong><span>На iPhone Safari — визуально-звуковой отклик</span></div>
               <button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button>
             </div>
+            <form
+              className={`cheat-row ${settings.suliman ? "is-active" : ""}`}
+              onSubmit={(event) => {
+                event.preventDefault();
+                toggleSuliman();
+              }}
+            >
+              <div>
+                <strong>Чит-код</strong>
+                <span>{settings.suliman ? "Режим SULIMAN активен" : "Введи секретное слово"}</span>
+              </div>
+              <label>
+                <input
+                  type="text"
+                  value={cheatCode}
+                  placeholder="Код"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Чит-код"
+                  onChange={(event) => {
+                    setCheatCode(event.currentTarget.value);
+                    setCheatMessage("");
+                  }}
+                />
+                <button type="submit">{settings.suliman ? "ОТМЕНИТЬ" : "ВВЕСТИ"}</button>
+              </label>
+              {cheatMessage && <small role="status">{cheatMessage}</small>}
+            </form>
             <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>ПОВТОРИТЬ ОБУЧЕНИЕ <span>↗</span></button>
             {!resetConfirmOpen ? (
               <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>СБРОСИТЬ ПРОГРЕСС</button>
