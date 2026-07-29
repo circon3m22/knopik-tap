@@ -2181,7 +2181,7 @@ export default function Home() {
                   <img
                     className={`dog-mohawk ${mohawkSwing ? "mohawk-swing" : ""}`}
                     key={`mohawk-${mohawkSwing}`}
-                    src="/knopik-mohawk.png"
+                    src="/knopik-mohawk-v2.png"
                     alt=""
                     aria-hidden="true"
                     draggable={false}
@@ -2528,7 +2528,7 @@ export default function Home() {
             </article>
             <article className={`shop-card mohawk-card ${mohawkOwned ? "owned" : ""}`}>
               <span className="mohawk-preview" aria-hidden="true">
-                <img src="/knopik-mohawk.png" alt="" draggable={false} />
+                <img src="/knopik-mohawk-v2.png" alt="" draggable={false} />
               </span>
               <div className="food-copy">
                 <small>{mohawkOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>

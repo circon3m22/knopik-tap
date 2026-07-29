@@ -64,7 +64,7 @@ test("ships PWA assets and removes the temporary starter", async () => {
     access(new URL("../public/knopik-ear-left.png", import.meta.url)),
     access(new URL("../public/knopik-ear-right.png", import.meta.url)),
     access(new URL("../public/hasbik-tubeteika.png", import.meta.url)),
-    access(new URL("../public/knopik-mohawk.png", import.meta.url)),
+    access(new URL("../public/knopik-mohawk-v2.png", import.meta.url)),
     access(new URL("../public/apple-touch-icon.png", import.meta.url)),
     access(new URL("../public/icon-192.png", import.meta.url)),
     access(new URL("../public/icon-512.png", import.meta.url)),

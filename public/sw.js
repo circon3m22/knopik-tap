@@ -1,4 +1,4 @@
-const CACHE_NAME = "knopik-tap-v29";
+const CACHE_NAME = "knopik-tap-v43";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "/knopik-ear-left.png",
   "/knopik-ear-right.png",
   "/knopik-warning.png",
+  "/knopik-mohawk-v2.png",
 ];
 
 self.addEventListener("install", (event) => {
