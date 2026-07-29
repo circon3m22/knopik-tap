@@ -4444,14 +4444,14 @@ img,
 .dog-mohawk {
   position: absolute;
   z-index: 8;
-  top: -18%;
+  top: -28%;
   left: 50%;
   display: block;
-  width: 108%;
+  width: 72%;
   height: auto;
   pointer-events: none;
   filter: drop-shadow(0 7px 7px rgb(20 11 5 / 34%));
-  clip-path: inset(3% 27% 55% 27%);
+  clip-path: none;
   transform: translateX(-50%);
   transform-origin: 50% 70%;
 }
@@ -4459,10 +4459,10 @@ img,
 .mohawk-hit-zone {
   position: absolute;
   z-index: 15;
-  top: -8%;
-  left: 31%;
-  width: 38%;
-  height: 42%;
+  top: -22%;
+  left: 37%;
+  width: 26%;
+  height: 48%;
   border-radius: 50% 50% 35% 35%;
   pointer-events: auto;
   touch-action: manipulation;
@@ -4538,10 +4538,10 @@ img,
 }
 
 .mohawk-preview img {
-  width: 170%;
-  height: 170%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  transform: translateY(-3%);
+  transform: none;
 }
 
 .mohawk-card.owned {
