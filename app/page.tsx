@@ -32,6 +32,7 @@ import {
   calculateTempoRatio,
   calculateUltraTapCoins,
   chooseUltraTapOverheatDeadline,
+  chooseUltraTapTwoSecondReward,
   isUltraTapOverheated,
   rollingAverageTapInterval,
 } from "./tempo-engine";
@@ -67,7 +68,7 @@ const tutorialSlides = [
   {
     eyebrow: "УЛЬТРА-ТАП",
     title: "У ультра-тапа каждый раз новый скрытый предел",
-    copy: "Обычно Кнопик срывается через 2–5 секунд. Иногда он выдерживает намного дольше.",
+    copy: "Через 2 секунды получишь 200–600 монет. Дальше доход растёт медленно, а Кнопик может сорваться.",
   },
   {
     eyebrow: "УРОВНИ",
@@ -169,6 +170,7 @@ export default function Home() {
   const ultraActiveRef = useRef(false);
   const overheatTriggeredRef = useRef(false);
   const ultraDeadlineRef = useRef(3_000);
+  const ultraTwoSecondRewardRef = useRef(400);
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -600,6 +602,7 @@ export default function Home() {
       holdPointRef.current = { x, y };
       holdStartRef.current = performance.now();
       ultraDeadlineRef.current = chooseUltraTapOverheatDeadline();
+      ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward();
       holdingRef.current = true;
       ultraActiveRef.current = false;
       overheatTriggeredRef.current = false;
@@ -624,7 +627,11 @@ export default function Home() {
 
         if (ultraActiveRef.current) {
           setUltraPreview(
-            calculateUltraTapCoins(elapsed, ultraDeadlineRef.current),
+            calculateUltraTapCoins(
+              elapsed,
+              ultraDeadlineRef.current,
+              ultraTwoSecondRewardRef.current,
+            ),
           );
           getSound().ultraPulse(elapsed / ultraDeadlineRef.current);
         }
@@ -671,6 +678,7 @@ export default function Home() {
       const baseReward = calculateUltraTapCoins(
         elapsed,
         ultraDeadlineRef.current,
+        ultraTwoSecondRewardRef.current,
       );
       stopHoldVisual("success");
       const reward = awardCoins(baseReward, 1_000);

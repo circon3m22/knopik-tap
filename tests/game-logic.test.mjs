@@ -7,6 +7,7 @@ import {
   calculateTapLimit,
   calculateUltraTapCoins,
   chooseUltraTapOverheatDeadline,
+  chooseUltraTapTwoSecondReward,
   isUltraTapOverheated,
 } from "../app/tempo-engine.ts";
 import {
@@ -34,13 +35,16 @@ test("post-ultra fatigue starts at 10-20 and fades after 90 seconds", () => {
 
 test("ultra tap pays up to 1000 and burns after the deadline", () => {
   assert.equal(calculateUltraTapCoins(1_999), 0);
-  assert.equal(calculateUltraTapCoins(2_000, 3_000), 666);
-  assert.equal(calculateUltraTapCoins(3_000, 3_000), 1_000);
+  assert.equal(calculateUltraTapCoins(2_000, 3_000, 200), 200);
+  assert.equal(calculateUltraTapCoins(2_000, 3_000, 600), 600);
+  assert.equal(calculateUltraTapCoins(3_000, 3_000, 200), 290);
   assert.equal(calculateUltraTapCoins(3_001, 3_000), 0);
   assert.equal(isUltraTapOverheated(3_000, 3_000), false);
   assert.equal(isUltraTapOverheated(3_001, 3_000), true);
   assert.equal(chooseUltraTapOverheatDeadline(() => 0), 2_100);
   assert.ok(chooseUltraTapOverheatDeadline(() => 0.999) > 8_000);
+  assert.equal(chooseUltraTapTwoSecondReward(() => 0), 200);
+  assert.equal(chooseUltraTapTwoSecondReward(() => 0.999), 600);
 });
 
 test("levels advance every 100 earned coins and cap at ten", () => {

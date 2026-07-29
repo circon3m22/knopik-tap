@@ -30,6 +30,9 @@ export const ULTRA_TAP_RARE_MAX_MS = 8_000;
 export const ULTRA_TAP_MAX_HOLD_MS = 10_000;
 export const ULTRA_TAP_DEFAULT_DEADLINE_MS = 3_000;
 export const ULTRA_TAP_MAX_COINS = 1_000;
+export const ULTRA_TAP_TWO_SECOND_MIN_COINS = 200;
+export const ULTRA_TAP_TWO_SECOND_MAX_COINS = 600;
+export const ULTRA_TAP_GROWTH_PER_SECOND = 90;
 
 function finiteOr(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -287,6 +290,29 @@ export function chooseUltraTapOverheatDeadline(
   );
 }
 
+/** Chooses how many coins this ultra run is worth at the two-second mark. */
+export function chooseUltraTapTwoSecondReward(
+  random: RandomSource = Math.random,
+): number {
+  return Math.round(
+    interpolate(
+      ULTRA_TAP_TWO_SECOND_MIN_COINS,
+      ULTRA_TAP_TWO_SECOND_MAX_COINS,
+      normalizedRandom(random),
+    ),
+  );
+}
+
+export function sanitizeUltraTapTwoSecondReward(value: number): number {
+  return Math.round(
+    clamp(
+      finiteOr(value, 400),
+      ULTRA_TAP_TWO_SECOND_MIN_COINS,
+      ULTRA_TAP_TWO_SECOND_MAX_COINS,
+    ),
+  );
+}
+
 /** Exactly at the hidden deadline is safe; any positive overrun overheats. */
 export function isUltraTapOverheated(
   holdDurationMs: number,
@@ -299,12 +325,14 @@ export function isUltraTapOverheated(
 
 /**
  * Resolves the reward against the hidden deadline. Releasing before two
- * seconds or strictly after the deadline yields zero; otherwise the reward is
- * linear and reaches exactly 1000 coins at that deadline.
+ * seconds or strictly after the deadline yields zero. A run starts with its
+ * hidden 200-600 reward at two seconds, then grows by only 90 coins per second;
+ * reaching 1000 is therefore rare even when the dog holds unusually long.
  */
 export function calculateUltraTapCoins(
   holdDurationMs: number,
   overheatDeadlineMs: number = ULTRA_TAP_MAX_HOLD_MS,
+  twoSecondReward: number = 400,
 ): number {
   const duration = Math.max(0, finiteOr(holdDurationMs, 0));
   const deadline = sanitizeUltraTapDeadline(overheatDeadlineMs);
@@ -316,8 +344,16 @@ export function calculateUltraTapCoins(
     return 0;
   }
 
+  const startingReward = sanitizeUltraTapTwoSecondReward(twoSecondReward);
+  const extraSeconds = Math.max(
+    0,
+    (duration - ULTRA_TAP_MIN_HOLD_MS) / 1_000,
+  );
+
   return Math.min(
     ULTRA_TAP_MAX_COINS,
-    Math.floor((duration / deadline) * ULTRA_TAP_MAX_COINS),
+    Math.floor(
+      startingReward + extraSeconds * ULTRA_TAP_GROWTH_PER_SECOND,
+    ),
   );
 }
