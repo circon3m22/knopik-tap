@@ -46,6 +46,12 @@ import {
   sanitizeLevelState,
   type LevelState,
 } from "./level-engine";
+import {
+  RISK_OPTIONS,
+  createRiskOutcome,
+  riskMultiplier,
+  type RiskChance,
+} from "./risk-engine";
 
 type TapParticle = {
   id: number;
@@ -84,22 +90,15 @@ const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 100;
 const HASBIK_HAT_PRICE = 500;
+const ZHIVCHIK_PRICE = 150;
+const ZHIVCHIK_DURATION_MS = 60_000;
 const RISK_HOLD_MS = 800;
 const RISK_SPIN_MS = 3_650;
 const RISK_RESULT_MS = 1_350;
 const RISK_RECOVERY_MIN_MS = 30_000;
 const RISK_RECOVERY_SPREAD_MS = 30_000;
-const RISK_OPTIONS = [
-  { chance: 10, multiplier: 5 },
-  { chance: 20, multiplier: 3 },
-  { chance: 30, multiplier: 2.2 },
-  { chance: 40, multiplier: 1.75 },
-  { chance: 50, multiplier: 1.45 },
-  { chance: 60, multiplier: 1.25 },
-  { chance: 70, multiplier: 1.15 },
-  { chance: 80, multiplier: 1.08 },
-  { chance: 90, multiplier: 1.03 },
-] as const;
+const SAVE_RECOVERY_MIN_MS = 20_000;
+const SAVE_RECOVERY_SPREAD_MS = 40_000;
 
 const tutorialSlides = [
   {
@@ -143,7 +142,7 @@ function vibrate(pattern: number | number[], enabled: boolean) {
 function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
   if (!hasTaps) return "rgb(247 249 252)";
 
-  const ratio = calculateTempoRatio(averageInterval);
+  const ratio = Math.min(1, Math.max(0, (500 - averageInterval) / 240));
   const light = [247, 249, 252];
   const deep = [10, 82, 199];
   const channels = light.map((channel, index) =>
@@ -163,8 +162,11 @@ export default function Home() {
   const [vaultCoins, setVaultCoins] = useState(0);
   const [foodCount, setFoodCount] = useState(0);
   const [foodQuantity, setFoodQuantity] = useState(1);
+  const [drinkCount, setDrinkCount] = useState(0);
+  const [drinkQuantity, setDrinkQuantity] = useState(1);
   const [hatOwned, setHatOwned] = useState(false);
   const [hatEquipped, setHatEquipped] = useState(false);
+  const [boostUntil, setBoostUntil] = useState(0);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
     vibration: true,
@@ -201,7 +203,7 @@ export default function Home() {
   const [shopMessage, setShopMessage] = useState("");
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
-  const [riskChance, setRiskChance] = useState(50);
+  const [riskChance, setRiskChance] = useState<RiskChance>(50);
   const [riskBetAmount, setRiskBetAmount] = useState(0);
   const [riskRotation, setRiskRotation] = useState(0);
   const [riskResult, setRiskResult] = useState<"win" | "lose" | null>(null);
@@ -228,6 +230,7 @@ export default function Home() {
   const settingsRef = useRef(settings);
   const statsRef = useRef(stats);
   const levelStateRef = useRef(levelState);
+  const boostUntilRef = useRef(0);
   const bonusCarryRef = useRef(0);
   const fatigueUntilRef = useRef(0);
   const seriesTapsRef = useRef(0);
@@ -255,9 +258,12 @@ export default function Home() {
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveFlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskSpinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskReturnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskTickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const riskMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskPhaseRef = useRef<RiskPhase>("normal");
   const riskCommittedRef = useRef(false);
   const joySpriteImageRef = useRef<HTMLImageElement | null>(null);
@@ -355,10 +361,16 @@ export default function Home() {
   }, [getSound]);
 
   const awardCoins = useCallback(
-    (baseAmount: number, maximum = Number.MAX_SAFE_INTEGER) => {
+    (
+      baseAmount: number,
+      maximum = Number.MAX_SAFE_INTEGER,
+      applyTapBoost = false,
+    ) => {
       const base = Math.max(0, Math.floor(baseAmount));
       const multiplier = levelMultiplier(levelStateRef.current.level);
-      const precise = base * multiplier + bonusCarryRef.current;
+      const tapBoost =
+        applyTapBoost && boostUntilRef.current > Date.now() ? 2 : 1;
+      const precise = base * multiplier * tapBoost + bonusCarryRef.current;
       const earned = Math.min(maximum, Math.max(0, Math.floor(precise)));
       bonusCarryRef.current =
         earned >= maximum ? 0 : Math.max(0, precise - earned);
@@ -431,13 +443,17 @@ export default function Home() {
       settingsRef.current = saved.settings;
       statsRef.current = loadedStats;
       levelStateRef.current = loadedLevel;
+      boostUntilRef.current = saved.boostUntil > Date.now() ? saved.boostUntil : 0;
       fatigueUntilRef.current = activeFatigue;
+      dogStateRef.current = activeFatigue > Date.now() ? "tired" : "calm";
       setCoins(loadedCoins);
       setVaultCoins(saved.vaultCoins);
       setFoodCount(saved.foodCount);
+      setDrinkCount(saved.drinkCount);
       setHatOwned(saved.hatOwned);
       setHatEquipped(saved.hatEquipped);
-      setRiskChance(saved.lastRiskChance);
+      setBoostUntil(saved.boostUntil > Date.now() ? saved.boostUntil : 0);
+      setRiskChance(saved.lastRiskChance as RiskChance);
       setRiskFatigueUntil(
         saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
       );
@@ -451,6 +467,7 @@ export default function Home() {
       setStats(loadedStats);
       setLevelState(loadedLevel);
       setFatigueUntil(activeFatigue);
+      setDogState(activeFatigue > Date.now() ? "tired" : "calm");
       setTutorialSeen(saved.tutorialSeen);
       setTutorialOpen(!saved.tutorialSeen);
     } catch {
@@ -478,6 +495,20 @@ export default function Home() {
   }, [fatigueUntil]);
 
   useEffect(() => {
+    boostUntilRef.current = boostUntil;
+    if (!boostUntil) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setClock(now);
+      if (now >= boostUntilRef.current) {
+        boostUntilRef.current = 0;
+        setBoostUntil(0);
+      }
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [boostUntil]);
+
+  useEffect(() => {
     if (!hydrated) return;
     const saveTimer = setTimeout(() => {
       try {
@@ -488,6 +519,7 @@ export default function Home() {
             vaultCoins,
             walletCoins: coins.walletCoins,
             foodCount,
+            drinkCount,
             hatOwned,
             hatEquipped,
             riskFatigueUntil,
@@ -496,6 +528,7 @@ export default function Home() {
             riskLosses: riskStats.losses,
             lastRiskBet: riskStats.lastBet,
             lastRiskChance: riskChance,
+            boostUntil,
             settings,
             tutorialSeen,
             bestStreak: stats.bestStreak,
@@ -515,7 +548,9 @@ export default function Home() {
   }, [
     fatigueUntil,
     coins.walletCoins,
+    boostUntil,
     foodCount,
+    drinkCount,
     hatEquipped,
     hatOwned,
     hydrated,
@@ -537,6 +572,7 @@ export default function Home() {
       if (now >= fatigueUntilRef.current) {
         fatigueUntilRef.current = 0;
         setFatigueUntil(0);
+        setRiskFatigueUntil((current) => (current <= now ? 0 : current));
         if (dogStateRef.current === "tired") {
           transitionTo("calm");
           resetSeries();
@@ -557,6 +593,17 @@ export default function Home() {
       if (saveFlightTimerRef.current) {
         clearTimeout(saveFlightTimerRef.current);
       }
+      [
+        riskHoldTimerRef,
+        riskTransitionTimerRef,
+        riskSpinTimerRef,
+        riskSlowTimerRef,
+        riskReturnTimerRef,
+        riskMessageTimerRef,
+      ].forEach((timerRef) => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+      });
+      if (riskTickTimerRef.current) clearInterval(riskTickTimerRef.current);
       soundRef.current?.close();
     },
     [clearRoundTimers],
@@ -694,8 +741,33 @@ export default function Home() {
     [beginRecovery, resetSeries],
   );
 
+  const changeRiskChance = useCallback(
+    (direction: -1 | 1) => {
+      if (riskPhaseRef.current !== "selecting") return;
+      setRiskChance((current) => {
+        const currentIndex = RISK_OPTIONS.findIndex(
+          (option) => option.chance === current,
+        );
+        const nextIndex = Math.min(
+          RISK_OPTIONS.length - 1,
+          Math.max(0, currentIndex + direction),
+        );
+        const nextChance = RISK_OPTIONS[nextIndex].chance;
+        getSound().riskTick(nextChance === current);
+        vibrate(nextChance === current ? 5 : 11, settingsRef.current.vibration);
+        return nextChance;
+      });
+    },
+    [getSound],
+  );
+
   const handleEarTap = useCallback(
     (ear: "left" | "right") => {
+      if (riskPhaseRef.current === "selecting") {
+        changeRiskChance(ear === "left" ? -1 : 1);
+        return;
+      }
+      if (riskPhaseRef.current !== "normal") return;
       const currentState = dogStateRef.current;
       if (
         holdingRef.current ||
@@ -723,7 +795,7 @@ export default function Home() {
       transitionTo("warning");
       armIdleTimer("warning");
     },
-    [armIdleTimer, getSound, transitionTo, triggerBite],
+    [armIdleTimer, changeRiskChance, getSound, transitionTo, triggerBite],
   );
 
   const addParticle = useCallback((
@@ -748,6 +820,7 @@ export default function Home() {
 
   const registerTap = useCallback(
     (x: number, y: number) => {
+      if (riskPhaseRef.current !== "normal") return;
       const currentState = dogStateRef.current;
       if (currentState === "angry" || currentState === "recovering") return;
       if (currentState === "warning") {
@@ -790,7 +863,7 @@ export default function Home() {
       setAverageInterval(average);
       setTapPulse((current) => current + 1);
       const jackpot = Math.random() < LAST_TAP_CHANCE;
-      const earned = awardCoins(jackpot ? 5 : 1);
+      const earned = awardCoins(jackpot ? 5 : 1, Number.MAX_SAFE_INTEGER, true);
       addParticle(x, y, earned, jackpot);
       updateStats((current) => ({
         ...current,
@@ -837,6 +910,7 @@ export default function Home() {
 
   const startHold = useCallback(
     (x: number, y: number) => {
+      if (riskPhaseRef.current !== "normal") return;
       if (holdingRef.current) return;
       const currentState = dogStateRef.current;
       if (currentState === "angry" || currentState === "recovering") return;
@@ -852,7 +926,11 @@ export default function Home() {
       getSound().unlock();
       holdPointRef.current = { x, y };
       holdStartRef.current = performance.now();
-      ultraDeadlineRef.current = chooseUltraTapOverheatDeadline();
+      ultraDeadlineRef.current = chooseUltraTapOverheatDeadline(
+        hatEquipped
+          ? () => Math.min(0.999999999, 0.42 + Math.random() * 0.58)
+          : Math.random,
+      );
       ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward();
       ultraAllowedRef.current = currentState !== "tired";
       holdingRef.current = true;
@@ -910,7 +988,7 @@ export default function Home() {
         }
       }, 120);
     },
-    [getSound, triggerBite],
+    [getSound, hatEquipped, triggerBite],
   );
 
   const finishHold = useCallback(
@@ -972,10 +1050,193 @@ export default function Home() {
     ],
   );
 
+  const showRiskNotice = useCallback((message: string) => {
+    setRiskMessage(message);
+    setRiskShake((current) => current + 1);
+    if (riskMessageTimerRef.current) clearTimeout(riskMessageTimerRef.current);
+    riskMessageTimerRef.current = setTimeout(() => setRiskMessage(""), 1_350);
+  }, []);
+
+  const startRiskSpin = useCallback(() => {
+    if (riskPhaseRef.current !== "selecting" || riskCommittedRef.current) return;
+    const tiredNow =
+      dogStateRef.current === "tired" || fatigueUntilRef.current > Date.now();
+    if (tiredNow) {
+      showRiskNotice("Сиба устала");
+      vibrate([12, 26, 12], settingsRef.current.vibration);
+      return;
+    }
+
+    const bet = coinsRef.current.walletCoins;
+    if (bet < 1) {
+      showRiskNotice("Нет монет для ставки");
+      vibrate(16, settingsRef.current.vibration);
+      return;
+    }
+
+    riskCommittedRef.current = true;
+    clearRoundTimers();
+    resetSeries();
+    const outcome = createRiskOutcome(riskChance, bet);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const spinDuration = reducedMotion ? 280 : RISK_SPIN_MS;
+    setRiskBetAmount(bet);
+    setRiskPayout(0);
+    setRiskResult(null);
+    setRiskRotation(0);
+    setRiskMessage("");
+    updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
+    setRiskStats((current) => ({
+      ...current,
+      spins: current.spins + 1,
+      lastBet: bet,
+    }));
+    transitionRisk("transition");
+    getSound().riskSpin();
+    vibrate([18, 22, 28], settingsRef.current.vibration);
+
+    riskTransitionTimerRef.current = setTimeout(() => {
+      transitionRisk("spinning");
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setRiskRotation(1_440 + outcome.finalAngle);
+        });
+      });
+
+      if (!reducedMotion) {
+        riskTickTimerRef.current = setInterval(() => {
+          if (riskPhaseRef.current !== "spinning") return;
+          getSound().riskTick();
+          vibrate(4, settingsRef.current.vibration);
+        }, 260);
+        riskSlowTimerRef.current = setTimeout(() => getSound().riskSlow(), 2_450);
+      }
+
+      riskSpinTimerRef.current = setTimeout(() => {
+        if (riskTickTimerRef.current) {
+          clearInterval(riskTickTimerRef.current);
+          riskTickTimerRef.current = null;
+        }
+        const mathematicallyWon = outcome.finalAngle < riskChance * 3.6;
+        setRiskResult(mathematicallyWon ? "win" : "lose");
+        setRiskPayout(mathematicallyWon ? outcome.payout : 0);
+        transitionRisk("result");
+        setRiskStats((current) => ({
+          ...current,
+          wins: current.wins + (mathematicallyWon ? 1 : 0),
+          losses: current.losses + (mathematicallyWon ? 0 : 1),
+        }));
+        if (mathematicallyWon) {
+          updateCoins((current) => ({
+            ...current,
+            walletCoins: current.walletCoins + outcome.payout,
+          }));
+          getSound().riskWin();
+          vibrate([25, 28, 54, 30, 80], settingsRef.current.vibration);
+        } else {
+          getSound().riskLose();
+          vibrate([42, 38, 24], settingsRef.current.vibration);
+        }
+
+        riskReturnTimerRef.current = setTimeout(() => {
+          const tiredUntil =
+            Date.now() +
+            RISK_RECOVERY_MIN_MS +
+            Math.random() * RISK_RECOVERY_SPREAD_MS;
+          fatigueUntilRef.current = tiredUntil;
+          setFatigueUntil(tiredUntil);
+          setRiskFatigueUntil(tiredUntil);
+          setClock(Date.now());
+          setRecoveryReason("rest");
+          transitionTo("tired");
+          transitionRisk("transition");
+          riskTransitionTimerRef.current = setTimeout(() => {
+            transitionRisk("normal");
+            setRiskRotation(0);
+            setRiskResult(null);
+            setRiskPayout(0);
+            riskCommittedRef.current = false;
+          }, 340);
+        }, RISK_RESULT_MS);
+      }, spinDuration);
+    }, 360);
+  }, [
+    clearRoundTimers,
+    getSound,
+    resetSeries,
+    riskChance,
+    showRiskNotice,
+    transitionRisk,
+    transitionTo,
+    updateCoins,
+  ]);
+
+  const cancelRiskHold = useCallback(() => {
+    if (riskHoldTimerRef.current) {
+      clearTimeout(riskHoldTimerRef.current);
+      riskHoldTimerRef.current = null;
+    }
+    setRiskHoldActive(false);
+  }, []);
+
+  const handleRiskHoldStart = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      if (
+        riskPhaseRef.current === "transition" ||
+        riskPhaseRef.current === "spinning" ||
+        riskPhaseRef.current === "result" ||
+        holdingRef.current ||
+        dogStateRef.current === "angry" ||
+        dogStateRef.current === "recovering"
+      ) {
+        return;
+      }
+      event.preventDefault();
+      getSound().unlock();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      cancelRiskHold();
+      setRiskHoldActive(true);
+      riskHoldTimerRef.current = setTimeout(() => {
+        setRiskHoldActive(false);
+        riskHoldTimerRef.current = null;
+        if (riskPhaseRef.current === "normal") {
+          riskCommittedRef.current = false;
+          setRiskResult(null);
+          setRiskPayout(0);
+          transitionRisk("selecting");
+          getSound().riskEnter();
+          vibrate([14, 24, 26], settingsRef.current.vibration);
+        } else if (riskPhaseRef.current === "selecting") {
+          transitionRisk("normal");
+          getSound().riskEnter();
+          vibrate(14, settingsRef.current.vibration);
+        }
+      }, RISK_HOLD_MS);
+    },
+    [cancelRiskHold, getSound, transitionRisk],
+  );
+
+  const handleRiskHoldEnd = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      cancelRiskHold();
+    },
+    [cancelRiskHold],
+  );
+
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0) return;
       event.preventDefault();
+      if (riskPhaseRef.current === "selecting") {
+        startRiskSpin();
+        return;
+      }
+      if (riskPhaseRef.current !== "normal") return;
       const rect = event.currentTarget.getBoundingClientRect();
       event.currentTarget.setPointerCapture(event.pointerId);
       startHold(
@@ -983,7 +1244,7 @@ export default function Home() {
         ((event.clientY - rect.top) / rect.height) * 100,
       );
     },
-    [startHold],
+    [startHold, startRiskSpin],
   );
 
   const handlePointerUp = useCallback(
@@ -1006,9 +1267,14 @@ export default function Home() {
         return;
       }
       event.preventDefault();
+      if (riskPhaseRef.current === "selecting") {
+        startRiskSpin();
+        return;
+      }
+      if (riskPhaseRef.current !== "normal") return;
       startHold(50, 50);
     },
-    [startHold],
+    [startHold, startRiskSpin],
   );
 
   const handleKeyUp = useCallback(
@@ -1048,26 +1314,69 @@ export default function Home() {
 
     updateCoins((current) => ({ ...current, walletCoins: 0 }));
     setVaultCoins((current) => current + protectedCoins);
+    const tiredUntil =
+      Date.now() + SAVE_RECOVERY_MIN_MS + Math.random() * SAVE_RECOVERY_SPREAD_MS;
+    clearRoundTimers();
+    resetSeries();
+    fatigueUntilRef.current = tiredUntil;
+    setFatigueUntil(tiredUntil);
+    setRiskFatigueUntil(tiredUntil);
+    setClock(Date.now());
+    setRecoveryReason("rest");
+    transitionTo("tired");
     getSound().safe();
     vibrate([20, 28, 44], settingsRef.current.vibration);
-  }, [getSound, updateCoins]);
+  }, [clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
 
   const buyFood = useCallback(() => {
-    const quantity = Math.min(10, Math.max(1, Math.floor(foodQuantity)));
+    const availableSlots = Math.max(0, 10 - foodCount);
+    const quantity = Math.min(availableSlots, Math.max(1, Math.floor(foodQuantity)));
     const totalPrice = quantity * DOG_FOOD_PRICE;
-    if (coinsRef.current.walletCoins < totalPrice) return;
+    if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
 
     updateCoins((current) => ({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setFoodCount((current) => current + quantity);
+    setFoodCount((current) => Math.min(10, current + quantity));
+    setFoodQuantity(1);
     setShopMessage(`Корм ×${quantity} добавлен в запас`);
     getSound().safe();
     vibrate([16, 22, 34], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
-  }, [foodQuantity, getSound, updateCoins]);
+  }, [foodCount, foodQuantity, getSound, updateCoins]);
+
+  const buyDrink = useCallback(() => {
+    const availableSlots = Math.max(0, 10 - drinkCount);
+    const quantity = Math.min(
+      availableSlots,
+      Math.max(1, Math.floor(drinkQuantity)),
+    );
+    const totalPrice = quantity * ZHIVCHIK_PRICE;
+    if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
+    updateCoins((current) => ({
+      ...current,
+      walletCoins: current.walletCoins - totalPrice,
+    }));
+    setDrinkCount((current) => Math.min(10, current + quantity));
+    setDrinkQuantity(1);
+    setShopMessage(`Живчик ×${quantity} добавлен в запас`);
+    getSound().safe();
+    vibrate([14, 20, 30], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [drinkCount, drinkQuantity, getSound, updateCoins]);
+
+  const activateDrink = useCallback(() => {
+    if (drinkCount < 1 || riskPhaseRef.current !== "normal") return;
+    setDrinkCount((current) => Math.max(0, current - 1));
+    const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
+    boostUntilRef.current = nextBoostUntil;
+    setBoostUntil(nextBoostUntil);
+    getSound().levelUp();
+    vibrate([16, 20, 34], settingsRef.current.vibration);
+  }, [drinkCount, getSound]);
 
   const buyOrToggleHat = useCallback(() => {
     if (!hatOwned) {
@@ -1100,6 +1409,7 @@ export default function Home() {
     setFoodCount((current) => Math.max(0, current - 1));
     fatigueUntilRef.current = 0;
     setFatigueUntil(0);
+    setRiskFatigueUntil(0);
     setClock(Date.now());
     setRecoveryReason("rest");
     resetSeries();
@@ -1138,8 +1448,22 @@ export default function Home() {
     setVaultCoins(0);
     setFoodCount(0);
     setFoodQuantity(1);
+    setDrinkCount(0);
+    setDrinkQuantity(1);
+    boostUntilRef.current = 0;
+    setBoostUntil(0);
     setHatOwned(false);
     setHatEquipped(false);
+    setRiskFatigueUntil(0);
+    setRiskChance(50);
+    setRiskBetAmount(0);
+    setRiskRotation(0);
+    setRiskResult(null);
+    setRiskPayout(0);
+    setRiskMessage("");
+    setRiskStats({ spins: 0, wins: 0, losses: 0, lastBet: 0 });
+    riskCommittedRef.current = false;
+    transitionRisk("normal");
     setStats(resetStats);
     setLevelState(resetLevel);
     setSettings(defaults.settings);
@@ -1160,23 +1484,40 @@ export default function Home() {
     clearRoundTimers,
     resetSeries,
     stopHoldVisual,
+    transitionRisk,
     transitionTo,
   ]);
 
-  const vaultLocked = dogState !== "calm" || holding;
+  const vaultLocked = dogState !== "calm" || holding || riskPhase !== "normal";
   const isDogTired =
     dogState === "tired" ||
     (dogState === "recovering" && fatigueUntil > Date.now());
   const canFeedDog = isDogTired && foodCount > 0;
   const canSave = !vaultLocked && coins.walletCoins >= 2;
   const foodTotalPrice = foodQuantity * DOG_FOOD_PRICE;
-  const canBuyFood = coins.walletCoins >= foodTotalPrice;
+  const remainingFoodSlots = Math.max(0, 10 - foodCount);
+  const canBuyFood =
+    remainingFoodSlots > 0 &&
+    foodQuantity <= remainingFoodSlots &&
+    coins.walletCoins >= foodTotalPrice;
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
+  const remainingDrinkSlots = Math.max(0, 10 - drinkCount);
+  const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
+  const canBuyDrink =
+    remainingDrinkSlots > 0 &&
+    drinkQuantity <= remainingDrinkSlots &&
+    coins.walletCoins >= drinkTotalPrice;
+  const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
+  const riskIndex = RISK_OPTIONS.findIndex(
+    (option) => option.chance === riskChance,
+  );
+  const selectedRiskMultiplier = riskMultiplier(riskChance);
+  const riskMode = riskPhase !== "normal";
 
   const tempoRatio =
     seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const isHappy =
-    dogState === "calm" && seriesTaps >= 2 && tempoRatio >= 0.65;
+    dogState === "calm" && seriesTaps >= 3 && averageInterval <= 360;
   useEffect(() => {
     if (dogState !== "calm") {
       setJoyFrame(0);
@@ -1254,14 +1595,20 @@ export default function Home() {
         : joySpriteReady
           ? "joy"
           : "calm";
-  const dogDisabled = dogState === "angry" || dogState === "recovering";
+  const dogDisabled =
+    dogState === "angry" ||
+    dogState === "recovering" ||
+    riskPhase === "transition" ||
+    riskPhase === "spinning" ||
+    riskPhase === "result";
   const multiplier = levelMultiplier(levelState.level);
   const levelBonus = Math.round((multiplier - 1) * 100);
   const levelProgress =
     levelState.level >= MAX_LEVEL
       ? 1
       : levelState.progressCoins / COINS_PER_LEVEL;
-  const paleCalm = dogState === "calm" && tempoRatio < 0.52;
+  const paleCalm =
+    riskPhase === "normal" && dogState === "calm" && tempoRatio < 0.52;
   const tapVariant =
     tapPulse > 0 ? `tap-${tapPulse % 2 === 0 ? "a" : "b"}` : "";
   const balanceVariant =
@@ -1272,7 +1619,9 @@ export default function Home() {
 
   const calmScene = tempoSceneColor(averageInterval, seriesTaps > 0);
   const currentScene =
-    dogState === "angry"
+    riskMode
+      ? "#25272b"
+      : dogState === "angry"
       ? "#ec5148"
       : dogState === "tired"
         ? "#e8c65d"
@@ -1297,6 +1646,8 @@ export default function Home() {
     "--level-progress": levelProgress,
     "--ultra-progress": `${Math.min(100, ultraPreview / 10)}%`,
     "--ultra-fill": `${Math.round(ultraCharge * 1000) / 10}%`,
+    "--risk-chance": `${riskChance * 3.6}deg`,
+    "--risk-rotation": `${riskRotation}deg`,
   } as CSSProperties;
 
   return (
@@ -1307,7 +1658,11 @@ export default function Home() {
         ultraActive ? "ultra-active" : ""
       } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
         dogState === "calm" && joyFrame > 0 ? "is-happy" : ""
-      } ${isEmotionShifting ? "is-emotion-shifting" : ""}`}
+      } ${isEmotionShifting ? "is-emotion-shifting" : ""} ${
+        riskMode ? `risk-mode risk-${riskPhase}` : ""
+      } ${riskPhase === "transition" && riskResult ? "risk-returning" : ""} ${
+        riskShake > 0 ? `risk-shake-${riskShake % 2}` : ""
+      }`}
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}
@@ -1371,20 +1726,39 @@ export default function Home() {
             <span><small>СОХРАНЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
           </div>
         </div>
-        <div
-          className="level-strip"
-          aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
-        >
-          <div className="level-title">
-            <span>УРОВЕНЬ</span>
-            <strong>{levelState.level}<small>/ {MAX_LEVEL}</small></strong>
+        {!riskMode ? (
+          <div
+            className="level-strip"
+            aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
+          >
+            <div className="level-title">
+              <span>УРОВЕНЬ</span>
+              <strong>{levelState.level}<small>/ {MAX_LEVEL}</small></strong>
+            </div>
+            <div className="level-track"><span /></div>
+            <div className="level-reward">
+              <strong>{levelState.level >= MAX_LEVEL ? "MAX" : `${levelState.progressCoins}/100`}</strong>
+              <small>БОНУС +{levelBonus}%</small>
+            </div>
           </div>
-          <div className="level-track"><span /></div>
-          <div className="level-reward">
-            <strong>{levelState.level >= MAX_LEVEL ? "MAX" : `${levelState.progressCoins}/100`}</strong>
-            <small>БОНУС +{levelBonus}%</small>
+        ) : (
+          <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
+            <span className="risk-strip-label">ШАНС</span>
+            <div className="risk-scale-window">
+              <div
+                className="risk-scale-values"
+                style={{ transform: `translate3d(calc(50% - ${riskIndex * 46 + 23}px), 0, 0)` }}
+              >
+                {RISK_OPTIONS.map((option) => (
+                  <span className={option.chance === riskChance ? "selected" : ""} key={option.chance}>
+                    {option.chance}%
+                  </span>
+                ))}
+              </div>
+            </div>
+            <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
-        </div>
+        )}
       </header>
 
       <section
@@ -1397,7 +1771,19 @@ export default function Home() {
             <button type="button" disabled={!canFeedDog} onClick={feedDog}>
               {isDogTired ? "ПОКОРМИТЬ" : "КОРМ"}
             </button>
+            <span className="inventory-divider" />
+            <span className="drink-icon" aria-hidden="true">Ж</span>
+            <strong>{drinkCount}</strong>
+            <button type="button" disabled={drinkCount < 1} onClick={activateDrink}>
+              {boostSeconds > 0 ? `×2 ${boostSeconds}с` : "ВЫПИТЬ"}
+            </button>
           </div>
+          {riskPhase === "selecting" && (
+            <div className="risk-ear-arrows" aria-hidden="true">
+              <span className={`risk-ear-arrow risk-ear-arrow-left ${riskChance === 10 ? "edge" : ""}`}>←</span>
+              <span className={`risk-ear-arrow risk-ear-arrow-right ${riskChance === 90 ? "edge" : ""}`}>→</span>
+            </div>
+          )}
           <button
             className={`dog-button ${tapVariant}`}
             type="button"
@@ -1479,16 +1865,16 @@ export default function Home() {
                 alt=""
                 draggable={false}
               />
+              {hatOwned && hatEquipped && (
+                <img
+                  className="dog-hat"
+                  src="/hasbik-tubeteika.png"
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                />
+              )}
             </span>
-            {hatOwned && hatEquipped && (
-              <img
-                className="dog-hat"
-                src="/hasbik-tubeteika.png"
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-              />
-            )}
             <span className="ear-hit-zones" aria-hidden="true">
               {(["left", "right"] as const).map((ear) => (
                 <span
@@ -1527,6 +1913,33 @@ export default function Home() {
                 </span>
               ))}
             </span>
+            {(riskPhase === "transition" ||
+              riskPhase === "spinning" ||
+              riskPhase === "result") && (
+              <span className={`risk-wheel-shell ${riskResult ? `is-${riskResult}` : ""}`}>
+                <span className="risk-wheel">
+                  <span className="risk-wheel-glass" />
+                  <span className="risk-pointer">
+                    <i />
+                  </span>
+                  <span className="risk-center">
+                    <small>СТАВКА</small>
+                    <strong>{riskBetAmount.toLocaleString("ru-RU")}</strong>
+                    <em>{riskChance}% · ×{selectedRiskMultiplier}</em>
+                  </span>
+                  {riskPhase === "result" && (
+                    <span className="risk-result-copy">
+                      <small>{riskResult === "win" ? "ПОБЕДА" : "СТАВКА СГОРЕЛА"}</small>
+                      <strong>
+                        {riskResult === "win"
+                          ? `+${riskPayout.toLocaleString("ru-RU")}`
+                          : `−${riskBetAmount.toLocaleString("ru-RU")}`}
+                      </strong>
+                    </span>
+                  )}
+                </span>
+              </span>
+            )}
             {ultraActive && (
               <span className={`ultra-readout ${ultraFarming ? "is-farming" : ""}`}>
                 <small>{ultraFarming ? "ФАРМ" : "ЗАРЯД"}</small>
@@ -1539,7 +1952,17 @@ export default function Home() {
         </div>
 
         <div className="game-data">
-          <div ref={walletBalanceRef} className={`wallet-balance ${balanceVariant}`}>
+          <div
+            ref={walletBalanceRef}
+            className={`wallet-balance ${balanceVariant} ${riskHoldActive ? "is-risk-holding" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Активные монеты ${coins.walletCoins}. Удерживайте, чтобы ${riskPhase === "selecting" ? "закрыть" : "открыть"} режим риска`}
+            onPointerDown={handleRiskHoldStart}
+            onPointerUp={handleRiskHoldEnd}
+            onPointerCancel={handleRiskHoldEnd}
+            onContextMenu={(event) => event.preventDefault()}
+          >
             <span className="coin-mark" aria-hidden="true">K</span>
             <div>
               <strong className="balance-number" key={`balance-${balancePulse}`}>
@@ -1548,6 +1971,7 @@ export default function Home() {
               <small>НЕЗАЩИЩЁННЫЕ МОНЕТЫ</small>
             </div>
           </div>
+          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
           <button
             className="quick-save-button"
             type="button"
@@ -1555,7 +1979,7 @@ export default function Home() {
             onClick={saveAllToVault}
           >
             <span className="safe-icon" aria-hidden="true"><i /></span>
-            <span>{vaultLocked ? "КНОПИК УСТАЛ" : "ЗАСЕЙВИТЬ"}</span>
+            <span>ЗАСЕЙВИТЬ</span>
             {canSave && <small>В СЕЙФ +{Math.floor(coins.walletCoins / 2).toLocaleString("ru-RU")}</small>}
           </button>
         </div>
@@ -1685,7 +2109,7 @@ export default function Home() {
                 <span className="food-icon"><i /><i /><i /></span>
               </span>
               <div className="food-copy">
-                <small>ВОССТАНОВЛЕНИЕ</small>
+                <small>ЗАПАС {foodCount}/10</small>
                 <h3>Корм для Кнопика</h3>
                 <p>Одна порция полностью снимает усталость. Купленный корм хранится в запасе.</p>
               </div>
@@ -1693,10 +2117,36 @@ export default function Home() {
               <div className="quantity-picker" aria-label="Количество корма">
                 <button type="button" aria-label="Уменьшить количество" disabled={foodQuantity <= 1} onClick={() => setFoodQuantity((current) => Math.max(1, current - 1))}>−</button>
                 <strong>{foodQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={foodQuantity >= 10} onClick={() => setFoodQuantity((current) => Math.min(10, current + 1))}>+</button>
+                <button type="button" aria-label="Увеличить количество" disabled={foodQuantity >= remainingFoodSlots} onClick={() => setFoodQuantity((current) => Math.min(remainingFoodSlots, current + 1))}>+</button>
               </div>
               <button className="shop-buy-button" type="button" disabled={!canBuyFood} onClick={buyFood}>
-                {canBuyFood ? `КУПИТЬ ×${foodQuantity} · ${foodTotalPrice}` : `НУЖНО ${foodTotalPrice}`}
+                {remainingFoodSlots === 0
+                  ? "ЗАПАС ПОЛОН"
+                  : canBuyFood
+                    ? `КУПИТЬ ×${foodQuantity} · ${foodTotalPrice}`
+                    : `НУЖНО ${foodTotalPrice}`}
+              </button>
+            </article>
+
+            <article className="shop-card drink-card">
+              <span className="drink-pack" aria-hidden="true"><b>Ж</b><i>×2</i></span>
+              <div className="food-copy">
+                <small>ЗАПАС {drinkCount}/10</small>
+                <h3>Напиток «Живчик»</h3>
+                <p>Даёт ×2 монет за обычные тапы на одну минуту. Порции включаются отдельно сверху.</p>
+              </div>
+              <div className="food-price"><strong>{ZHIVCHIK_PRICE}</strong><span>монет</span></div>
+              <div className="quantity-picker" aria-label="Количество напитков">
+                <button type="button" aria-label="Уменьшить количество" disabled={drinkQuantity <= 1} onClick={() => setDrinkQuantity((current) => Math.max(1, current - 1))}>−</button>
+                <strong>{drinkQuantity}</strong>
+                <button type="button" aria-label="Увеличить количество" disabled={drinkQuantity >= remainingDrinkSlots} onClick={() => setDrinkQuantity((current) => Math.min(remainingDrinkSlots, current + 1))}>+</button>
+              </div>
+              <button className="shop-buy-button drink-action" type="button" disabled={!canBuyDrink} onClick={buyDrink}>
+                {remainingDrinkSlots === 0
+                  ? "ЗАПАС ПОЛОН"
+                  : canBuyDrink
+                    ? `КУПИТЬ ×${drinkQuantity} · ${drinkTotalPrice}`
+                    : `НУЖНО ${drinkTotalPrice}`}
               </button>
             </article>
 
@@ -1707,7 +2157,7 @@ export default function Home() {
               <div className="food-copy">
                 <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
                 <h3>Тюбетейка Хасбика</h3>
-                <p>Компактно сидит между ушами Кнопика. После покупки её можно снимать и надевать.</p>
+                <p>Сидит между ушами и повышает шанс удачного ультра-тапа: Кнопик дольше сохраняет терпение.</p>
               </div>
               <div className="food-price"><strong>{hatOwned ? "✓" : HASBIK_HAT_PRICE}</strong><span>{hatOwned ? "твоя" : "монет"}</span></div>
               <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>

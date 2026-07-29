@@ -196,6 +196,98 @@ export class KnopikSoundEngine {
     });
   }
 
+  riskEnter() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.filteredSweep(now, 0.34, 260, 1_700, 0.036);
+    this.tonalHit(now + 0.03, {
+      type: "sine",
+      from: 164,
+      to: 246,
+      duration: 0.31,
+      gain: 0.038,
+      attack: 0.025,
+    });
+  }
+
+  riskTick(edge = false) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.tonalHit(now, {
+      type: "triangle",
+      from: edge ? 245 : 410,
+      to: edge ? 190 : 330,
+      duration: 0.07,
+      gain: edge ? 0.025 : 0.034,
+      attack: 0.003,
+    });
+  }
+
+  riskSpin() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.filteredSweep(now, 1.35, 420, 3_500, 0.055);
+    this.tonalHit(now, {
+      type: "sawtooth",
+      from: 72,
+      to: 156,
+      duration: 1.15,
+      gain: 0.034,
+      attack: 0.06,
+      lowpass: 900,
+    });
+  }
+
+  riskSlow() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.filteredSweep(now, 0.9, 2_400, 360, 0.035);
+    this.tonalHit(now, {
+      type: "triangle",
+      from: 210,
+      to: 92,
+      duration: 0.82,
+      gain: 0.027,
+      attack: 0.04,
+    });
+  }
+
+  riskWin() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.filteredSweep(now, 0.5, 620, 4_600, 0.045);
+    [523.25, 659.25, 783.99, 1_046.5].forEach((frequency, index) => {
+      this.tonalHit(now + index * 0.065, {
+        type: index % 2 ? "triangle" : "sine",
+        from: frequency,
+        to: frequency * 1.02,
+        duration: 0.42,
+        gain: 0.042 - index * 0.005,
+        attack: 0.009,
+      });
+    });
+  }
+
+  riskLose() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.tonalHit(now, {
+      type: "sine",
+      from: 196,
+      to: 108,
+      duration: 0.48,
+      gain: 0.035,
+      attack: 0.035,
+    });
+    this.noiseHit(now + 0.03, 0.28, 520, 0.9, 0.025);
+  }
+
   /** Starts a continuous, layered fire sound. Safe to call repeatedly. */
   ultraStart() {
     const ctx = this.ready();

@@ -14,6 +14,7 @@ import {
   addLevelCoins,
   levelMultiplier,
 } from "../app/level-engine.ts";
+import { createRiskOutcome, riskMultiplier } from "../app/risk-engine.ts";
 
 test("tap limit rewards speed and keeps requested ranges", () => {
   assert.equal(calculateTapLimit(1_000, 0, () => 0), 4);
@@ -112,4 +113,23 @@ test("risk inventory and active balance migrate safely", () => {
   assert.equal(saved.hatEquipped, true);
   assert.equal(saved.riskWins, 3);
   assert.equal(saved.lastRiskChance, 70);
+});
+
+test("risk wheel resolves payout and final angle from the configured chance", () => {
+  const win = createRiskOutcome(20, 1_000, (() => {
+    const rolls = [0.1, 0.5];
+    return () => rolls.shift() ?? 0;
+  })());
+  assert.equal(win.won, true);
+  assert.equal(win.payout, 3_000);
+  assert.ok(win.finalAngle < 72);
+
+  const loss = createRiskOutcome(90, 1_000, (() => {
+    const rolls = [0.95, 0.5];
+    return () => rolls.shift() ?? 0;
+  })());
+  assert.equal(loss.won, false);
+  assert.equal(loss.payout, 0);
+  assert.ok(loss.finalAngle >= 324);
+  assert.equal(riskMultiplier(50), 1.45);
 });
