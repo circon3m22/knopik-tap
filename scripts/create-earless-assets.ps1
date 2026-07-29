@@ -5,6 +5,7 @@ param(
 Add-Type -AssemblyName System.Drawing
 
 $publicDir = Join-Path $ProjectRoot "public"
+$sourceDir = Join-Path $ProjectRoot "source-assets\knopik"
 $leftEarPath = Join-Path $publicDir "knopik-ear-left.png"
 $rightEarPath = Join-Path $publicDir "knopik-ear-right.png"
 
@@ -124,7 +125,7 @@ function Create-EarlessAsset {
     [int]$FrameCount
   )
 
-  $sourcePath = Join-Path $publicDir $SourceName
+  $sourcePath = Join-Path $sourceDir $SourceName
   $destinationPath = Join-Path $publicDir $DestinationName
   $sourceImage = [System.Drawing.Image]::FromFile($sourcePath)
   $bitmap = [System.Drawing.Bitmap]::new(
