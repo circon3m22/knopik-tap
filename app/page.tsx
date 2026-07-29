@@ -62,8 +62,8 @@ const ULTRA_VISUAL_DELAY_MS = 360;
 const tutorialSlides = [
   {
     eyebrow: "ТЕМП",
-    title: "Светлый фон означает, что Кнопик быстро устаёт",
-    copy: "Тапай два раза в секунду или быстрее — синий станет глубже, а серия устойчивее.",
+    title: "Экран белый, пока Кнопик спокоен",
+    copy: "С первым тапом он синеет. Быстрый ритм углубляет синий, а паузы возвращают фон к белому.",
   },
   {
     eyebrow: "УЛЬТРА-ТАП",
@@ -96,8 +96,10 @@ function createSafeId() {
 }
 
 function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
-  const ratio = hasTaps ? calculateTempoRatio(averageInterval) : 0.56;
-  const light = [105, 184, 245];
+  if (!hasTaps) return "rgb(247 249 252)";
+
+  const ratio = calculateTempoRatio(averageInterval);
+  const light = [247, 249, 252];
   const deep = [10, 82, 199];
   const channels = light.map((channel, index) =>
     Math.round(channel + (deep[index] - channel) * ratio),
@@ -143,6 +145,7 @@ export default function Home() {
   const [ultraActive, setUltraActive] = useState(false);
   const [ultraPreview, setUltraPreview] = useState(0);
   const [tapPulse, setTapPulse] = useState(0);
+  const [balancePulse, setBalancePulse] = useState(0);
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState("");
@@ -240,6 +243,7 @@ export default function Home() {
         earned >= maximum ? 0 : Math.max(0, precise - earned);
 
       if (earned === 0) return 0;
+      setBalancePulse((current) => current + 1);
       updateCoins((current) => ({
         walletCoins: current.walletCoins + earned,
         streakCoins: current.streakCoins + earned,
@@ -864,7 +868,9 @@ export default function Home() {
             : "Скоро можно продолжить"
           : fatigueRatio > 0
             ? "После ультра Кнопик срывается намного быстрее"
-            : "Светлее фон — Кнопик устает быстрее";
+            : seriesTaps > 0
+              ? "Не сбивай темп"
+              : "Начинай быстро — Кнопик не любит паузы";
 
   const dogImageState =
     dogState === "angry"
@@ -880,9 +886,18 @@ export default function Home() {
     levelState.level >= MAX_LEVEL
       ? 1
       : levelState.progressCoins / COINS_PER_LEVEL;
+  const tempoRatio =
+    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
+  const paleCalm = dogState === "calm" && tempoRatio < 0.52;
+  const tapVariant =
+    tapPulse > 0 ? `tap-${tapPulse % 2 === 0 ? "a" : "b"}` : "";
+  const balanceVariant =
+    balancePulse > 0
+      ? `balance-pulse-${balancePulse % 2 === 0 ? "a" : "b"}`
+      : "";
 
   const gameStyle = {
-    "--calm-scene": tempoSceneColor(averageInterval, seriesTaps > 1),
+    "--calm-scene": tempoSceneColor(averageInterval, seriesTaps > 0),
     "--level-progress": levelProgress,
   } as CSSProperties;
 
@@ -892,35 +907,23 @@ export default function Home() {
         fatigueRatio > 0 ? "has-fatigue" : ""
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
-      } ${biteFlash ? "bite-flash" : ""}`}
+      } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""}`}
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}
     >
+      <div className={`game-motion-layer ${tapVariant}`}>
       <header className="app-header">
         <div className="top-bar">
           <div className="wordmark" aria-label="Knopik Tap">
-            <span>K</span>
             <strong>KNOPIK <small>TAP</small></strong>
           </div>
-          <div className="top-actions">
-            <button
-              className="vault-button"
-              type="button"
-              onClick={() => setSafesOpen(true)}
-              aria-label={`Открыть сейфы. Защищено ${vaultCoins} монет`}
-            >
-              <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span><small>ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
-            </button>
-            <button
-              className="round-icon-button"
-              type="button"
-              aria-label="Настройки"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
-            </button>
+          <div
+            className="saved-balance"
+            aria-label={`Сохранено ${vaultCoins} монет`}
+          >
+            <span className="safe-icon" aria-hidden="true"><i /></span>
+            <span><small>СОХРАНЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
           </div>
         </div>
         <div
@@ -939,7 +942,9 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="game-stage" aria-live="polite">
+      <section
+        className="game-stage"
+      >
         <div className="state-copy">
           <span className="state-label"><i />{statusTitle}</span>
           <h1>{statusCopy}</h1>
@@ -952,7 +957,7 @@ export default function Home() {
             ))}
           </div>
           <button
-            className={`dog-button tap-${tapPulse % 2 === 0 ? "a" : "b"}`}
+            className={`dog-button ${tapVariant}`}
             type="button"
             data-testid="knopik"
             aria-label={
@@ -969,6 +974,11 @@ export default function Home() {
             onContextMenu={(event) => event.preventDefault()}
           >
             <span className="portrait-surface" aria-hidden="true" />
+            <span className="tap-waves" aria-hidden="true">
+              {particles.map((particle) => (
+                <i className="tap-wave" key={`wave-${particle.id}`} />
+              ))}
+            </span>
             <span className="dog-images" data-image-state={dogImageState}>
               <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
               <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
@@ -996,16 +1006,18 @@ export default function Home() {
         </div>
 
         <div className="game-data">
-          <div className="wallet-balance">
+          <div className={`wallet-balance ${balanceVariant}`}>
             <span className="coin-mark" aria-hidden="true">K</span>
             <div>
-              <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+              <strong className="balance-number" key={`balance-${balancePulse}`}>
+                {coins.walletCoins.toLocaleString("ru-RU")}
+              </strong>
               <small>НЕЗАЩИЩЁННЫЕ МОНЕТЫ</small>
             </div>
           </div>
 
           <p className="moment-message" role="status">
-            {momentMessage || "Тёмный синий означает устойчивый темп"}
+            {momentMessage}
           </p>
         </div>
       </section>
@@ -1015,6 +1027,10 @@ export default function Home() {
           <span className="safe-icon" aria-hidden="true"><i /></span>
           <span>Сейфы</span>
           {safes.length > 0 && <b>{safes.length}</b>}
+        </button>
+        <button type="button" onClick={() => setSettingsOpen(true)}>
+          <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
+          <span>Настройки</span>
         </button>
         <button
           className="help-button"
@@ -1028,6 +1044,7 @@ export default function Home() {
           <span>Как играть</span>
         </button>
       </footer>
+      </div>
 
       {levelBurstVisible && (
         <div className="level-burst" key={levelBurstKey} aria-hidden="true">
@@ -1165,7 +1182,7 @@ export default function Home() {
               <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
             </div>
             <div className="setting-row">
-              <div><strong>Вибрация</strong><span>Если устройство поддерживает</span></div>
+              <div><strong>Вибрация</strong><span>На iPhone Safari — визуально-звуковой отклик</span></div>
               <button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button>
             </div>
             <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>ПОВТОРИТЬ ОБУЧЕНИЕ <span>↗</span></button>

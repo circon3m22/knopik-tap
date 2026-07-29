@@ -16,14 +16,14 @@ import {
 } from "../app/level-engine.ts";
 
 test("tap limit rewards speed and keeps requested ranges", () => {
-  assert.equal(calculateTapLimit(1_000, 0, () => 0), 5);
-  assert.equal(calculateTapLimit(1_000, 0, () => 0.999), 10);
-  assert.equal(calculateTapLimit(1_300, 0, () => 0), 3);
-  assert.equal(calculateTapLimit(1_300, 0, () => 0.999), 5);
-  assert.equal(calculateTapLimit(500, 0, () => 0), 20);
-  assert.equal(calculateTapLimit(500, 0, () => 0.999), 45);
-  assert.equal(calculateTapLimit(150, 0, () => 0), 35);
-  assert.equal(calculateTapLimit(150, 0, () => 0.999), 70);
+  assert.equal(calculateTapLimit(1_000, 0, () => 0), 4);
+  assert.equal(calculateTapLimit(1_000, 0, () => 0.999), 7);
+  assert.equal(calculateTapLimit(1_300, 0, () => 0), 2);
+  assert.equal(calculateTapLimit(1_300, 0, () => 0.999), 4);
+  assert.equal(calculateTapLimit(500, 0, () => 0), 15);
+  assert.equal(calculateTapLimit(500, 0, () => 0.999), 32);
+  assert.equal(calculateTapLimit(150, 0, () => 0), 25);
+  assert.equal(calculateTapLimit(150, 0, () => 0.999), 50);
 });
 
 test("post-ultra fatigue starts at 10-20 and fades after 90 seconds", () => {

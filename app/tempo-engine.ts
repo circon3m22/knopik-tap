@@ -10,14 +10,14 @@ export const DEFAULT_TAP_INTERVAL_MS = 700;
 export const VERY_SLOW_TAP_INTERVAL_MS = 1_200;
 export const VERY_FAST_TAP_INTERVAL_MS = 300;
 
-export const VERY_SLOW_TAP_LIMIT_MIN = 3;
-export const VERY_SLOW_TAP_LIMIT_MAX = 5;
-export const SLOW_TAP_LIMIT_MIN = 5;
-export const SLOW_TAP_LIMIT_MAX = 10;
-export const TWO_PER_SECOND_TAP_LIMIT_MIN = 20;
-export const TWO_PER_SECOND_TAP_LIMIT_MAX = 45;
-export const FAST_TAP_LIMIT_MIN = 35;
-export const FAST_TAP_LIMIT_MAX = 70;
+export const VERY_SLOW_TAP_LIMIT_MIN = 2;
+export const VERY_SLOW_TAP_LIMIT_MAX = 4;
+export const SLOW_TAP_LIMIT_MIN = 4;
+export const SLOW_TAP_LIMIT_MAX = 7;
+export const TWO_PER_SECOND_TAP_LIMIT_MIN = 15;
+export const TWO_PER_SECOND_TAP_LIMIT_MAX = 32;
+export const FAST_TAP_LIMIT_MIN = 25;
+export const FAST_TAP_LIMIT_MAX = 50;
 
 export const FATIGUE_DURATION_MS = 90_000;
 export const FATIGUE_TAP_LIMIT_MIN = 10;
@@ -149,10 +149,10 @@ function interpolateBounds(
 
 /**
  * Continuous hardcore difficulty curve:
- * - 1200ms+ between taps: 3-5 taps;
- * - 1000ms: 5-10 taps;
- * - 500ms (two taps/second): 20-45 taps;
- * - 300ms or faster: 35-70 taps.
+ * - 1200ms+ between taps: 2-4 taps;
+ * - 1000ms: 4-7 taps;
+ * - 500ms (two taps/second): 15-32 taps;
+ * - 300ms or faster: 25-50 taps.
  */
 function calculateNormalTapLimitBounds(
   averageIntervalMs: number,

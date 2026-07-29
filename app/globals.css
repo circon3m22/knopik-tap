@@ -23,7 +23,7 @@ body {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #0c3971;
+  background: #eef2f6;
 }
 
 body,
@@ -53,8 +53,7 @@ img,
   --glass-alpha: 0.16;
   position: relative;
   isolation: isolate;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: block;
   width: min(100%, 500px);
   height: 100dvh;
   min-height: 520px;
@@ -62,13 +61,31 @@ img,
   padding:
     calc(env(safe-area-inset-top) + 12px)
     clamp(15px, 4.5vw, 23px)
-    calc(env(safe-area-inset-bottom) + 12px);
+    calc(env(safe-area-inset-bottom) + 20px);
   overflow: hidden;
   color: var(--on-scene);
   background:
     radial-gradient(circle at 50% 47%, rgb(255 255 255 / 14%), transparent 38%),
     var(--scene);
   transition: background-color 320ms ease, color 220ms ease;
+}
+
+.game-motion-layer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  transform-origin: 50% 48%;
+  will-change: transform;
+}
+
+.game-shell:not(.state-angry) .game-motion-layer.tap-a {
+  animation: tap-nudge-a 115ms cubic-bezier(0.2, 0.85, 0.35, 1);
+}
+
+.game-shell:not(.state-angry) .game-motion-layer.tap-b {
+  animation: tap-nudge-b 115ms cubic-bezier(0.2, 0.85, 0.35, 1);
 }
 
 .game-shell::before {
@@ -84,6 +101,17 @@ img,
 
 .game-shell.state-calm {
   --scene: var(--calm-scene, var(--blue));
+}
+
+.game-shell.state-calm.pale-calm {
+  --on-scene: #1d2b38;
+  --glass-alpha: 0.64;
+}
+
+.game-shell.state-calm.pale-calm::before {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 34%), transparent 30%),
+    linear-gradient(0deg, rgb(16 54 89 / 5%), transparent 32%);
 }
 
 .game-shell.state-warning,
@@ -133,6 +161,16 @@ img,
 .state-warning .level-strip,
 .state-recovering.has-fatigue .level-strip {
   border-color: rgb(35 33 22 / 9%);
+}
+
+.state-calm.pale-calm .level-strip,
+.state-calm.pale-calm .saved-balance,
+.state-calm.pale-calm .bottom-bar {
+  border-color: rgb(24 50 75 / 10%);
+  background: rgb(255 255 255 / 64%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 72%),
+    0 9px 26px rgb(32 62 91 / 6%);
 }
 
 .level-title,
@@ -200,105 +238,69 @@ img,
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 9px;
-}
-
-.wordmark > span {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  place-items: center;
-  border-radius: 12px;
-  color: var(--scene);
-  background: var(--on-scene);
-  font-size: 16px;
-  font-weight: 950;
-  letter-spacing: -0.06em;
-  box-shadow: 0 8px 22px rgb(0 0 0 / 10%);
 }
 
 .wordmark strong {
   display: flex;
   align-items: baseline;
   gap: 5px;
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: -0.025em;
+  font-size: clamp(18px, 5vw, 22px);
+  font-weight: 920;
+  letter-spacing: -0.045em;
   white-space: nowrap;
 }
 
 .wordmark small {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 850;
   letter-spacing: 0.12em;
   opacity: 0.62;
 }
 
-.top-actions {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.vault-button,
-.round-icon-button,
-.bottom-bar button {
+.saved-balance,
+.bottom-bar {
   border: 1px solid rgb(255 255 255 / 14%);
   background: rgb(var(--glass) / var(--glass-alpha));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%);
   backdrop-filter: blur(13px);
 }
 
-.state-warning .vault-button,
-.state-warning .round-icon-button,
-.state-warning .bottom-bar button,
-.state-recovering.has-fatigue .vault-button,
-.state-recovering.has-fatigue .round-icon-button,
-.state-recovering.has-fatigue .bottom-bar button {
+.state-warning .saved-balance,
+.state-warning .bottom-bar,
+.state-recovering.has-fatigue .saved-balance,
+.state-recovering.has-fatigue .bottom-bar {
   border-color: rgb(35 33 22 / 9%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%);
 }
 
-.vault-button {
+.saved-balance {
   display: flex;
-  min-width: 91px;
+  min-width: 98px;
   height: 43px;
   align-items: center;
   gap: 8px;
   padding: 0 11px;
   border-radius: 15px;
-  cursor: pointer;
 }
 
-.vault-button > span:last-child {
+.saved-balance > span:last-child {
   display: grid;
   min-width: 0;
   text-align: left;
 }
 
-.vault-button small {
+.saved-balance small {
   font-size: 6px;
   font-weight: 850;
   letter-spacing: 0.1em;
   opacity: 0.65;
 }
 
-.vault-button strong {
+.saved-balance strong {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   font-weight: 850;
   line-height: 1.05;
-}
-
-.round-icon-button {
-  display: grid;
-  width: 43px;
-  height: 43px;
-  place-items: center;
-  padding: 0;
-  border-radius: 15px;
-  cursor: pointer;
 }
 
 .safe-icon {
@@ -369,6 +371,7 @@ img,
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: 8px 0 7px;
+  transform-origin: 50% 48%;
 }
 
 .state-copy {
@@ -497,8 +500,37 @@ img,
   animation: angry-jolt 330ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
-.dog-button.tap-a:not(:disabled) { animation: tap-squeeze-a 130ms ease-out; }
-.dog-button.tap-b:not(:disabled) { animation: tap-squeeze-b 130ms ease-out; }
+.dog-button.tap-a:not(:disabled) { animation: tap-squeeze-a 118ms ease-out; }
+.dog-button.tap-b:not(:disabled) { animation: tap-squeeze-b 118ms ease-out; }
+
+.tap-waves {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  overflow: visible;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.tap-wave {
+  position: absolute;
+  inset: 2%;
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: tap-ring 480ms cubic-bezier(0.16, 0.75, 0.25, 1) both;
+}
+
+.state-calm.pale-calm .tap-wave {
+  border-color: rgb(13 98 190 / 24%);
+}
+
+.state-warning .tap-wave,
+.state-recovering.has-fatigue .tap-wave {
+  border-color: rgb(35 33 22 / 20%);
+}
 
 .tap-particles {
   position: absolute;
@@ -521,6 +553,11 @@ img,
 .state-warning .tap-particle {
   color: #272418;
   text-shadow: 0 2px 10px rgb(255 255 255 / 55%);
+}
+
+.state-calm.pale-calm .tap-particle {
+  color: #116bc9;
+  text-shadow: 0 2px 10px rgb(255 255 255 / 72%);
 }
 
 .ultra-readout {
@@ -685,11 +722,30 @@ img,
 }
 
 .wallet-balance strong {
+  display: inline-block;
   font-size: clamp(30px, 9vw, 43px);
   font-variant-numeric: tabular-nums;
   font-weight: 850;
   letter-spacing: -0.055em;
   line-height: 0.9;
+  transform-origin: 50% 70%;
+  will-change: transform;
+}
+
+.wallet-balance.balance-pulse-a .balance-number {
+  animation: balance-pop-a 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wallet-balance.balance-pulse-b .balance-number {
+  animation: balance-pop-b 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wallet-balance.balance-pulse-a .coin-mark {
+  animation: coin-kick-a 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wallet-balance.balance-pulse-b .coin-mark {
+  animation: coin-kick-b 190ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .wallet-balance small {
@@ -714,25 +770,60 @@ img,
   position: relative;
   z-index: 10;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 2px clamp(9px, 1.8dvh, 15px);
+  padding: 6px;
+  border-radius: 22px;
+  box-shadow:
+    0 14px 34px rgb(0 0 0 / 14%),
+    inset 0 1px 0 rgb(255 255 255 / 14%);
+  backdrop-filter: blur(18px);
 }
 
 .bottom-bar button {
   position: relative;
   display: flex;
-  min-height: 48px;
+  min-width: 0;
+  min-height: 52px;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  padding: 0 13px;
+  gap: 4px;
+  padding: 5px 2px;
+  border: 0;
   border-radius: 16px;
-  font-size: 10px;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  font-size: 8.5px;
   font-weight: 800;
+  white-space: nowrap;
   cursor: pointer;
+  transition: transform 90ms ease, background-color 140ms ease;
+}
+
+.bottom-bar button:active {
+  background: rgb(255 255 255 / 14%);
+  transform: translateY(1px) scale(0.975);
+}
+
+.state-calm.pale-calm .bottom-bar button:active {
+  background: rgb(18 75 132 / 8%);
+}
+
+.bottom-bar .safe-icon {
+  transform: scale(0.86);
+}
+
+.bottom-bar .settings-icon {
+  transform: scale(0.96);
 }
 
 .bottom-bar button > b {
+  position: absolute;
+  top: 4px;
+  right: 14%;
   display: grid;
   min-width: 18px;
   height: 18px;
@@ -1327,12 +1418,52 @@ img,
 
 @keyframes tap-squeeze-a {
   0%, 100% { transform: scale(1); }
-  48% { transform: scale(0.965); }
+  48% { transform: scale(0.984); }
 }
 
 @keyframes tap-squeeze-b {
   0%, 100% { transform: scale(1); }
-  48% { transform: scale(0.965); }
+  48% { transform: scale(0.984); }
+}
+
+@keyframes tap-nudge-a {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  35% { transform: translate3d(-0.7px, 0.45px, 0); }
+  72% { transform: translate3d(0.35px, -0.2px, 0); }
+}
+
+@keyframes tap-nudge-b {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  35% { transform: translate3d(0.7px, 0.45px, 0); }
+  72% { transform: translate3d(-0.35px, -0.2px, 0); }
+}
+
+@keyframes tap-ring {
+  0% { opacity: 0.3; transform: scale(0.985); }
+  45% { opacity: 0.13; }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+
+@keyframes balance-pop-a {
+  0%, 100% { transform: none; text-shadow: none; }
+  32% { transform: translateY(-1.5px) scale(1.075); text-shadow: 0 0 14px rgb(255 222 112 / 70%); }
+  68% { transform: scale(0.992); }
+}
+
+@keyframes balance-pop-b {
+  0%, 100% { transform: none; text-shadow: none; }
+  32% { transform: translateY(-1.5px) scale(1.075); text-shadow: 0 0 14px rgb(255 222 112 / 70%); }
+  68% { transform: scale(0.992); }
+}
+
+@keyframes coin-kick-a {
+  0%, 100% { transform: rotate(0) scale(1); }
+  38% { transform: rotate(-4deg) scale(1.07); }
+}
+
+@keyframes coin-kick-b {
+  0%, 100% { transform: rotate(0) scale(1); }
+  38% { transform: rotate(4deg) scale(1.07); }
 }
 
 @keyframes flame-dance {
@@ -1406,7 +1537,7 @@ img,
 @media (max-height: 720px) {
   .game-shell {
     padding-top: calc(env(safe-area-inset-top) + 8px);
-    padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 11px);
   }
 
   .game-stage { padding-top: 5px; }
@@ -1419,13 +1550,14 @@ img,
   .wallet-balance { margin-bottom: 7px; }
   .wallet-balance strong { font-size: 30px; }
   .moment-message { margin-top: 4px; }
+  .bottom-bar { margin-bottom: 5px; }
   .bottom-bar button { min-height: 43px; }
 }
 
 @media (max-width: 355px) {
   .game-shell { padding-inline: 10px; }
-  .wordmark strong { font-size: 12px; }
-  .vault-button { min-width: 82px; padding-inline: 8px; }
+  .wordmark strong { font-size: 16px; }
+  .saved-balance { min-width: 88px; padding-inline: 8px; }
   .safe-option { grid-template-columns: 30px minmax(0, 1fr); }
   .safe-option button { grid-column: 1 / 3; width: 100%; }
 }
@@ -1438,5 +1570,19 @@ img,
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+
+  .tap-wave,
+  .tap-particle,
+  .level-burst {
+    display: none !important;
+  }
+
+  .game-motion-layer,
+  .wallet-balance strong,
+  .coin-mark,
+  .dog-button {
+    animation: none !important;
+    transform: none !important;
   }
 }
