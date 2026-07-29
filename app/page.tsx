@@ -1099,7 +1099,7 @@ export default function Home() {
       transitionRisk("spinning");
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
-          setRiskRotation(1_440 + outcome.finalAngle);
+          setRiskRotation(1_440 + ((360 - outcome.finalAngle) % 360));
         });
       });
 
@@ -1608,7 +1608,9 @@ export default function Home() {
       ? 1
       : levelState.progressCoins / COINS_PER_LEVEL;
   const paleCalm =
-    riskPhase === "normal" && dogState === "calm" && tempoRatio < 0.52;
+    riskPhase === "normal" &&
+    dogState === "calm" &&
+    (!seriesTaps || averageInterval >= 380);
   const tapVariant =
     tapPulse > 0 ? `tap-${tapPulse % 2 === 0 ? "a" : "b"}` : "";
   const balanceVariant =
@@ -1918,14 +1920,14 @@ export default function Home() {
               riskPhase === "result") && (
               <span className={`risk-wheel-shell ${riskResult ? `is-${riskResult}` : ""}`}>
                 <span className="risk-wheel">
-                  <span className="risk-wheel-glass" />
-                  <span className="risk-pointer">
-                    <i />
+                  <span className="risk-dial">
+                    <span className="risk-wheel-glass" />
                   </span>
+                  <span className="risk-pointer"><i /></span>
                   <span className="risk-center">
-                    <small>СТАВКА</small>
-                    <strong>{riskBetAmount.toLocaleString("ru-RU")}</strong>
-                    <em>{riskChance}% · ×{selectedRiskMultiplier}</em>
+                    <small>ШАНС ВЫИГРЫША</small>
+                    <strong>{riskChance}%</strong>
+                    <em>×{selectedRiskMultiplier} · {riskBetAmount.toLocaleString("ru-RU")}</em>
                   </span>
                   {riskPhase === "result" && (
                     <span className="risk-result-copy">

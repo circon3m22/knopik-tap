@@ -73,10 +73,9 @@ img,
     calc(env(safe-area-inset-bottom) + 20px);
   overflow: hidden;
   color: var(--on-scene);
-  background:
-    radial-gradient(circle at 50% 47%, rgb(255 255 255 / 14%), transparent 38%),
-    var(--scene);
-  transition: background-color 320ms ease, color 220ms ease;
+  background-color: var(--scene);
+  background-image: radial-gradient(circle at 50% 47%, rgb(255 255 255 / 14%), transparent 38%);
+  transition: background-color 480ms cubic-bezier(0.22, 0.72, 0.2, 1), color 90ms ease;
 }
 
 .game-motion-layer {
@@ -120,6 +119,7 @@ img,
 .game-shell.state-calm.pale-calm {
   --on-scene: #1d2b38;
   --glass-alpha: 0.64;
+  color: #1d2b38;
 }
 
 .game-shell.state-calm.pale-calm::before {
@@ -152,9 +152,10 @@ img,
   --scene: #25272b;
   --on-scene: #f7f8fa;
   --glass-alpha: 0.13;
-  background:
-    radial-gradient(circle at 50% 43%, rgb(255 255 255 / 8%), transparent 37%),
-    linear-gradient(180deg, #303238, #1f2024);
+  background-color: #202226;
+  background-image:
+    radial-gradient(circle at 50% 43%, rgb(255 255 255 / 7%), transparent 38%),
+    linear-gradient(180deg, rgb(48 50 56 / 72%), rgb(31 32 36 / 88%));
 }
 
 .game-shell.risk-mode::before {
@@ -276,6 +277,16 @@ img,
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 72%),
     0 9px 26px rgb(32 62 91 / 6%);
+}
+
+.state-calm.pale-calm .wordmark,
+.state-calm.pale-calm .level-strip,
+.state-calm.pale-calm .saved-balance,
+.state-calm.pale-calm .wallet-balance,
+.state-calm.pale-calm .quick-save-button,
+.state-calm.pale-calm .bottom-bar {
+  color: #162b3e;
+  text-shadow: none;
 }
 
 .level-title,
@@ -750,13 +761,13 @@ img,
 .risk-wheel-shell {
   position: absolute;
   z-index: 9;
-  inset: 3.2%;
+  inset: 4.2%;
   display: grid;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 50%;
   opacity: 1;
-  animation: risk-wheel-in 360ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+  animation: risk-wheel-in 420ms cubic-bezier(0.22, 0.76, 0.2, 1) both;
   pointer-events: none;
 }
 
@@ -764,74 +775,101 @@ img,
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  border: 4px solid rgb(255 255 255 / 72%);
+  border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 36% 24%, rgb(255 255 255 / 14%), transparent 28%),
-    conic-gradient(from -90deg, #ef5149 0 var(--risk-chance), #24262b var(--risk-chance) 360deg);
+  background: #14171c;
   box-shadow:
-    0 22px 48px rgb(0 0 0 / 36%),
-    0 0 0 1px rgb(0 0 0 / 42%),
-    inset 0 0 34px rgb(0 0 0 / 28%);
+    0 24px 54px rgb(0 0 0 / 44%),
+    0 0 0 7px rgb(13 15 19 / 55%),
+    inset 0 0 38px rgb(0 0 0 / 50%);
 }
 
 .risk-wheel::before {
   position: absolute;
-  inset: 7.5%;
-  border: 1px solid rgb(255 255 255 / 14%);
+  inset: -2.7%;
+  border: 2px solid transparent;
   border-radius: 50%;
-  background: repeating-conic-gradient(from -90deg, transparent 0 8.7deg, rgb(255 255 255 / 18%) 8.7deg 9deg);
-  -webkit-mask: radial-gradient(circle, transparent 0 83%, #000 84% 88%, transparent 89%);
-  mask: radial-gradient(circle, transparent 0 83%, #000 84% 88%, transparent 89%);
+  background: conic-gradient(from -90deg, #72df19, #e6ef24 28%, #ff9d16 62%, #ff5744 100%) border-box;
+  -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
   content: "";
+  opacity: 0.82;
+}
+
+.risk-wheel::after {
+  position: absolute;
+  inset: 2.5%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from -90deg, rgb(255 255 255 / 22%) 0 0.8deg, transparent 0.8deg 9deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 91%, #000 91.5% 94%, transparent 94.5%);
+  mask: radial-gradient(circle, transparent 0 91%, #000 91.5% 94%, transparent 94.5%);
+  content: "";
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+.risk-dial {
+  position: absolute;
+  inset: 6.5%;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 53%, rgb(0 0 0 / 26%) 54% 100%),
+    conic-gradient(from -90deg, #72df19 0, #e8e91f var(--risk-chance), #282c33 var(--risk-chance) 360deg);
+  box-shadow:
+    inset 0 0 32px rgb(0 0 0 / 45%),
+    0 0 24px rgb(137 225 25 / 10%);
+  transform: rotate(var(--risk-rotation));
+  will-change: transform;
+}
+
+.risk-spinning .risk-dial {
+  transition: transform 3650ms cubic-bezier(0.08, 0.68, 0.1, 1);
 }
 
 .risk-wheel-glass {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 16%), transparent 30% 68%, rgb(0 0 0 / 17%)),
-    radial-gradient(circle, transparent 48%, rgb(0 0 0 / 20%) 100%);
+  background: linear-gradient(145deg, rgb(255 255 255 / 13%), transparent 31% 68%, rgb(0 0 0 / 20%));
 }
 
 .risk-pointer {
   position: absolute;
-  z-index: 5;
-  inset: 8%;
-  border-radius: 50%;
-  transform: rotate(var(--risk-rotation));
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
-
-.risk-spinning .risk-pointer {
-  transition: transform 3650ms cubic-bezier(0.09, 0.7, 0.12, 1);
+  z-index: 8;
+  top: -1%;
+  left: 50%;
+  width: 26px;
+  height: 49%;
+  filter: drop-shadow(0 4px 8px rgb(0 0 0 / 60%));
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
 }
 
 .risk-pointer::before {
   position: absolute;
-  top: 7%;
+  top: 20px;
   left: 50%;
   width: 3px;
-  height: 39%;
+  height: 42%;
   border-radius: 99px;
-  background: linear-gradient(#fff, #d7d9dc 74%, transparent);
-  box-shadow: 0 0 13px rgb(255 255 255 / 55%);
+  background: linear-gradient(#ffe52e, #f4a915 70%, transparent);
+  box-shadow: 0 0 13px rgb(255 208 30 / 45%);
   content: "";
   transform: translateX(-50%);
 }
 
 .risk-pointer i {
   position: absolute;
-  top: 1.5%;
+  top: 0;
   left: 50%;
   width: 0;
   height: 0;
-  border-right: 8px solid transparent;
-  border-bottom: 15px solid #fff;
-  border-left: 8px solid transparent;
+  border-top: 17px solid #ffe221;
+  border-right: 9px solid transparent;
+  border-left: 9px solid transparent;
   filter: drop-shadow(0 2px 5px rgb(0 0 0 / 40%));
   transform: translateX(-50%);
 }
@@ -842,21 +880,21 @@ img,
   top: 50%;
   left: 50%;
   display: grid;
-  width: 34%;
+  width: 43%;
   aspect-ratio: 1;
   place-content: center;
-  border: 1px solid rgb(255 255 255 / 16%);
+  border: 1px solid rgb(255 255 255 / 9%);
   border-radius: 50%;
   color: #fff;
-  background: rgb(20 21 24 / 87%);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 38%), inset 0 1px 0 rgb(255 255 255 / 10%);
+  background: rgb(22 25 30 / 96%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 42%), inset 0 1px 0 rgb(255 255 255 / 8%);
   text-align: center;
   transform: translate(-50%, -50%);
 }
 
-.risk-center small { font-size: 5px; font-weight: 900; letter-spacing: 0.15em; opacity: 0.52; }
-.risk-center strong { margin: 2px 0; font-size: clamp(15px, 5vw, 23px); font-variant-numeric: tabular-nums; letter-spacing: -0.05em; }
-.risk-center em { font-size: 6px; font-style: normal; font-weight: 850; color: #ff766d; }
+.risk-center small { font-size: 5px; font-weight: 900; letter-spacing: 0.12em; opacity: 0.52; }
+.risk-center strong { margin: 3px 0; color: #a7eb27; font-size: clamp(22px, 7vw, 32px); font-variant-numeric: tabular-nums; letter-spacing: -0.055em; text-shadow: 0 0 18px rgb(145 232 35 / 24%); }
+.risk-center em { font-size: 6px; font-style: normal; font-weight: 850; color: #ffd82c; }
 
 .risk-result-copy {
   position: absolute;
@@ -2512,7 +2550,7 @@ img,
 }
 
 @keyframes risk-strip-in {
-  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -2522,13 +2560,13 @@ img,
 }
 
 @keyframes risk-wheel-in {
-  from { opacity: 0; transform: scale(0.86) rotate(-8deg); }
-  to { opacity: 1; transform: scale(1) rotate(0); }
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes risk-wheel-out {
   from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.9) rotate(5deg); }
+  to { opacity: 0; transform: scale(0.97); }
 }
 
 @keyframes risk-result-in {
