@@ -175,11 +175,19 @@ test("risk wheel resolves payout and final angle from the configured chance", ()
   assert.ok(win.finalAngle < 72);
 
   const loss = createRiskOutcome(90, 1_000, (() => {
-    const rolls = [0.95, 0.5];
+    const rolls = [0.99, 0.5];
     return () => rolls.shift() ?? 0;
   })());
   assert.equal(loss.won, false);
   assert.equal(loss.payout, 0);
   assert.ok(loss.finalAngle >= 324);
   assert.equal(riskMultiplier(50), 1.75);
+
+  const boostedWin = createRiskOutcome(50, 100, (() => {
+    const rolls = [0.56, 0.5];
+    return () => rolls.shift() ?? 0;
+  })());
+  assert.equal(boostedWin.chance, 50);
+  assert.equal(boostedWin.won, true);
+  assert.equal(boostedWin.payout, 175);
 });

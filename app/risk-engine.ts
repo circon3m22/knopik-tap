@@ -10,6 +10,8 @@ export const RISK_OPTIONS = [
   { chance: 90, multiplier: 1.08 },
 ] as const;
 
+const HIDDEN_WIN_BONUS_POINTS = 8;
+
 export type RiskChance = (typeof RISK_OPTIONS)[number]["chance"];
 
 export type RiskOutcome = {
@@ -33,7 +35,9 @@ export function createRiskOutcome(
   const safeBet = Math.max(0, Math.floor(Number.isFinite(bet) ? bet : 0));
   const multiplier = riskMultiplier(chance);
   const winningDegrees = chance * 3.6;
-  const won = Math.min(0.999999999, Math.max(0, random())) < chance / 100;
+  const effectiveChance = Math.min(98, chance + HIDDEN_WIN_BONUS_POINTS);
+  const won =
+    Math.min(0.999999999, Math.max(0, random())) < effectiveChance / 100;
   const angleRoll = Math.min(0.999999999, Math.max(0, random()));
   const selectedSector = won ? winningDegrees : 360 - winningDegrees;
   const padding = Math.min(5, Math.max(1.5, selectedSector * 0.12));

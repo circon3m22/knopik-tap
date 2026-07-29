@@ -1517,11 +1517,11 @@ export default function Home() {
       hasbulaRedeemedRef.current = true;
       updateCoins((current) => ({
         ...current,
-        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + 5_000),
+        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + 1_000),
       }));
       setHasbulaRedeemed(true);
       setCheatCode("");
-      setCheatMessage("Начислено +5 000 активных монет");
+      setCheatMessage("Начислено +1 000 активных монет");
       getSound().purchase();
       vibrate([16, 22, 34], settingsRef.current.vibration);
       return;
