@@ -60,6 +60,7 @@ const CALM_SERIES_RESET_MS = 6_000;
 const WARNING_REST_MS = 2_650;
 const RECOVERY_MS = 1_350;
 const ANGRY_MS = 1_650;
+const EMOTION_FRAME_MS = 125;
 const ULTRA_VISUAL_DELAY_MS = 360;
 const RANDOM_TIRED_CHANCE = 0.015;
 const TIRED_SNAP_CHANCE = 0.04;
@@ -960,7 +961,7 @@ export default function Home() {
         if (nextFrame === targetFrame) window.clearInterval(timer);
         return nextFrame;
       });
-    }, 250);
+    }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
   }, [dogState, isHappy]);
@@ -987,7 +988,7 @@ export default function Home() {
         if (nextFrame === targetFrame) window.clearInterval(timer);
         return nextFrame;
       });
-    }, 250);
+    }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
   }, [dogState, recoveryReason]);
@@ -1001,6 +1002,11 @@ export default function Home() {
   ][rageFrame];
   const showRageSequence =
     dogState === "angry" ||
+    (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
+  const isEmotionShifting =
+    (dogState === "calm" &&
+      ((isHappy && joyFrame < 4) || (!isHappy && joyFrame > 0))) ||
+    (dogState === "angry" && rageFrame < 4) ||
     (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
   const dogImageState =
     showRageSequence
@@ -1038,7 +1044,7 @@ export default function Home() {
         ultraActive ? "ultra-active" : ""
       } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
         dogState === "calm" && joyFrame > 0 ? "is-happy" : ""
-      }`}
+      } ${isEmotionShifting ? "is-emotion-shifting" : ""}`}
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}

@@ -492,7 +492,7 @@ img,
   object-position: 50% 24%;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 220ms ease-in-out;
+  transition: none;
 }
 
 .dog-images[data-image-state="calm"] .calm-image,
@@ -585,6 +585,15 @@ img,
 
 .state-calm.is-happy .dog-ears {
   animation: happy-breathe 2.2s ease-in-out infinite;
+}
+
+.is-emotion-shifting .dog-images,
+.is-emotion-shifting .dog-ears {
+  animation: emotion-shift 500ms cubic-bezier(0.2, 0.72, 0.28, 1) both;
+}
+
+.is-emotion-shifting .dog-ear {
+  animation: none;
 }
 
 .state-calm.is-happy .portrait-surface {
@@ -1774,6 +1783,12 @@ img,
   59% { transform: translateY(-0.65%) rotate(-1.15deg); }
   68% { transform: translateY(-0.2%) rotate(0.32deg); }
   76% { transform: translateY(0) rotate(0); }
+}
+
+@keyframes emotion-shift {
+  0%, 100% { transform: translateY(0) scale(1); }
+  34% { transform: translateY(1px) scale(0.996); }
+  68% { transform: translateY(-1px) scale(1.003); }
 }
 
 @keyframes tired-breathe {
