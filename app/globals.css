@@ -496,6 +496,7 @@ img,
 }
 
 .dog-images[data-image-state="calm"] .calm-image,
+.dog-images[data-image-state="happy"] .happy-image,
 .dog-images[data-image-state="warning"] .warning-image,
 .dog-images[data-image-state="angry"] .angry-image {
   opacity: 1;
@@ -528,10 +529,27 @@ img,
   opacity: 0;
   pointer-events: none;
   transform: translateY(-0.9%);
+  transform-origin: 50% 38%;
+  animation: ear-alive 3.8s ease-in-out infinite;
   transition: opacity 130ms ease;
 }
 
+.state-tired .dog-ear-image,
+.state-recovering .dog-ear-image {
+  animation-duration: 4.6s;
+}
+
+.state-warning .dog-ear-image,
+.state-angry .dog-ear-image {
+  animation-duration: 2.7s;
+}
+
+.state-calm.is-happy .dog-ear-image {
+  animation-duration: 2.15s;
+}
+
 .dog-ears[data-image-state="calm"] .calm-image,
+.dog-ears[data-image-state="happy"] .happy-image,
 .dog-ears[data-image-state="warning"] .warning-image,
 .dog-ears[data-image-state="angry"] .angry-image {
   opacity: 1;
@@ -560,6 +578,21 @@ img,
   animation: angry-jolt 330ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
+.state-calm.is-happy .dog-images {
+  animation: happy-breathe 2.2s ease-in-out infinite;
+}
+
+.state-calm.is-happy .dog-ears {
+  animation: happy-ear-wiggle 2.4s ease-in-out infinite;
+}
+
+.state-calm.is-happy .portrait-surface {
+  box-shadow:
+    0 24px 52px rgb(0 49 128 / 22%),
+    0 0 0 5px rgb(255 255 255 / 7%),
+    inset 0 0 34px rgb(72 154 255 / 16%);
+}
+
 .dog-button.tap-a:not(:disabled) { animation: tap-squeeze-a 118ms ease-out; }
 .dog-button.tap-b:not(:disabled) { animation: tap-squeeze-b 118ms ease-out; }
 
@@ -575,12 +608,36 @@ img,
 .tap-wave {
   position: absolute;
   inset: 2%;
-  border: 1px solid rgb(255 255 255 / 34%);
+  border: 1.5px solid rgb(255 255 255 / 52%);
   border-radius: 50%;
+  background: radial-gradient(circle, transparent 66%, rgb(255 255 255 / 8%) 77%, transparent 80%);
+  box-shadow: 0 0 22px rgb(117 190 255 / 15%);
   opacity: 0;
   pointer-events: none;
   will-change: transform, opacity;
-  animation: tap-ring 480ms cubic-bezier(0.16, 0.75, 0.25, 1) both;
+  animation: tap-ring 560ms cubic-bezier(0.16, 0.75, 0.25, 1) both;
+}
+
+.tap-wave::before,
+.tap-wave::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.tap-wave::before {
+  inset: 5%;
+  border: 1px solid rgb(255 255 255 / 28%);
+  animation: tap-ring-inner 520ms ease-out both;
+}
+
+.tap-wave::after {
+  inset: -2%;
+  background: conic-gradient(from 12deg, transparent, rgb(255 255 255 / 22%), transparent 18%, transparent 50%, rgb(118 195 255 / 18%), transparent 68%);
+  -webkit-mask: radial-gradient(circle, transparent 72%, #000 73% 75%, transparent 76%);
+  mask: radial-gradient(circle, transparent 72%, #000 73% 75%, transparent 76%);
+  animation: tap-ring-glint 620ms ease-out both;
 }
 
 .tap-wave.jackpot {
@@ -615,6 +672,32 @@ img,
   width: 1px;
   height: 1px;
   color: white;
+}
+
+.tap-impact::before,
+.tap-impact::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.tap-impact::before {
+  width: 34px;
+  height: 34px;
+  background: radial-gradient(circle, currentColor 0 5%, transparent 45%);
+  filter: blur(0.4px);
+  animation: impact-flash 360ms ease-out both;
+}
+
+.tap-impact::after {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid currentColor;
+  animation: impact-ring 440ms cubic-bezier(0.18, 0.78, 0.25, 1) both;
 }
 
 .tap-particle {
@@ -1670,6 +1753,27 @@ img,
   50% { transform: translateY(-2px) scale(1.006); }
 }
 
+@keyframes happy-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-2px) scale(1.008); }
+  72% { transform: translateY(-1px) scale(1.004); }
+}
+
+@keyframes happy-ear-wiggle {
+  0%, 58%, 100% { transform: translateY(0) rotate(0); }
+  64% { transform: translateY(-1px) rotate(-0.35deg); }
+  70% { transform: translateY(-1.4px) rotate(0.38deg); }
+  76% { transform: translateY(-0.6px) rotate(-0.18deg); }
+  82% { transform: translateY(0) rotate(0); }
+}
+
+@keyframes ear-alive {
+  0%, 46%, 100% { transform: translateY(-0.9%) rotate(0); }
+  52% { transform: translateY(-1.15%) rotate(-0.22deg); }
+  58% { transform: translateY(-1.28%) rotate(0.25deg); }
+  64% { transform: translateY(-1%) rotate(-0.1deg); }
+}
+
 @keyframes tired-breathe {
   0%, 100% { transform: translateY(1px) scale(0.998); }
   50% { transform: translateY(4px) scale(0.988); }
@@ -1702,9 +1806,30 @@ img,
 }
 
 @keyframes tap-ring {
-  0% { opacity: 0.3; transform: scale(0.985); }
-  45% { opacity: 0.13; }
-  100% { opacity: 0; transform: scale(1.12); }
+  0% { opacity: 0.58; transform: scale(0.972); }
+  38% { opacity: 0.28; }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@keyframes tap-ring-inner {
+  0% { opacity: 0.72; transform: scale(0.96); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
+@keyframes tap-ring-glint {
+  0% { opacity: 0; transform: rotate(-8deg) scale(0.98); }
+  22% { opacity: 0.85; }
+  100% { opacity: 0; transform: rotate(15deg) scale(1.08); }
+}
+
+@keyframes impact-flash {
+  0% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.35); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+}
+
+@keyframes impact-ring {
+  0% { opacity: 0.88; transform: translate(-50%, -50%) scale(0.25); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.1); }
 }
 
 @keyframes portrait-pulse-a {

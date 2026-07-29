@@ -852,13 +852,10 @@ export default function Home() {
       dogStateRef.current === "tired" ||
       (dogStateRef.current === "recovering" &&
         fatigueUntilRef.current > Date.now());
-    if (!tiredNow || coinsRef.current.walletCoins < DOG_FOOD_PRICE) return;
+    if (!tiredNow || vaultCoins < DOG_FOOD_PRICE) return;
 
     clearRoundTimers();
-    updateCoins((current) => ({
-      ...current,
-      walletCoins: current.walletCoins - DOG_FOOD_PRICE,
-    }));
+    setVaultCoins((current) => current - DOG_FOOD_PRICE);
     fatigueUntilRef.current = 0;
     setFatigueUntil(0);
     setClock(Date.now());
@@ -870,7 +867,7 @@ export default function Home() {
     vibrate([18, 24, 38], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
-  }, [clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
+  }, [clearRoundTimers, getSound, resetSeries, transitionTo, vaultCoins]);
 
   const finishTutorial = useCallback(() => {
     setTutorialSeen(true);
@@ -931,13 +928,17 @@ export default function Home() {
     dogState === "tired" ||
     (dogState === "recovering" && fatigueUntil > Date.now());
   const canBuyFood =
-    isDogTired && coins.walletCoins >= DOG_FOOD_PRICE;
+    isDogTired && vaultCoins >= DOG_FOOD_PRICE;
   const canDeposit =
     !vaultLocked &&
     Number.isSafeInteger(requestedDeposit) &&
     requestedDeposit >= 2 &&
     requestedDeposit <= coins.walletCoins;
 
+  const tempoRatio =
+    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
+  const isHappy =
+    dogState === "calm" && seriesTaps >= 2 && tempoRatio >= 0.65;
   const dogImageState =
     dogState === "angry"
       ? "angry"
@@ -945,7 +946,9 @@ export default function Home() {
           dogState === "warning" ||
           (dogState === "recovering" && recoveryReason === "ultra")
         ? "warning"
-        : "calm";
+        : isHappy
+          ? "happy"
+          : "calm";
   const dogDisabled = dogState === "angry" || dogState === "recovering";
   const multiplier = levelMultiplier(levelState.level);
   const levelBonus = Math.round((multiplier - 1) * 100);
@@ -953,8 +956,6 @@ export default function Home() {
     levelState.level >= MAX_LEVEL
       ? 1
       : levelState.progressCoins / COINS_PER_LEVEL;
-  const tempoRatio =
-    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const paleCalm = dogState === "calm" && tempoRatio < 0.52;
   const tapVariant =
     tapPulse > 0 ? `tap-${tapPulse % 2 === 0 ? "a" : "b"}` : "";
@@ -974,7 +975,9 @@ export default function Home() {
         fatigueRatio > 0 ? "has-fatigue" : ""
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
-      } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""}`}
+      } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
+        isHappy ? "is-happy" : ""
+      }`}
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}
@@ -1046,11 +1049,13 @@ export default function Home() {
             </span>
             <span className="dog-images" data-image-state={dogImageState}>
               <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
+              <img className="dog-image happy-image" src="/knopik-happy.png" alt="" draggable={false} />
               <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
               <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
             </span>
             <span className="dog-ears" data-image-state={dogImageState} aria-hidden="true">
               <img className="dog-ear-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
+              <img className="dog-ear-image happy-image" src="/knopik-happy.png" alt="" draggable={false} />
               <img className="dog-ear-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
               <img className="dog-ear-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
             </span>
@@ -1282,8 +1287,8 @@ export default function Home() {
             </div>
 
             <div className="shop-wallet">
-              <span>ТЕКУЩИЙ БАЛАНС</span>
-              <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+              <span>БАЛАНС СЕЙФА</span>
+              <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
             </div>
 
             {shopMessage && <p className="purchase-message" role="status">{shopMessage}</p>}
