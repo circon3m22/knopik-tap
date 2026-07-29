@@ -1,13 +1,13 @@
 {
   "name": "Knopik Tap",
   "short_name": "Knopik",
-  "description": "Тапай Кнопика, рискуй и защищай монеты в сейфах.",
+  "description": "Тапай быстрее, заряжай ультра-тап и защищай монеты в сейфах.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#030507",
-  "theme_color": "#030507",
+  "background_color": "#1478ed",
+  "theme_color": "#1478ed",
   "lang": "ru",
   "icons": [
     {

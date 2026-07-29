@@ -26,7 +26,8 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /knopik-calm\.png/);
   assert.match(html, /knopik-warning\.png/);
   assert.match(html, /knopik-angry\.png/);
-  assert.match(html, /Нажимай на Кнопика/);
+  assert.match(html, /Тапай быстро или удерживай для ультра-тапа/);
+  assert.match(html, /Быстрые тапы дают длинную серию/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
@@ -45,7 +46,7 @@ test("ships PWA assets and removes the temporary starter", async () => {
     access(new URL("../public/knopik-calm.png", import.meta.url)),
     access(new URL("../public/knopik-warning.png", import.meta.url)),
     access(new URL("../public/knopik-angry.png", import.meta.url)),
-    access(new URL("../public/og.png", import.meta.url)),
+    access(new URL("../public/og-minimal.png", import.meta.url)),
     access(new URL("../public/sw.js", import.meta.url)),
   ]);
 });

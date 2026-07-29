@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
@@ -14,9 +15,7 @@ import {
   SAVE_KEY,
   SAVE_VERSION,
   createDefaultSave,
-  createPatience,
   sanitizeSave,
-  tapFatigue,
   type CoinState,
   type DogState,
   type GameSettings,
@@ -24,21 +23,55 @@ import {
   type OwnedSafe,
   type SafeSize,
 } from "./game-logic";
+import {
+  FATIGUE_DURATION_MS,
+  ULTRA_TAP_MAX_HOLD_MS,
+  ULTRA_TAP_MIN_HOLD_MS,
+  appendTapInterval,
+  calculateFatigueRatio,
+  calculateTapLimit,
+  calculateTempoRatio,
+  calculateUltraTapCoins,
+  classifyTapTempo,
+  isUltraTapOverheated,
+  rollingAverageTapInterval,
+} from "./tempo-engine";
+import {
+  createSoundEngine,
+  type KnopikSoundEngine,
+  type UltraStopResult,
+} from "./sound-engine";
 
-type RecoveryOutcome = "rested" | "bitten";
-type RecoveryPhase = "settling" | "relaxed";
-type SoundKind = "tap" | "warning" | "bite" | "safe";
 type TapParticle = { id: number; x: number; y: number };
+type RecoveryReason = "rest" | "bite" | "ultra";
 
-const CALM_IDLE_MS = 2_800;
-const WARNING_IDLE_MS = 3_100;
-const ANGRY_LOCK_MS = 2_000;
-const RECOVERY_MS = 1_650;
+const CALM_SERIES_RESET_MS = 6_000;
+const WARNING_REST_MS = 2_650;
+const RECOVERY_MS = 1_350;
+const ANGRY_MS = 1_650;
+const ULTRA_VISUAL_DELAY_MS = 360;
 
 const tutorialSlides = [
-  "Тапай Кнопика — монеты попадают на незащищённый баланс",
-  "Когда Кнопик напрягся — остановись и дай ему отдохнуть",
-  "При укусе баланс сгорит. Монеты в купленных сейфах останутся",
+  {
+    eyebrow: "ТЕМП",
+    title: "Быстрые тапы дают длинную серию — от 30 до 100",
+    copy: "Если тапать медленно, Кнопик напрягается уже через 5–15 касаний.",
+  },
+  {
+    eyebrow: "УЛЬТРА-ТАП",
+    title: "Зажми Кнопика и отпусти между 2 и 15 секундами",
+    copy: "Чем дольше держишь, тем больше награда. Максимум — 1000 монет.",
+  },
+  {
+    eyebrow: "РИСК",
+    title: "Передержишь после 15 секунд — весь баланс сгорит",
+    copy: "После удачного ультра-тапа Кнопик 90 секунд быстрее устаёт.",
+  },
+  {
+    eyebrow: "СЕЙФЫ",
+    title: "Только монеты в сейфах переживают проигрыш",
+    copy: "Покупка сейфа сразу оплачивает его и полностью заполняет.",
+  },
 ];
 
 function vibrate(pattern: number | number[], enabled: boolean) {
@@ -54,8 +87,14 @@ function createSafeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function formatSeconds(milliseconds: number) {
+  return (Math.max(0, milliseconds) / 1_000).toFixed(1);
+}
+
 export default function Home() {
   const [dogState, setDogState] = useState<DogState>("calm");
+  const [recoveryReason, setRecoveryReason] =
+    useState<RecoveryReason>("rest");
   const [coins, setCoins] = useState<CoinState>({
     walletCoins: 0,
     streakCoins: 0,
@@ -77,31 +116,54 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [recoveryOutcome, setRecoveryOutcome] =
-    useState<RecoveryOutcome>("rested");
-  const [recoveryPhase, setRecoveryPhase] =
-    useState<RecoveryPhase>("relaxed");
+  const [seriesTaps, setSeriesTaps] = useState(0);
+  const [tapLimit, setTapLimit] = useState(0);
+  const [averageInterval, setAverageInterval] = useState(600);
+  const [fatigueUntil, setFatigueUntil] = useState(0);
+  const [clock, setClock] = useState(() => Date.now());
+  const [holding, setHolding] = useState(false);
+  const [ultraActive, setUltraActive] = useState(false);
+  const [ultraElapsed, setUltraElapsed] = useState(0);
+  const [ultraPreview, setUltraPreview] = useState(0);
   const [tapPulse, setTapPulse] = useState(0);
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState("");
+  const [momentMessage, setMomentMessage] = useState("");
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
   const settingsRef = useRef(settings);
   const statsRef = useRef(stats);
-  const patienceRef = useRef<number | null>(null);
-  const fatigueRef = useRef(0);
-  const tapsInSeriesRef = useRef(0);
-  const lastTapAtRef = useRef(Date.now() - 11_000);
+  const fatigueUntilRef = useRef(0);
+  const seriesTapsRef = useRef(0);
+  const tapLimitRef = useRef(0);
+  const tapIntervalsRef = useRef<number[]>([]);
+  const lastTapAtRef = useRef<number | null>(null);
+  const patienceRollRef = useRef(Math.random());
   const particleIdRef = useRef(0);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const soundRef = useRef<KnopikSoundEngine | null>(null);
+  const holdStartRef = useRef(0);
+  const holdPointRef = useRef({ x: 50, y: 50 });
+  const holdingRef = useRef(false);
+  const ultraActiveRef = useRef(false);
+  const overheatTriggeredRef = useRef(false);
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const relaxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const angryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+
+  const getSound = useCallback(() => {
+    if (!soundRef.current) {
+      soundRef.current = createSoundEngine({
+        enabled: settingsRef.current.sound,
+        volume: 0.72,
+      });
+    }
+    return soundRef.current;
+  }, []);
 
   const transitionTo = useCallback((state: DogState) => {
     dogStateRef.current = state;
@@ -131,18 +193,25 @@ export default function Home() {
   );
 
   const clearRoundTimers = useCallback(() => {
-    [
-      settleTimerRef,
-      recoveryTimerRef,
-      relaxTimerRef,
-      angryTimerRef,
-      flashTimerRef,
-      messageTimerRef,
-    ].forEach((timerRef) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = null;
-    });
+    [idleTimerRef, recoveryTimerRef, angryTimerRef, flashTimerRef].forEach(
+      (timerRef) => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = null;
+      },
+    );
   }, []);
+
+  const resetSeries = useCallback(() => {
+    seriesTapsRef.current = 0;
+    tapLimitRef.current = 0;
+    tapIntervalsRef.current = [];
+    lastTapAtRef.current = null;
+    patienceRollRef.current = Math.random();
+    setSeriesTaps(0);
+    setTapLimit(0);
+    setAverageInterval(600);
+    updateCoins((current) => ({ ...current, streakCoins: 0 }));
+  }, [updateCoins]);
 
   useEffect(() => {
     try {
@@ -158,14 +227,20 @@ export default function Home() {
         totalTaps: saved.totalTaps,
         totalBites: saved.totalBites,
       };
+      const activeFatigue =
+        saved.ultraFatigueUntil > Date.now()
+          ? saved.ultraFatigueUntil
+          : 0;
 
       coinsRef.current = loadedCoins;
       settingsRef.current = saved.settings;
       statsRef.current = loadedStats;
+      fatigueUntilRef.current = activeFatigue;
       setCoins(loadedCoins);
       setSafes(saved.safes);
       setSettings(saved.settings);
       setStats(loadedStats);
+      setFatigueUntil(activeFatigue);
       setTutorialSeen(saved.tutorialSeen);
       setTutorialOpen(!saved.tutorialSeen);
     } catch {
@@ -185,7 +260,12 @@ export default function Home() {
 
   useEffect(() => {
     settingsRef.current = settings;
+    soundRef.current?.setEnabled(settings.sound);
   }, [settings]);
+
+  useEffect(() => {
+    fatigueUntilRef.current = fatigueUntil;
+  }, [fatigueUntil]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -201,132 +281,155 @@ export default function Home() {
           bestStreak: stats.bestStreak,
           totalTaps: stats.totalTaps,
           totalBites: stats.totalBites,
+          ultraFatigueUntil: fatigueUntil,
         }),
       );
     } catch {
-      // The game still works when storage is unavailable.
+      // The game remains playable when local storage is unavailable.
     }
-  }, [coins.walletCoins, hydrated, safes, settings, stats, tutorialSeen]);
+  }, [
+    coins.walletCoins,
+    fatigueUntil,
+    hydrated,
+    safes,
+    settings,
+    stats,
+    tutorialSeen,
+  ]);
 
-  useEffect(() => clearRoundTimers, [clearRoundTimers]);
-
-  const playSound = useCallback((kind: SoundKind) => {
-    if (!settingsRef.current.sound) return;
-    const AudioConstructor =
-      window.AudioContext ??
-      (window as typeof window & {
-        webkitAudioContext?: typeof AudioContext;
-      }).webkitAudioContext;
-    if (!AudioConstructor) return;
-
-    try {
-      const context =
-        audioContextRef.current ?? new AudioConstructor({ latencyHint: "interactive" });
-      audioContextRef.current = context;
-      void context.resume();
-      const now = context.currentTime;
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = kind === "bite" ? "sawtooth" : kind === "warning" ? "triangle" : "sine";
-      const startFrequency =
-        kind === "bite" ? 125 : kind === "warning" ? 115 : kind === "safe" ? 420 : 660;
-      oscillator.frequency.setValueAtTime(startFrequency, now);
-      if (kind === "bite" || kind === "warning") {
-        oscillator.frequency.exponentialRampToValueAtTime(
-          kind === "bite" ? 58 : 82,
-          now + (kind === "bite" ? 0.24 : 0.18),
-        );
-      } else if (kind === "safe") {
-        oscillator.frequency.exponentialRampToValueAtTime(840, now + 0.16);
+  useEffect(() => {
+    if (!fatigueUntil) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setClock(now);
+      if (now >= fatigueUntilRef.current) {
+        fatigueUntilRef.current = 0;
+        setFatigueUntil(0);
       }
-      const duration = kind === "bite" ? 0.26 : kind === "warning" ? 0.21 : kind === "safe" ? 0.18 : 0.06;
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(kind === "bite" ? 0.1 : 0.035, now + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(now);
-      oscillator.stop(now + duration + 0.01);
-    } catch {
-      // Sound is optional.
-    }
-  }, []);
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [fatigueUntil]);
+
+  useEffect(
+    () => () => {
+      clearRoundTimers();
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      soundRef.current?.close();
+    },
+    [clearRoundTimers],
+  );
+
+  const fatigueRatio = useMemo(() => {
+    const remaining = Math.max(0, fatigueUntil - clock);
+    if (remaining === 0) return 0;
+    return calculateFatigueRatio(FATIGUE_DURATION_MS - remaining);
+  }, [clock, fatigueUntil]);
+
+  const fatigueSeconds = Math.ceil(Math.max(0, fatigueUntil - clock) / 1_000);
+
+  const stopHoldVisual = useCallback(
+    (result: UltraStopResult) => {
+      if (holdIntervalRef.current) {
+        clearInterval(holdIntervalRef.current);
+        holdIntervalRef.current = null;
+      }
+      holdingRef.current = false;
+      ultraActiveRef.current = false;
+      setHolding(false);
+      setUltraActive(false);
+      setUltraElapsed(0);
+      setUltraPreview(0);
+      getSound().stopUltraLoop(result);
+    },
+    [getSound],
+  );
 
   const finishRecovery = useCallback(() => {
     transitionTo("calm");
-    setRecoveryPhase("relaxed");
-    patienceRef.current = null;
-    fatigueRef.current = 0;
-    tapsInSeriesRef.current = 0;
-  }, [transitionTo]);
+    setRecoveryReason("rest");
+    resetSeries();
+    getSound().rest();
+  }, [getSound, resetSeries, transitionTo]);
 
   const beginRecovery = useCallback(
-    (outcome: RecoveryOutcome, previousState: DogState) => {
-      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = null;
-      updateCoins((current) => ({ ...current, streakCoins: 0 }));
-      setRecoveryOutcome(outcome);
-      setRecoveryPhase(previousState === "calm" ? "relaxed" : "settling");
+    (reason: RecoveryReason) => {
+      setRecoveryReason(reason);
       transitionTo("recovering");
-      patienceRef.current = null;
-      fatigueRef.current = 0;
-      tapsInSeriesRef.current = 0;
-
-      if (previousState !== "calm") {
-        relaxTimerRef.current = setTimeout(
-          () => setRecoveryPhase("relaxed"),
-          760,
-        );
-      }
       recoveryTimerRef.current = setTimeout(finishRecovery, RECOVERY_MS);
     },
-    [finishRecovery, transitionTo, updateCoins],
+    [finishRecovery, transitionTo],
   );
 
-  const armSettleTimer = useCallback(
-    (state: "calm" | "warning") => {
-      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = setTimeout(() => {
-        if (
-          dogStateRef.current === "calm" ||
-          dogStateRef.current === "warning"
-        ) {
-          beginRecovery("rested", dogStateRef.current);
-        }
-      }, state === "warning" ? WARNING_IDLE_MS : CALM_IDLE_MS);
+  const triggerBite = useCallback(
+    (fromOverheat = false) => {
+      clearRoundTimers();
+      if (holdingRef.current) {
+        stopHoldVisual(fromOverheat ? "overheat" : "cancel");
+      }
+      transitionTo("angry");
+      setRecoveryReason("bite");
+      setBiteFlash(true);
+      setMomentMessage(
+        fromOverheat
+          ? "Перегрев. Незащищённый баланс сгорел"
+          : "Кнопик укусил. Баланс сгорел",
+      );
+      updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
+      updateStats((current) => ({
+        ...current,
+        totalBites: current.totalBites + 1,
+      }));
+      seriesTapsRef.current = 0;
+      tapLimitRef.current = 0;
+      tapIntervalsRef.current = [];
+      setSeriesTaps(0);
+      setTapLimit(0);
+      vibrate([90, 35, 80, 35, 55], settingsRef.current.vibration);
+      if (!fromOverheat) getSound().bite();
+      flashTimerRef.current = setTimeout(() => setBiteFlash(false), 420);
+      angryTimerRef.current = setTimeout(
+        () => beginRecovery("bite"),
+        ANGRY_MS,
+      );
     },
-    [beginRecovery],
+    [
+      beginRecovery,
+      clearRoundTimers,
+      getSound,
+      stopHoldVisual,
+      transitionTo,
+      updateCoins,
+      updateStats,
+    ],
   );
 
-  const triggerBite = useCallback(() => {
-    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = null;
-    transitionTo("angry");
-    setRecoveryOutcome("bitten");
-    setBiteFlash(true);
-    updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
-    updateStats((current) => ({
-      ...current,
-      totalBites: current.totalBites + 1,
-    }));
-    patienceRef.current = null;
-    fatigueRef.current = 0;
-    tapsInSeriesRef.current = 0;
-    lastTapAtRef.current = Date.now();
-    vibrate([90, 35, 70], settingsRef.current.vibration);
-    playSound("bite");
-    flashTimerRef.current = setTimeout(() => setBiteFlash(false), 360);
-    angryTimerRef.current = setTimeout(
-      () => beginRecovery("bitten", "angry"),
-      ANGRY_LOCK_MS,
-    );
-  }, [beginRecovery, playSound, transitionTo, updateCoins, updateStats]);
+  const armIdleTimer = useCallback(
+    (state: "calm" | "warning") => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(
+        () => {
+          if (state === "warning" && dogStateRef.current === "warning") {
+            beginRecovery("rest");
+          } else if (state === "calm" && dogStateRef.current === "calm") {
+            resetSeries();
+          }
+        },
+        state === "warning" ? WARNING_REST_MS : CALM_SERIES_RESET_MS,
+      );
+    },
+    [beginRecovery, resetSeries],
+  );
 
   const addParticle = useCallback((x: number, y: number) => {
     const id = ++particleIdRef.current;
-    setParticles((current) => [...current.slice(-7), { id, x, y }]);
+    setParticles((current) => [...current.slice(-8), { id, x, y }]);
     setTimeout(
-      () => setParticles((current) => current.filter((item) => item.id !== id)),
-      620,
+      () =>
+        setParticles((current) =>
+          current.filter((particle) => particle.id !== id),
+        ),
+      650,
     );
   }, []);
 
@@ -334,59 +437,181 @@ export default function Home() {
     (x: number, y: number) => {
       const currentState = dogStateRef.current;
       if (currentState === "angry" || currentState === "recovering") return;
-
-      setTapPulse((current) => current + 1);
-      addParticle(x, y);
-      updateStats((current) => ({
-        ...current,
-        totalTaps: current.totalTaps + 1,
-      }));
-
       if (currentState === "warning") {
         triggerBite();
         return;
       }
 
-      const now = Date.now();
-      const nextStreak = coinsRef.current.streakCoins + 1;
+      const now = performance.now();
+      if (lastTapAtRef.current !== null) {
+        tapIntervalsRef.current = appendTapInterval(
+          tapIntervalsRef.current,
+          now - lastTapAtRef.current,
+        );
+      }
+      lastTapAtRef.current = now;
+
+      const average = rollingAverageTapInterval(tapIntervalsRef.current);
+      const remaining = Math.max(0, fatigueUntilRef.current - Date.now());
+      const currentFatigue =
+        remaining > 0
+          ? calculateFatigueRatio(FATIGUE_DURATION_MS - remaining)
+          : 0;
+      const nextSeries = seriesTapsRef.current + 1;
+      const dynamicLimit = calculateTapLimit(
+        average,
+        currentFatigue,
+        () => patienceRollRef.current,
+      );
+      const nextLimit = Math.max(nextSeries, dynamicLimit);
+      const tempoRatio = calculateTempoRatio(average);
+
+      seriesTapsRef.current = nextSeries;
+      tapLimitRef.current = nextLimit;
+      setSeriesTaps(nextSeries);
+      setTapLimit(nextLimit);
+      setAverageInterval(average);
+      setTapPulse((current) => current + 1);
+      addParticle(x, y);
       updateCoins((current) => ({
         walletCoins: current.walletCoins + 1,
         streakCoins: current.streakCoins + 1,
       }));
       updateStats((current) => ({
         ...current,
-        bestStreak: Math.max(current.bestStreak, nextStreak),
+        totalTaps: current.totalTaps + 1,
+        bestStreak: Math.max(current.bestStreak, nextSeries),
       }));
+      getSound().tap(tempoRatio);
+      vibrate(7, settingsRef.current.vibration);
 
-      tapsInSeriesRef.current += 1;
-      if (patienceRef.current === null) {
-        patienceRef.current = createPatience(now - lastTapAtRef.current);
-      }
-      fatigueRef.current += tapFatigue();
-      lastTapAtRef.current = now;
-      const thresholdReached =
-        tapsInSeriesRef.current >= 5 &&
-        fatigueRef.current >= patienceRef.current;
-
-      playSound("tap");
-      vibrate(8, settingsRef.current.vibration);
-      if (thresholdReached) {
+      if (nextSeries >= nextLimit) {
         transitionTo("warning");
-        vibrate([24, 36, 24], settingsRef.current.vibration);
-        playSound("warning");
-        armSettleTimer("warning");
+        setMomentMessage("Кнопик напрягся. Отпусти его отдохнуть");
+        getSound().warning(currentFatigue > 0 ? 0.92 : 0.68);
+        vibrate([26, 42, 26], settingsRef.current.vibration);
+        armIdleTimer("warning");
       } else {
-        armSettleTimer("calm");
+        setMomentMessage("");
+        armIdleTimer("calm");
       }
     },
     [
       addParticle,
-      armSettleTimer,
-      playSound,
+      armIdleTimer,
+      getSound,
       transitionTo,
       triggerBite,
       updateCoins,
       updateStats,
+    ],
+  );
+
+  const startHold = useCallback(
+    (x: number, y: number) => {
+      if (holdingRef.current) return;
+      const currentState = dogStateRef.current;
+      if (currentState === "angry" || currentState === "recovering") return;
+      if (currentState === "warning") {
+        triggerBite();
+        return;
+      }
+
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      getSound().unlock();
+      holdPointRef.current = { x, y };
+      holdStartRef.current = performance.now();
+      holdingRef.current = true;
+      ultraActiveRef.current = false;
+      overheatTriggeredRef.current = false;
+      setHolding(true);
+      setUltraActive(false);
+      setUltraElapsed(0);
+      setUltraPreview(0);
+      setMomentMessage("Держи. Ультра включится через мгновение");
+
+      holdIntervalRef.current = setInterval(() => {
+        const elapsed = performance.now() - holdStartRef.current;
+        setUltraElapsed(elapsed);
+
+        if (
+          elapsed >= ULTRA_VISUAL_DELAY_MS &&
+          !ultraActiveRef.current
+        ) {
+          ultraActiveRef.current = true;
+          setUltraActive(true);
+          getSound().ultraStart();
+          setMomentMessage("Отпусти до 15 секунд");
+          vibrate(18, settingsRef.current.vibration);
+        }
+
+        if (ultraActiveRef.current) {
+          setUltraPreview(calculateUltraTapCoins(elapsed));
+          getSound().ultraPulse(elapsed / ULTRA_TAP_MAX_HOLD_MS);
+        }
+
+        if (
+          isUltraTapOverheated(elapsed) &&
+          !overheatTriggeredRef.current
+        ) {
+          overheatTriggeredRef.current = true;
+          triggerBite(true);
+        }
+      }, 50);
+    },
+    [getSound, triggerBite],
+  );
+
+  const finishHold = useCallback(
+    (cancelled = false) => {
+      if (!holdingRef.current || overheatTriggeredRef.current) return;
+      const elapsed = performance.now() - holdStartRef.current;
+      const point = holdPointRef.current;
+
+      if (cancelled) {
+        stopHoldVisual("cancel");
+        setMomentMessage("");
+        return;
+      }
+
+      if (elapsed < ULTRA_TAP_MIN_HOLD_MS) {
+        stopHoldVisual("cancel");
+        registerTap(point.x, point.y);
+        if (elapsed >= ULTRA_VISUAL_DELAY_MS) {
+          setMomentMessage("Для ультра-тапа держи минимум 2 секунды");
+        }
+        return;
+      }
+
+      const reward = calculateUltraTapCoins(elapsed);
+      stopHoldVisual("success");
+      updateCoins((current) => ({
+        walletCoins: current.walletCoins + reward,
+        streakCoins: 0,
+      }));
+      const nextFatigueUntil = Date.now() + FATIGUE_DURATION_MS;
+      fatigueUntilRef.current = nextFatigueUntil;
+      setFatigueUntil(nextFatigueUntil);
+      setClock(Date.now());
+      setMomentMessage(`Ультра-тап: +${reward}. Кнопик очень устал`);
+      resetSeries();
+      clearRoundTimers();
+      setRecoveryReason("ultra");
+      transitionTo("recovering");
+      vibrate([35, 35, 70, 35, 110], settingsRef.current.vibration);
+      recoveryTimerRef.current = setTimeout(finishRecovery, 3_200);
+    },
+    [
+      clearRoundTimers,
+      finishRecovery,
+      registerTap,
+      resetSeries,
+      stopHoldVisual,
+      transitionTo,
+      updateCoins,
     ],
   );
 
@@ -395,21 +620,47 @@ export default function Home() {
       if (event.button !== 0) return;
       event.preventDefault();
       const rect = event.currentTarget.getBoundingClientRect();
-      registerTap(
+      event.currentTarget.setPointerCapture(event.pointerId);
+      startHold(
         ((event.clientX - rect.left) / rect.width) * 100,
         ((event.clientY - rect.top) / rect.height) * 100,
       );
     },
-    [registerTap],
+    [startHold],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      finishHold(false);
+    },
+    [finishHold],
   );
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (
+        (event.key !== "Enter" && event.key !== " ") ||
+        event.repeat
+      ) {
+        return;
+      }
+      event.preventDefault();
+      startHold(50, 50);
+    },
+    [startHold],
+  );
+
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      registerTap(50, 48);
+      finishHold(false);
     },
-    [registerTap],
+    [finishHold],
   );
 
   const buySafe = useCallback(
@@ -434,12 +685,15 @@ export default function Home() {
         },
       ]);
       setPurchaseMessage(`${definition.name} сейф заполнен`);
-      playSound("safe");
-      vibrate([20, 30, 45], settingsRef.current.vibration);
+      getSound().safe();
+      vibrate([20, 30, 50], settingsRef.current.vibration);
       if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
-      messageTimerRef.current = setTimeout(() => setPurchaseMessage(""), 1_800);
+      messageTimerRef.current = setTimeout(
+        () => setPurchaseMessage(""),
+        1_800,
+      );
     },
-    [playSound, updateCoins],
+    [getSound, updateCoins],
   );
 
   const finishTutorial = useCallback(() => {
@@ -450,190 +704,293 @@ export default function Home() {
 
   const resetProgress = useCallback(() => {
     clearRoundTimers();
+    stopHoldVisual("cancel");
     const defaults = createDefaultSave();
     const resetCoins = { walletCoins: 0, streakCoins: 0 };
     const resetStats = { bestStreak: 0, totalTaps: 0, totalBites: 0 };
     coinsRef.current = resetCoins;
     settingsRef.current = defaults.settings;
     statsRef.current = resetStats;
+    fatigueUntilRef.current = 0;
     setCoins(resetCoins);
     setSafes([]);
     setStats(resetStats);
     setSettings(defaults.settings);
+    setFatigueUntil(0);
     setTutorialSeen(false);
     setTutorialStep(0);
     setTutorialOpen(true);
     setSafesOpen(false);
     setSettingsOpen(false);
     setResetConfirmOpen(false);
-    setRecoveryOutcome("rested");
-    setRecoveryPhase("relaxed");
-    patienceRef.current = null;
-    fatigueRef.current = 0;
-    tapsInSeriesRef.current = 0;
-    lastTapAtRef.current = Date.now() - 11_000;
+    setRecoveryReason("rest");
+    setMomentMessage("");
+    resetSeries();
     transitionTo("calm");
     localStorage.removeItem(SAVE_KEY);
-  }, [clearRoundTimers, transitionTo]);
+  }, [
+    clearRoundTimers,
+    resetSeries,
+    stopHoldVisual,
+    transitionTo,
+  ]);
 
   const vaultCoins = useMemo(
     () => safes.reduce((total, safe) => total + safe.stored, 0),
     [safes],
   );
 
-  const moodLabel =
-    dogState === "warning"
-      ? "НАПРЯЖЁН"
-      : dogState === "angry"
-        ? "ЗОЛ"
-        : dogState === "recovering"
-          ? "ОТДЫХАЕТ"
-          : "СПОКОЕН";
+  const tempo = classifyTapTempo(averageInterval);
+  const tempoLabel =
+    tempo === "fast"
+      ? "быстрый"
+      : tempo === "slow"
+        ? "медленный"
+        : "ровный";
 
-  const statusText = useMemo(() => {
-    if (dogState === "warning") return "КНОПИК НАПРЯГСЯ — НЕ ТРОГАЙ";
-    if (dogState === "angry") return "НЕЗАЩИЩЁННЫЕ МОНЕТЫ СГОРЕЛИ";
-    if (dogState === "recovering") {
-      return recoveryOutcome === "bitten"
-        ? "СЕЙФЫ ЦЕЛЫ. КНОПИК ОТДЫХАЕТ"
-        : "КНОПИК ОТДЫХАЕТ. БАЛАНС НЕ ЗАЩИЩЁН";
-    }
-    if (coins.walletCoins >= 200) return "МОЖНО ЗАПОЛНИТЬ МАЛЫЙ СЕЙФ";
-    return coins.streakCoins > 0
-      ? "ЕЩЁ ТАП — ИЛИ ПОРА ОСТАНОВИТЬСЯ?"
-      : "ТАПАЙ КНОПИКА";
-  }, [coins.streakCoins, coins.walletCoins, dogState, recoveryOutcome]);
+  const statusTitle =
+    dogState === "warning"
+      ? "Напрягся"
+      : dogState === "angry"
+        ? "Разозлился"
+        : dogState === "recovering"
+          ? recoveryReason === "ultra"
+            ? "Очень устал"
+            : "Отдыхает"
+          : fatigueRatio > 0
+            ? "Устал, но готов"
+            : "Спокоен";
+
+  const statusCopy =
+    dogState === "warning"
+      ? "Не трогай — дай Кнопику успокоиться"
+      : dogState === "angry"
+        ? "Сейфы целы, незащищённые монеты сгорели"
+        : dogState === "recovering"
+          ? recoveryReason === "ultra"
+            ? "После ультра-тапа нужна пауза"
+            : "Скоро можно продолжить"
+          : fatigueRatio > 0
+            ? `Агрессивная усталость пройдёт через ${fatigueSeconds} сек`
+            : "Тапай быстро или удерживай для ультра-тапа";
 
   const dogImageState =
     dogState === "angry"
       ? "angry"
       : dogState === "warning" ||
-          (dogState === "recovering" && recoveryPhase === "settling")
+          (dogState === "recovering" && recoveryReason === "ultra")
         ? "warning"
         : "calm";
   const dogDisabled = dogState === "angry" || dogState === "recovering";
+  const progress =
+    tapLimit > 0 ? Math.min(1, seriesTaps / Math.max(1, tapLimit)) : 0;
+  const ultraProgress = Math.min(
+    1,
+    ultraElapsed / ULTRA_TAP_MAX_HOLD_MS,
+  );
+  const ultraReady = ultraElapsed >= ULTRA_TAP_MIN_HOLD_MS;
+
+  const gameStyle = {
+    "--series-progress": progress,
+    "--ultra-angle": `${ultraProgress * 360}deg`,
+  } as CSSProperties;
 
   return (
     <main
-      className={`game-shell state-${dogState} ${biteFlash ? "bite-flash" : ""}`}
+      className={`game-shell state-${dogState} ${
+        fatigueRatio > 0 ? "has-fatigue" : ""
+      } ${holding ? "is-holding" : ""} ${
+        ultraActive ? "ultra-active" : ""
+      } ${biteFlash ? "bite-flash" : ""}`}
       data-state={dogState}
       data-hydrated={hydrated}
+      style={gameStyle}
     >
-      <div className="arcade-grid" aria-hidden="true" />
-
-      <header className="hud-panel">
-        <div className="brand-lockup" aria-label="Knopik Tap">
-          <span>KNOPIK</span>
-          <strong>TAP</strong>
+      <header className="top-bar">
+        <div className="wordmark" aria-label="Knopik Tap">
+          <span>K</span>
+          <strong>KNOPIK <small>TAP</small></strong>
         </div>
-        <div className="hud-stats">
+        <div className="top-actions">
           <button
-            className="hud-stat hud-stat-button"
+            className="vault-button"
             type="button"
-            aria-label={`Открыть сейфы. В хранилище ${vaultCoins} монет`}
             onClick={() => setSafesOpen(true)}
+            aria-label={`Открыть сейфы. Защищено ${vaultCoins} монет`}
           >
-            <span className="mini-safe" aria-hidden="true"><i /></span>
-            <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
-            <small>В СЕЙФАХ</small>
+            <span className="safe-icon" aria-hidden="true"><i /></span>
+            <span><small>ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
           </button>
-          <div className="hud-stat">
-            <span className="coin-icon" aria-hidden="true">K</span>
-            <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
-            <small>БАЛАНС</small>
-          </div>
-          <div className="hud-stat">
-            <span className="mood-icon" aria-hidden="true"><i /><i /><b /></span>
-            <strong>{moodLabel}</strong>
-            <small>КНОПИК</small>
-          </div>
+          <button
+            className="round-icon-button"
+            type="button"
+            aria-label="Настройки"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
+          </button>
         </div>
       </header>
 
-      <section className="game-zone" aria-live="polite">
-        <button
-          className={`dog-button tap-${tapPulse % 2 === 0 ? "a" : "b"}`}
-          type="button"
-          data-testid="knopik"
-          aria-label={dogDisabled ? "Кнопик отдыхает" : "Тапнуть Кнопика"}
-          disabled={dogDisabled}
-          onPointerDown={handlePointerDown}
-          onKeyDown={handleKeyDown}
-          onContextMenu={(event) => event.preventDefault()}
-        >
-          <span className="portrait-ring" aria-hidden="true" />
-          <span className="dog-images" data-image-state={dogImageState}>
-            <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
-            <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
-            <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
-          </span>
-          <span className="tap-particles" aria-hidden="true">
-            {particles.map((particle) => (
-              <span
-                className="tap-particle"
-                key={particle.id}
-                style={{ left: `${particle.x}%`, top: `${particle.y}%` }}
-              >
-                +1
-              </span>
-            ))}
-          </span>
-        </button>
-
-        <div className="wallet-display" aria-label={`${coins.walletCoins} незащищённых монет`}>
-          <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
-          <span>НЕЗАЩИЩЁННЫЙ БАЛАНС</span>
-          {coins.streakCoins > 0 && <small>+{coins.streakCoins} ЗА ПОДХОД</small>}
+      <section className="game-stage" aria-live="polite">
+        <div className="state-copy">
+          <span className="state-label"><i />{statusTitle}</span>
+          <h1>{statusCopy}</h1>
         </div>
-        <p className="status-copy" role="status">{statusText}</p>
+
+        <div className="dog-stage">
+          <div className="ultra-aura" aria-hidden="true">
+            {Array.from({ length: 10 }, (_, index) => (
+              <i key={index} />
+            ))}
+          </div>
+          <button
+            className={`dog-button tap-${tapPulse % 2 === 0 ? "a" : "b"}`}
+            type="button"
+            data-testid="knopik"
+            aria-label={
+              dogDisabled
+                ? "Кнопик отдыхает"
+                : "Тапнуть или удерживать Кнопика для ультра-тапа"
+            }
+            disabled={dogDisabled}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={() => finishHold(true)}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            <span className="portrait-surface" aria-hidden="true" />
+            <span className="dog-images" data-image-state={dogImageState}>
+              <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
+              <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
+              <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
+            </span>
+            <span className="ultra-progress-ring" aria-hidden="true" />
+            <span className="tap-particles" aria-hidden="true">
+              {particles.map((particle) => (
+                <span
+                  className="tap-particle"
+                  key={particle.id}
+                  style={{ left: `${particle.x}%`, top: `${particle.y}%` }}
+                >
+                  +1
+                </span>
+              ))}
+            </span>
+            {ultraActive && (
+              <span className={`ultra-readout ${ultraReady ? "ready" : ""}`}>
+                <small>{ultraReady ? "ОТПУСКАЙ КОГДА ГОТОВ" : "РАЗОГРЕВ"}</small>
+                <strong>+{ultraPreview}</strong>
+                <b>{formatSeconds(ultraElapsed)} / 15.0 сек</b>
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="game-data">
+          <div className="wallet-balance">
+            <span className="coin-mark" aria-hidden="true">K</span>
+            <div>
+              <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+              <small>НЕЗАЩИЩЁННЫЕ МОНЕТЫ</small>
+            </div>
+          </div>
+
+          <div className="tempo-panel">
+            <div className="tempo-row">
+              <span>Темп <strong>{tempoLabel}</strong></span>
+              <span>Серия <strong>{seriesTaps} / {tapLimit || "—"}</strong></span>
+            </div>
+            <div className="series-track" aria-label={`Серия ${seriesTaps} из ${tapLimit || 0}`}>
+              <span />
+            </div>
+            <div className="tempo-footer">
+              <span>
+                {fatigueRatio > 0
+                  ? `Усталость · ${fatigueSeconds} сек`
+                  : "Быстрее темп — длиннее серия"}
+              </span>
+              <span>Удерживай 2–15 сек</span>
+            </div>
+          </div>
+
+          <p className="moment-message" role="status">
+            {momentMessage || "Короткий тап — монета. Удержание — ультра."}
+          </p>
+        </div>
       </section>
 
-      <nav className="bottom-nav" aria-label="Меню игры">
+      <footer className="bottom-bar">
         <button type="button" onClick={() => setSafesOpen(true)}>
-          <span className="nav-icon safe-nav-icon" aria-hidden="true"><i /></span>
-          <span>СЕЙФЫ</span>
+          <span className="safe-icon" aria-hidden="true"><i /></span>
+          <span>Сейфы</span>
           {safes.length > 0 && <b>{safes.length}</b>}
         </button>
-        <button className="active" type="button" aria-current="page" onClick={() => { setSafesOpen(false); setSettingsOpen(false); }}>
-          <span className="nav-icon home-nav-icon" aria-hidden="true"><i /></span>
-          <span>ИГРА</span>
+        <button
+          className="help-button"
+          type="button"
+          onClick={() => {
+            setTutorialStep(0);
+            setTutorialOpen(true);
+          }}
+        >
+          <span aria-hidden="true">?</span>
+          <span>Как играть</span>
         </button>
-        <button type="button" onClick={() => setSettingsOpen(true)}>
-          <span className="nav-icon settings-nav-icon" aria-hidden="true"><i /><i /><i /></span>
-          <span>НАСТРОЙКИ</span>
-        </button>
-      </nav>
+      </footer>
 
       {tutorialOpen && (
         <div className="modal-backdrop tutorial-backdrop">
-          <section className="tutorial-sheet" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
-            <div className="tutorial-badge" aria-hidden="true"><span className="mini-safe"><i /></span></div>
-            <p className="sheet-kicker">КАК ИГРАТЬ</p>
-            <h1 id="tutorial-title">{tutorialSlides[tutorialStep]}</h1>
-            <div className="tutorial-dots" aria-label={`Шаг ${tutorialStep + 1} из 3`}>
-              {tutorialSlides.map((_, index) => <span className={index === tutorialStep ? "active" : ""} key={index} />)}
+          <section
+            className="tutorial-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tutorial-title"
+          >
+            <div className="tutorial-visual" aria-hidden="true">
+              <span>{tutorialStep + 1}</span>
+              <i />
+            </div>
+            <p className="sheet-kicker">{tutorialSlides[tutorialStep].eyebrow}</p>
+            <h2 id="tutorial-title">{tutorialSlides[tutorialStep].title}</h2>
+            <p>{tutorialSlides[tutorialStep].copy}</p>
+            <div className="tutorial-dots" aria-label={`Шаг ${tutorialStep + 1} из ${tutorialSlides.length}`}>
+              {tutorialSlides.map((_, index) => (
+                <span className={index === tutorialStep ? "active" : ""} key={index} />
+              ))}
             </div>
             <button
               className="primary-button"
               type="button"
-              onClick={() => tutorialStep < tutorialSlides.length - 1 ? setTutorialStep((current) => current + 1) : finishTutorial()}
+              onClick={() =>
+                tutorialStep < tutorialSlides.length - 1
+                  ? setTutorialStep((current) => current + 1)
+                  : finishTutorial()
+              }
             >
-              {tutorialStep === tutorialSlides.length - 1 ? "ИГРАТЬ" : "ДАЛЬШЕ"}
+              {tutorialStep === tutorialSlides.length - 1 ? "НАЧАТЬ ИГРУ" : "ДАЛЬШЕ"}
             </button>
           </section>
         </div>
       )}
 
       {safesOpen && (
-        <div className="modal-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) setSafesOpen(false); }}>
-          <section className="safe-sheet" role="dialog" aria-modal="true" aria-labelledby="safes-title">
+        <div
+          className="modal-backdrop"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setSafesOpen(false);
+          }}
+        >
+          <section className="sheet safe-sheet" role="dialog" aria-modal="true" aria-labelledby="safes-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">ХРАНИЛИЩЕ</p><h2 id="safes-title">Мои сейфы</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть сейфы" onClick={() => setSafesOpen(false)}><span /></button>
+              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setSafesOpen(false)}><span /></button>
             </div>
 
             <div className="vault-total">
-              <span className="large-safe" aria-hidden="true"><i /></span>
+              <span className="large-safe-icon" aria-hidden="true"><i /></span>
               <div><small>ВСЕГО ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong><span>монет</span></div>
             </div>
 
@@ -641,18 +998,18 @@ export default function Home() {
 
             <div className="sheet-scroll">
               <section className="owned-section">
-                <h3>Купленные сейфы</h3>
+                <h3>Купленные</h3>
                 {safes.length === 0 ? (
-                  <p className="empty-safes">Пока пусто. Купленный сейф сразу заполняется и навсегда защищает вклад.</p>
+                  <p className="empty-safes">Пока пусто. Монеты защищаются только после покупки заполненного сейфа.</p>
                 ) : (
                   <div className="owned-safe-list">
                     {safes.map((safe, index) => {
                       const definition = SAFE_CATALOG.find((entry) => entry.size === safe.size)!;
                       return (
                         <article className={`owned-safe size-${safe.size}`} key={safe.id}>
-                          <span className="mini-safe" aria-hidden="true"><i /></span>
-                          <div><strong>{definition.name} сейф #{index + 1}</strong><small>{safe.stored} / {safe.capacity} монет</small></div>
-                          <b>ПОЛНЫЙ</b>
+                          <span className="safe-icon" aria-hidden="true"><i /></span>
+                          <div><strong>{definition.name} #{index + 1}</strong><small>{safe.stored} из {safe.capacity} монет</small></div>
+                          <b>ЗАЩИЩЁН</b>
                         </article>
                       );
                     })}
@@ -661,18 +1018,18 @@ export default function Home() {
               </section>
 
               <section className="safe-shop">
-                <h3>Новый сейф</h3>
-                <p>Нужна сумма на сам сейф и ещё столько же, чтобы сразу его заполнить.</p>
+                <h3>Купить и заполнить</h3>
+                <p>Списывается стоимость сейфа и такая же сумма для вклада.</p>
                 <div className="safe-options">
                   {SAFE_CATALOG.map((safe) => {
                     const required = safe.price + safe.capacity;
                     const available = coins.walletCoins >= required;
                     return (
                       <article className={`safe-option size-${safe.size}`} key={safe.size}>
-                        <span className="mini-safe" aria-hidden="true"><i /></span>
-                        <div className="safe-option-copy">
+                        <span className="safe-icon" aria-hidden="true"><i /></span>
+                        <div>
                           <strong>{safe.name}</strong>
-                          <span>Вместимость {safe.capacity}</span>
+                          <span>{safe.capacity} монет</span>
                           <small>{safe.price} сейф + {safe.capacity} вклад</small>
                         </div>
                         <button type="button" disabled={!available} onClick={() => buySafe(safe.size)}>
@@ -689,19 +1046,33 @@ export default function Home() {
       )}
 
       {settingsOpen && (
-        <div className="modal-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false); }}>
-          <section className="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div
+          className="modal-backdrop"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setSettingsOpen(false);
+          }}
+        >
+          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK TAP</p><h2 id="settings-title">Настройки</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть настройки" onClick={() => setSettingsOpen(false)}><span /></button>
+              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setSettingsOpen(false)}><span /></button>
             </div>
-            <div className="setting-row"><div><strong>Звук</strong><span>Короткие игровые эффекты</span></div><button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button></div>
-            <div className="setting-row"><div><strong>Вибрация</strong><span>Если устройство поддерживает</span></div><button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button></div>
+            <div className="setting-row">
+              <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
+              <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
+            </div>
+            <div className="setting-row">
+              <div><strong>Вибрация</strong><span>Если устройство поддерживает</span></div>
+              <button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button>
+            </div>
             <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>ПОВТОРИТЬ ОБУЧЕНИЕ <span>↗</span></button>
             {!resetConfirmOpen ? (
               <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>СБРОСИТЬ ПРОГРЕСС</button>
             ) : (
-              <div className="reset-confirm" role="alert"><p>Удалить баланс, сейфы, рекорды и настройки?</p><div><button type="button" onClick={() => setResetConfirmOpen(false)}>ОТМЕНА</button><button className="confirm-reset" type="button" onClick={resetProgress}>СБРОСИТЬ</button></div></div>
+              <div className="reset-confirm" role="alert">
+                <p>Удалить баланс, сейфы, усталость, рекорды и настройки?</p>
+                <div><button type="button" onClick={() => setResetConfirmOpen(false)}>ОТМЕНА</button><button className="confirm-reset" type="button" onClick={resetProgress}>СБРОСИТЬ</button></div>
+              </div>
             )}
             <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
           </section>
