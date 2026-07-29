@@ -1087,8 +1087,30 @@ export default function Home() {
       ? `balance-pulse-${balancePulse % 2 === 0 ? "a" : "b"}`
       : "";
 
+  const calmScene = tempoSceneColor(averageInterval, seriesTaps > 0);
+  const currentScene =
+    dogState === "angry"
+      ? "#ec5148"
+      : dogState === "tired"
+        ? "#e8c65d"
+        : dogState === "warning" ||
+            (dogState === "recovering" && fatigueRatio > 0)
+          ? "#f4c94d"
+          : dogState === "calm"
+            ? calmScene
+            : "#1478ed";
+
+  useEffect(() => {
+    const themeMeta = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]',
+    );
+    document.documentElement.style.backgroundColor = currentScene;
+    document.body.style.backgroundColor = currentScene;
+    themeMeta?.setAttribute("content", currentScene);
+  }, [currentScene]);
+
   const gameStyle = {
-    "--calm-scene": tempoSceneColor(averageInterval, seriesTaps > 0),
+    "--calm-scene": calmScene,
     "--level-progress": levelProgress,
     "--ultra-progress": `${Math.min(100, ultraPreview / 10)}%`,
   } as CSSProperties;
@@ -1141,7 +1163,7 @@ export default function Home() {
       >
         <div className="dog-stage">
           <div className="ultra-aura" aria-hidden="true">
-            {Array.from({ length: 16 }, (_, index) => (
+            {Array.from({ length: 8 }, (_, index) => (
               <i key={index} />
             ))}
           </div>
