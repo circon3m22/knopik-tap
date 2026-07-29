@@ -32,8 +32,10 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /knopik-warning-earless\.png/);
   assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
   assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
-  assert.match(html, /class="saved-balance"/);
+  assert.match(html, /class="saved-balance(?:\s|\")/);
   assert.match(html, /class="bottom-bar"/);
+  assert.match(html, /class="quick-save-button"/);
+  assert.match(html, /class="feed-control"/);
   assert.doesNotMatch(html, /state-copy|moment-message/);
   assert.doesNotMatch(html, /series-track/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
@@ -57,6 +59,7 @@ test("ships PWA assets and removes the temporary starter", async () => {
     access(new URL("../public/knopik-rage-sprite-earless.png", import.meta.url)),
     access(new URL("../public/knopik-ear-left.png", import.meta.url)),
     access(new URL("../public/knopik-ear-right.png", import.meta.url)),
+    access(new URL("../public/hasbik-tubeteika.png", import.meta.url)),
     access(new URL("../public/apple-touch-icon.png", import.meta.url)),
     access(new URL("../public/icon-192.png", import.meta.url)),
     access(new URL("../public/icon-512.png", import.meta.url)),

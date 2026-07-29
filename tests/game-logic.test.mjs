@@ -89,5 +89,27 @@ test("legacy purchased safes merge into the free vault", () => {
     safes: [{ stored: 100 }, { stored: 200 }, { stored: -50 }],
   });
   assert.equal(saved.vaultCoins, 300);
-  assert.equal("walletCoins" in saved, false);
+  assert.equal(saved.walletCoins, 0);
+});
+
+test("risk inventory and active balance migrate safely", () => {
+  const saved = sanitizeSave({
+    version: 7,
+    vaultCoins: 240,
+    walletCoins: 850,
+    foodCount: 4,
+    hatOwned: true,
+    hatEquipped: true,
+    riskFatigueUntil: 12345,
+    riskSpins: 7,
+    riskWins: 3,
+    riskLosses: 4,
+    lastRiskBet: 500,
+    lastRiskChance: 70,
+  });
+  assert.equal(saved.walletCoins, 850);
+  assert.equal(saved.foodCount, 4);
+  assert.equal(saved.hatEquipped, true);
+  assert.equal(saved.riskWins, 3);
+  assert.equal(saved.lastRiskChance, 70);
 });

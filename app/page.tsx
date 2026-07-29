@@ -55,6 +55,21 @@ type TapParticle = {
   jackpot: boolean;
 };
 type RecoveryReason = "rest" | "bite" | "ultra";
+type RiskPhase = "normal" | "selecting" | "transition" | "spinning" | "result";
+type RiskStats = {
+  spins: number;
+  wins: number;
+  losses: number;
+  lastBet: number;
+};
+type SaveFlight = {
+  id: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  amount: number;
+};
 
 const CALM_SERIES_RESET_MS = 6_000;
 const WARNING_REST_MS = 2_650;
@@ -67,7 +82,24 @@ const TIRED_SNAP_CHANCE = 0.04;
 const LAST_TAP_CHANCE = 0.0025;
 const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
-const DOG_FOOD_PRICE = 150;
+const DOG_FOOD_PRICE = 100;
+const HASBIK_HAT_PRICE = 500;
+const RISK_HOLD_MS = 800;
+const RISK_SPIN_MS = 3_650;
+const RISK_RESULT_MS = 1_350;
+const RISK_RECOVERY_MIN_MS = 30_000;
+const RISK_RECOVERY_SPREAD_MS = 30_000;
+const RISK_OPTIONS = [
+  { chance: 10, multiplier: 5 },
+  { chance: 20, multiplier: 3 },
+  { chance: 30, multiplier: 2.2 },
+  { chance: 40, multiplier: 1.75 },
+  { chance: 50, multiplier: 1.45 },
+  { chance: 60, multiplier: 1.25 },
+  { chance: 70, multiplier: 1.15 },
+  { chance: 80, multiplier: 1.08 },
+  { chance: 90, multiplier: 1.03 },
+] as const;
 
 const tutorialSlides = [
   {
@@ -92,7 +124,7 @@ const tutorialSlides = [
     symbol: "REST",
     eyebrow: "УСТАЛОСТЬ",
     title: "Усталость делает игру опаснее",
-    copy: "Кнопик устаёт от рискованной игры и иногда просто теряет терпение. Корм из магазина возвращает спокойствие и оплачивается монетами из сейфа.",
+    copy: "Кнопик устаёт от рискованной игры и иногда просто теряет терпение. Купленный за активные монеты корм можно использовать прямо на главном экране.",
   },
   {
     symbol: "SAVE",
@@ -129,7 +161,10 @@ export default function Home() {
     streakCoins: 0,
   });
   const [vaultCoins, setVaultCoins] = useState(0);
-  const [depositInput, setDepositInput] = useState("100");
+  const [foodCount, setFoodCount] = useState(0);
+  const [foodQuantity, setFoodQuantity] = useState(1);
+  const [hatOwned, setHatOwned] = useState(false);
+  const [hatEquipped, setHatEquipped] = useState(false);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
     vibration: true,
@@ -147,7 +182,6 @@ export default function Home() {
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
-  const [safesOpen, setSafesOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -164,15 +198,30 @@ export default function Home() {
   const [balancePulse, setBalancePulse] = useState(0);
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
-  const [purchaseMessage, setPurchaseMessage] = useState("");
   const [shopMessage, setShopMessage] = useState("");
+  const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
+  const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
+  const [riskChance, setRiskChance] = useState(50);
+  const [riskBetAmount, setRiskBetAmount] = useState(0);
+  const [riskRotation, setRiskRotation] = useState(0);
+  const [riskResult, setRiskResult] = useState<"win" | "lose" | null>(null);
+  const [riskPayout, setRiskPayout] = useState(0);
+  const [riskMessage, setRiskMessage] = useState("");
+  const [riskShake, setRiskShake] = useState(0);
+  const [riskHoldActive, setRiskHoldActive] = useState(false);
+  const [riskFatigueUntil, setRiskFatigueUntil] = useState(0);
+  const [riskStats, setRiskStats] = useState<RiskStats>({
+    spins: 0,
+    wins: 0,
+    losses: 0,
+    lastBet: 0,
+  });
   const [levelBurstKey, setLevelBurstKey] = useState(0);
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
   const [joyFrame, setJoyFrame] = useState(0);
   const [rageFrame, setRageFrame] = useState(0);
   const [joySpriteReady, setJoySpriteReady] = useState(false);
   const [rageSpriteReady, setRageSpriteReady] = useState(false);
-  const [earPulse, setEarPulse] = useState({ left: 0, right: 0 });
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
@@ -204,8 +253,17 @@ export default function Home() {
   const tiredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveFlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskSpinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskReturnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const riskTickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const riskPhaseRef = useRef<RiskPhase>("normal");
+  const riskCommittedRef = useRef(false);
   const joySpriteImageRef = useRef<HTMLImageElement | null>(null);
   const rageSpriteImageRef = useRef<HTMLImageElement | null>(null);
+  const walletBalanceRef = useRef<HTMLDivElement | null>(null);
+  const savedBalanceRef = useRef<HTMLDivElement | null>(null);
   const earTapStateRef = useRef({
     left: { count: 0, lastAt: 0 },
     right: { count: 0, lastAt: 0 },
@@ -253,6 +311,11 @@ export default function Home() {
   const transitionTo = useCallback((state: DogState) => {
     dogStateRef.current = state;
     setDogState(state);
+  }, []);
+
+  const transitionRisk = useCallback((phase: RiskPhase) => {
+    riskPhaseRef.current = phase;
+    setRiskPhase(phase);
   }, []);
 
   const updateCoins = useCallback(
@@ -347,7 +410,7 @@ export default function Home() {
       const parsed = stored ? JSON.parse(stored) : createDefaultSave();
       const saved = sanitizeSave(parsed);
       const loadedCoins = {
-        walletCoins: 0,
+        walletCoins: saved.walletCoins,
         streakCoins: 0,
       };
       const loadedStats = {
@@ -359,10 +422,10 @@ export default function Home() {
         level: saved.level,
         progressCoins: saved.levelCoins,
       });
-      const activeFatigue =
-        saved.ultraFatigueUntil > Date.now()
-          ? saved.ultraFatigueUntil
-          : 0;
+      const activeFatigue = Math.max(
+        saved.ultraFatigueUntil > Date.now() ? saved.ultraFatigueUntil : 0,
+        saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
+      );
 
       coinsRef.current = loadedCoins;
       settingsRef.current = saved.settings;
@@ -371,6 +434,19 @@ export default function Home() {
       fatigueUntilRef.current = activeFatigue;
       setCoins(loadedCoins);
       setVaultCoins(saved.vaultCoins);
+      setFoodCount(saved.foodCount);
+      setHatOwned(saved.hatOwned);
+      setHatEquipped(saved.hatEquipped);
+      setRiskChance(saved.lastRiskChance);
+      setRiskFatigueUntil(
+        saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
+      );
+      setRiskStats({
+        spins: saved.riskSpins,
+        wins: saved.riskWins,
+        losses: saved.riskLosses,
+        lastBet: saved.lastRiskBet,
+      });
       setSettings(saved.settings);
       setStats(loadedStats);
       setLevelState(loadedLevel);
@@ -410,6 +486,16 @@ export default function Home() {
           JSON.stringify({
             version: SAVE_VERSION,
             vaultCoins,
+            walletCoins: coins.walletCoins,
+            foodCount,
+            hatOwned,
+            hatEquipped,
+            riskFatigueUntil,
+            riskSpins: riskStats.spins,
+            riskWins: riskStats.wins,
+            riskLosses: riskStats.losses,
+            lastRiskBet: riskStats.lastBet,
+            lastRiskChance: riskChance,
             settings,
             tutorialSeen,
             bestStreak: stats.bestStreak,
@@ -428,8 +514,15 @@ export default function Home() {
     return () => clearTimeout(saveTimer);
   }, [
     fatigueUntil,
+    coins.walletCoins,
+    foodCount,
+    hatEquipped,
+    hatOwned,
     hydrated,
     levelState,
+    riskChance,
+    riskFatigueUntil,
+    riskStats,
     settings,
     stats,
     tutorialSeen,
@@ -460,6 +553,9 @@ export default function Home() {
       if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
       if (levelBurstTimerRef.current) {
         clearTimeout(levelBurstTimerRef.current);
+      }
+      if (saveFlightTimerRef.current) {
+        clearTimeout(saveFlightTimerRef.current);
       }
       soundRef.current?.close();
     },
@@ -614,10 +710,6 @@ export default function Home() {
       const previous = earTapStateRef.current[ear];
       const nextCount = now - previous.lastAt <= 2_500 ? previous.count + 1 : 1;
       earTapStateRef.current[ear] = { count: nextCount, lastAt: now };
-      setEarPulse((current) => ({
-        ...current,
-        [ear]: current[ear] + 1,
-      }));
       getSound().warning(0.38 + nextCount * 0.18);
       vibrate(nextCount >= 3 ? [34, 28, 58] : 16, settingsRef.current.vibration);
 
@@ -928,46 +1020,84 @@ export default function Home() {
     [finishHold],
   );
 
-  const depositToVault = useCallback(
-    (amount: number) => {
-      const requestedCoins = Math.floor(amount);
-      if (
-        dogStateRef.current !== "calm" ||
-        holdingRef.current ||
-        !Number.isFinite(requestedCoins) ||
-        requestedCoins < 2 ||
-        coinsRef.current.walletCoins < requestedCoins
-      ) {
-        return;
-      }
-      const protectedCoins = Math.floor(requestedCoins / 2);
+  const saveAllToVault = useCallback(() => {
+    const activeCoins = coinsRef.current.walletCoins;
+    if (
+      dogStateRef.current !== "calm" ||
+      holdingRef.current ||
+      activeCoins < 2
+    ) {
+      return;
+    }
 
+    const protectedCoins = Math.floor(activeCoins / 2);
+    const walletRect = walletBalanceRef.current?.getBoundingClientRect();
+    const vaultRect = savedBalanceRef.current?.getBoundingClientRect();
+    if (walletRect && vaultRect) {
+      setSaveFlight({
+        id: Date.now(),
+        startX: walletRect.left + walletRect.width / 2,
+        startY: walletRect.top + walletRect.height / 2,
+        endX: vaultRect.left + vaultRect.width / 2,
+        endY: vaultRect.top + vaultRect.height / 2,
+        amount: protectedCoins,
+      });
+      if (saveFlightTimerRef.current) clearTimeout(saveFlightTimerRef.current);
+      saveFlightTimerRef.current = setTimeout(() => setSaveFlight(null), 1_050);
+    }
+
+    updateCoins((current) => ({ ...current, walletCoins: 0 }));
+    setVaultCoins((current) => current + protectedCoins);
+    getSound().safe();
+    vibrate([20, 28, 44], settingsRef.current.vibration);
+  }, [getSound, updateCoins]);
+
+  const buyFood = useCallback(() => {
+    const quantity = Math.min(10, Math.max(1, Math.floor(foodQuantity)));
+    const totalPrice = quantity * DOG_FOOD_PRICE;
+    if (coinsRef.current.walletCoins < totalPrice) return;
+
+    updateCoins((current) => ({
+      ...current,
+      walletCoins: current.walletCoins - totalPrice,
+    }));
+    setFoodCount((current) => current + quantity);
+    setShopMessage(`Корм ×${quantity} добавлен в запас`);
+    getSound().safe();
+    vibrate([16, 22, 34], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [foodQuantity, getSound, updateCoins]);
+
+  const buyOrToggleHat = useCallback(() => {
+    if (!hatOwned) {
+      if (coinsRef.current.walletCoins < HASBIK_HAT_PRICE) return;
       updateCoins((current) => ({
         ...current,
-        walletCoins: current.walletCoins - requestedCoins,
+        walletCoins: current.walletCoins - HASBIK_HAT_PRICE,
       }));
-      setVaultCoins((current) => current + protectedCoins);
-      setPurchaseMessage(`Защищено +${protectedCoins} монет`);
-      getSound().safe();
-      vibrate([20, 30, 50], settingsRef.current.vibration);
-      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
-      messageTimerRef.current = setTimeout(
-        () => setPurchaseMessage(""),
-        1_800,
-      );
-    },
-    [getSound, updateCoins],
-  );
+      setHatOwned(true);
+      setHatEquipped(true);
+      setShopMessage("Тюбетейка куплена и надета");
+    } else {
+      setHatEquipped((current) => !current);
+      setShopMessage(hatEquipped ? "Тюбетейка снята" : "Тюбетейка надета");
+    }
+    getSound().safe();
+    vibrate(22, settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [getSound, hatEquipped, hatOwned, updateCoins]);
 
   const feedDog = useCallback(() => {
     const tiredNow =
       dogStateRef.current === "tired" ||
       (dogStateRef.current === "recovering" &&
         fatigueUntilRef.current > Date.now());
-    if (!tiredNow || vaultCoins < DOG_FOOD_PRICE) return;
+    if (!tiredNow || foodCount < 1) return;
 
     clearRoundTimers();
-    setVaultCoins((current) => current - DOG_FOOD_PRICE);
+    setFoodCount((current) => Math.max(0, current - 1));
     fatigueUntilRef.current = 0;
     setFatigueUntil(0);
     setClock(Date.now());
@@ -979,7 +1109,7 @@ export default function Home() {
     vibrate([18, 24, 38], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
-  }, [clearRoundTimers, getSound, resetSeries, transitionTo, vaultCoins]);
+  }, [clearRoundTimers, foodCount, getSound, resetSeries, transitionTo]);
 
   const finishTutorial = useCallback(() => {
     setTutorialSeen(true);
@@ -1006,7 +1136,10 @@ export default function Home() {
     fatigueUntilRef.current = 0;
     setCoins(resetCoins);
     setVaultCoins(0);
-    setDepositInput("100");
+    setFoodCount(0);
+    setFoodQuantity(1);
+    setHatOwned(false);
+    setHatEquipped(false);
     setStats(resetStats);
     setLevelState(resetLevel);
     setSettings(defaults.settings);
@@ -1014,7 +1147,6 @@ export default function Home() {
     setTutorialSeen(false);
     setTutorialStep(0);
     setTutorialOpen(true);
-    setSafesOpen(false);
     setShopOpen(false);
     setSettingsOpen(false);
     setResetConfirmOpen(false);
@@ -1031,21 +1163,15 @@ export default function Home() {
     transitionTo,
   ]);
 
-  const requestedDeposit = /^\d+$/.test(depositInput)
-    ? Number(depositInput)
-    : 0;
-  const protectedDeposit = Math.floor(requestedDeposit / 2);
   const vaultLocked = dogState !== "calm" || holding;
   const isDogTired =
     dogState === "tired" ||
     (dogState === "recovering" && fatigueUntil > Date.now());
-  const canBuyFood =
-    isDogTired && vaultCoins >= DOG_FOOD_PRICE;
-  const canDeposit =
-    !vaultLocked &&
-    Number.isSafeInteger(requestedDeposit) &&
-    requestedDeposit >= 2 &&
-    requestedDeposit <= coins.walletCoins;
+  const canFeedDog = isDogTired && foodCount > 0;
+  const canSave = !vaultLocked && coins.walletCoins >= 2;
+  const foodTotalPrice = foodQuantity * DOG_FOOD_PRICE;
+  const canBuyFood = coins.walletCoins >= foodTotalPrice;
+  const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
 
   const tempoRatio =
     seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
@@ -1237,7 +1363,8 @@ export default function Home() {
             <strong>KNOPIK <small>TAP</small></strong>
           </div>
           <div
-            className="saved-balance"
+            ref={savedBalanceRef}
+            className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
             aria-label={`Сохранено ${vaultCoins} монет`}
           >
             <span className="safe-icon" aria-hidden="true"><i /></span>
@@ -1264,6 +1391,13 @@ export default function Home() {
         className="game-stage"
       >
         <div className="dog-stage">
+          <div className="feed-control">
+            <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
+            <strong>{foodCount}</strong>
+            <button type="button" disabled={!canFeedDog} onClick={feedDog}>
+              {isDogTired ? "ПОКОРМИТЬ" : "КОРМ"}
+            </button>
+          </div>
           <button
             className={`dog-button ${tapVariant}`}
             type="button"
@@ -1334,32 +1468,27 @@ export default function Home() {
             </span>
             <span className="dog-ears" aria-hidden="true">
               <img
-                className={`dog-ear dog-ear-left ${
-                  earPulse.left > 0
-                    ? `ear-tap-${earPulse.left % 2 === 0 ? "b" : "a"}`
-                    : ""
-                }`}
+                className="dog-ear dog-ear-left"
                 src="/knopik-ear-left.png"
                 alt=""
                 draggable={false}
-                onAnimationEnd={() =>
-                  setEarPulse((current) => ({ ...current, left: 0 }))
-                }
               />
               <img
-                className={`dog-ear dog-ear-right ${
-                  earPulse.right > 0
-                    ? `ear-tap-${earPulse.right % 2 === 0 ? "b" : "a"}`
-                    : ""
-                }`}
+                className="dog-ear dog-ear-right"
                 src="/knopik-ear-right.png"
                 alt=""
                 draggable={false}
-                onAnimationEnd={() =>
-                  setEarPulse((current) => ({ ...current, right: 0 }))
-                }
               />
             </span>
+            {hatOwned && hatEquipped && (
+              <img
+                className="dog-hat"
+                src="/hasbik-tubeteika.png"
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+              />
+            )}
             <span className="ear-hit-zones" aria-hidden="true">
               {(["left", "right"] as const).map((ear) => (
                 <span
@@ -1410,7 +1539,7 @@ export default function Home() {
         </div>
 
         <div className="game-data">
-          <div className={`wallet-balance ${balanceVariant}`}>
+          <div ref={walletBalanceRef} className={`wallet-balance ${balanceVariant}`}>
             <span className="coin-mark" aria-hidden="true">K</span>
             <div>
               <strong className="balance-number" key={`balance-${balancePulse}`}>
@@ -1419,14 +1548,20 @@ export default function Home() {
               <small>НЕЗАЩИЩЁННЫЕ МОНЕТЫ</small>
             </div>
           </div>
+          <button
+            className="quick-save-button"
+            type="button"
+            disabled={!canSave}
+            onClick={saveAllToVault}
+          >
+            <span className="safe-icon" aria-hidden="true"><i /></span>
+            <span>{vaultLocked ? "КНОПИК УСТАЛ" : "ЗАСЕЙВИТЬ"}</span>
+            {canSave && <small>В СЕЙФ +{Math.floor(coins.walletCoins / 2).toLocaleString("ru-RU")}</small>}
+          </button>
         </div>
       </section>
 
       <footer className="bottom-bar">
-        <button type="button" onClick={() => setSafesOpen(true)}>
-          <span className="safe-icon" aria-hidden="true"><i /></span>
-          <span>Сейф</span>
-        </button>
         <button type="button" onClick={() => setShopOpen(true)}>
           <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
           <span>Магазин</span>
@@ -1448,6 +1583,32 @@ export default function Home() {
         </button>
       </footer>
       </div>
+
+      {saveFlight && (
+        <div
+          className="save-flight"
+          key={saveFlight.id}
+          aria-hidden="true"
+          style={{
+            "--flight-start-x": `${saveFlight.startX}px`,
+            "--flight-start-y": `${saveFlight.startY}px`,
+            "--flight-end-x": `${saveFlight.endX - saveFlight.startX}px`,
+            "--flight-end-y": `${saveFlight.endY - saveFlight.startY}px`,
+          } as CSSProperties}
+        >
+          {Array.from({ length: 9 }, (_, index) => (
+            <i
+              key={index}
+              style={{
+                "--flight-delay": `${index * 34}ms`,
+                "--flight-mid-x": `${(saveFlight.endX - saveFlight.startX) * 0.46 + (index - 4) * 4}px`,
+                "--flight-mid-y": `${(saveFlight.endY - saveFlight.startY) * 0.46 - 48 - (index % 4) * 12}px`,
+              } as CSSProperties}
+            >K</i>
+          ))}
+          <strong>+{saveFlight.amount.toLocaleString("ru-RU")}</strong>
+        </div>
+      )}
 
       {levelBurstVisible && (
         <div className="level-burst" key={levelBurstKey} aria-hidden="true">
@@ -1499,98 +1660,6 @@ export default function Home() {
         </div>
       )}
 
-      {safesOpen && (
-        <div
-          className="modal-backdrop"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) setSafesOpen(false);
-          }}
-        >
-          <section className="sheet safe-sheet" role="dialog" aria-modal="true" aria-labelledby="safes-title">
-            <div className="sheet-heading">
-              <div><p className="sheet-kicker">ХРАНИЛИЩЕ</p><h2 id="safes-title">Сейф</h2></div>
-              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setSafesOpen(false)}><span /></button>
-            </div>
-
-            <div className="vault-total">
-              <span className="large-safe-icon" aria-hidden="true"><i /></span>
-              <div><small>ВСЕГО ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong><span>монет</span></div>
-            </div>
-
-            {purchaseMessage && <p className="purchase-message" role="status">{purchaseMessage}</p>}
-
-            <div className="vault-deposit">
-              <div className="vault-rule">
-                <strong>Курс защиты 2 : 1</strong>
-                <span>Положишь 100 — в сейф попадёт 50. Защищённые монеты не сгорают.</span>
-              </div>
-
-              {vaultLocked && (
-                <p className="vault-locked" role="status">
-                  Кнопик устал или напряжён. Пополнение откроется, когда он успокоится.
-                </p>
-              )}
-
-              <div className="deposit-presets" aria-label="Быстрый выбор суммы">
-                {[50, 100, 500].map((amount) => (
-                  <button
-                    type="button"
-                    key={amount}
-                    disabled={vaultLocked || coins.walletCoins < amount}
-                    onClick={() => setDepositInput(String(amount))}
-                  >
-                    {amount}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  disabled={vaultLocked || coins.walletCoins < 2}
-                  onClick={() => setDepositInput(String(coins.walletCoins))}
-                >
-                  ВСЁ
-                </button>
-              </div>
-
-              <label className="deposit-field">
-                <span>СУММА ИЗ ТЕКУЩЕГО БАЛАНСА</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={depositInput}
-                  disabled={vaultLocked}
-                  onChange={(event) =>
-                    setDepositInput(
-                      event.target.value.replace(/\D/g, "").slice(0, 12),
-                    )
-                  }
-                  aria-label="Сумма перевода в сейф"
-                />
-                <small>Доступно {coins.walletCoins.toLocaleString("ru-RU")}</small>
-              </label>
-
-              <div className="deposit-result">
-                <span>В СЕЙФ ПОПАДЁТ</span>
-                <strong>+{Number.isFinite(protectedDeposit) ? protectedDeposit.toLocaleString("ru-RU") : 0}</strong>
-              </div>
-
-              <button
-                className="deposit-button"
-                type="button"
-                disabled={!canDeposit}
-                onClick={() => depositToVault(requestedDeposit)}
-              >
-                {vaultLocked
-                  ? "СЕЙФ ВРЕМЕННО ЗАКРЫТ"
-                  : canDeposit
-                    ? "ЗАЩИТИТЬ МОНЕТЫ"
-                    : "НЕДОСТАТОЧНО МОНЕТ"}
-              </button>
-              <p className="deposit-note">Перевод необратим. Нечётная монета округляется вниз.</p>
-            </div>
-          </section>
-        </div>
-      )}
-
       {shopOpen && (
         <div
           className="modal-backdrop"
@@ -1605,28 +1674,46 @@ export default function Home() {
             </div>
 
             <div className="shop-wallet">
-              <span>БАЛАНС СЕЙФА</span>
-              <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
+              <span>АКТИВНЫЕ МОНЕТЫ</span>
+              <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
             </div>
 
             {shopMessage && <p className="purchase-message" role="status">{shopMessage}</p>}
 
-            <article className={`food-card ${isDogTired ? "needed" : ""}`}>
+            <article className="shop-card food-card">
               <span className="food-pack" aria-hidden="true">
                 <span className="food-icon"><i /><i /><i /></span>
               </span>
               <div className="food-copy">
                 <small>ВОССТАНОВЛЕНИЕ</small>
                 <h3>Корм для Кнопика</h3>
-                <p>Полностью снимает усталость и возвращает спокойное настроение.</p>
+                <p>Одна порция полностью снимает усталость. Купленный корм хранится в запасе.</p>
               </div>
               <div className="food-price"><strong>{DOG_FOOD_PRICE}</strong><span>монет</span></div>
-              <button type="button" disabled={!canBuyFood} onClick={feedDog}>
-                {canBuyFood
-                  ? `ПОКОРМИТЬ · ${DOG_FOOD_PRICE}`
-                  : !isDogTired
-                    ? "КНОПИК НЕ УСТАЛ"
-                    : `НУЖНО ${DOG_FOOD_PRICE}`}
+              <div className="quantity-picker" aria-label="Количество корма">
+                <button type="button" aria-label="Уменьшить количество" disabled={foodQuantity <= 1} onClick={() => setFoodQuantity((current) => Math.max(1, current - 1))}>−</button>
+                <strong>{foodQuantity}</strong>
+                <button type="button" aria-label="Увеличить количество" disabled={foodQuantity >= 10} onClick={() => setFoodQuantity((current) => Math.min(10, current + 1))}>+</button>
+              </div>
+              <button className="shop-buy-button" type="button" disabled={!canBuyFood} onClick={buyFood}>
+                {canBuyFood ? `КУПИТЬ ×${foodQuantity} · ${foodTotalPrice}` : `НУЖНО ${foodTotalPrice}`}
+              </button>
+            </article>
+
+            <article className={`shop-card hat-card ${hatOwned ? "owned" : ""}`}>
+              <span className="hat-preview" aria-hidden="true">
+                <img src="/hasbik-tubeteika.png" alt="" draggable={false} />
+              </span>
+              <div className="food-copy">
+                <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
+                <h3>Тюбетейка Хасбика</h3>
+                <p>Компактно сидит между ушами Кнопика. После покупки её можно снимать и надевать.</p>
+              </div>
+              <div className="food-price"><strong>{hatOwned ? "✓" : HASBIK_HAT_PRICE}</strong><span>{hatOwned ? "твоя" : "монет"}</span></div>
+              <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>
+                {hatOwned
+                  ? hatEquipped ? "СНЯТЬ ТЮБЕТЕЙКУ" : "НАДЕТЬ ТЮБЕТЕЙКУ"
+                  : canBuyHat ? `КУПИТЬ · ${HASBIK_HAT_PRICE}` : `НУЖНО ${HASBIK_HAT_PRICE}`}
               </button>
             </article>
           </section>
