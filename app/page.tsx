@@ -966,7 +966,6 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [dogState, isHappy]);
 
-  const joyImageState = ["calm", "joy-1", "joy-2", "joy-3", "happy"][joyFrame];
   useEffect(() => {
     const reversingAfterBite =
       dogState === "recovering" && recoveryReason === "bite";
@@ -993,13 +992,6 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [dogState, recoveryReason]);
 
-  const rageImageState = [
-    "warning",
-    "rage-1",
-    "rage-2",
-    "rage-3",
-    "angry",
-  ][rageFrame];
   const showRageSequence =
     dogState === "angry" ||
     (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
@@ -1010,12 +1002,12 @@ export default function Home() {
     (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
   const dogImageState =
     showRageSequence
-      ? rageImageState
+      ? "rage"
       : dogState === "tired" ||
           dogState === "warning" ||
           (dogState === "recovering" && recoveryReason === "ultra")
         ? "warning"
-        : joyImageState;
+        : "joy";
   const dogDisabled = dogState === "angry" || dogState === "recovering";
   const multiplier = levelMultiplier(levelState.level);
   const levelBonus = Math.round((multiplier - 1) * 100);
@@ -1115,16 +1107,22 @@ export default function Home() {
               ))}
             </span>
             <span className="dog-images" data-image-state={dogImageState}>
-              <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
-              <img className="dog-image joy-1-image" src="/knopik-joy-1.png" alt="" draggable={false} />
-              <img className="dog-image joy-2-image" src="/knopik-joy-2.png" alt="" draggable={false} />
-              <img className="dog-image joy-3-image" src="/knopik-joy-3.png" alt="" draggable={false} />
-              <img className="dog-image happy-image" src="/knopik-happy.png" alt="" draggable={false} />
-              <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
-              <img className="dog-image rage-1-image" src="/knopik-rage-1.png" alt="" draggable={false} />
-              <img className="dog-image rage-2-image" src="/knopik-rage-2.png" alt="" draggable={false} />
-              <img className="dog-image rage-3-image" src="/knopik-rage-3.png" alt="" draggable={false} />
-              <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
+              <span
+                className="dog-image emotion-sprite joy-sprite"
+                style={{ backgroundPosition: `${joyFrame * 25}% center` }}
+              />
+              <img
+                className="dog-image warning-image"
+                src="/knopik-warning.png"
+                alt=""
+                draggable={false}
+                loading="eager"
+                decoding="sync"
+              />
+              <span
+                className="dog-image emotion-sprite rage-sprite"
+                style={{ backgroundPosition: `${rageFrame * 25}% center` }}
+              />
             </span>
             <span className="dog-ears" aria-hidden="true">
               <img className="dog-ear dog-ear-left" src="/knopik-ear-left.png" alt="" draggable={false} />

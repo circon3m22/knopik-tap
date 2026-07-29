@@ -68,6 +68,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
+      <head>
+        <link rel="preload" href="/knopik-joy-sprite.png" as="image" type="image/png" fetchPriority="high" />
+        <link rel="preload" href="/knopik-rage-sprite.png" as="image" type="image/png" fetchPriority="high" />
+      </head>
       <body>{children}</body>
     </html>
   );

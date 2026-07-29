@@ -25,18 +25,11 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /apple-touch-icon\.png/);
   assert.match(html, /icon-192\.png/);
   assert.match(html, /data-testid="knopik"/);
-  assert.match(html, /knopik-calm\.png/);
-  assert.match(html, /knopik-happy\.png/);
-  assert.match(html, /knopik-joy-1\.png/);
-  assert.match(html, /knopik-joy-2\.png/);
-  assert.match(html, /knopik-joy-3\.png/);
-  assert.match(html, /knopik-rage-1\.png/);
-  assert.match(html, /knopik-rage-2\.png/);
-  assert.match(html, /knopik-rage-3\.png/);
+  assert.match(html, /knopik-joy-sprite\.png/);
+  assert.match(html, /knopik-rage-sprite\.png/);
   assert.match(html, /knopik-ear-left\.png/);
   assert.match(html, /knopik-ear-right\.png/);
   assert.match(html, /knopik-warning\.png/);
-  assert.match(html, /knopik-angry\.png/);
   assert.match(html, /Экран белый, пока Кнопик спокоен/);
   assert.match(html, /<span>Сейф<\/span>/);
   assert.match(html, /<span>Магазин<\/span>/);
@@ -70,6 +63,8 @@ test("ships PWA assets and removes the temporary starter", async () => {
     access(new URL("../public/knopik-rage-1.png", import.meta.url)),
     access(new URL("../public/knopik-rage-2.png", import.meta.url)),
     access(new URL("../public/knopik-rage-3.png", import.meta.url)),
+    access(new URL("../public/knopik-joy-sprite.png", import.meta.url)),
+    access(new URL("../public/knopik-rage-sprite.png", import.meta.url)),
     access(new URL("../public/knopik-ear-left.png", import.meta.url)),
     access(new URL("../public/knopik-ear-right.png", import.meta.url)),
     access(new URL("../public/knopik-warning.png", import.meta.url)),

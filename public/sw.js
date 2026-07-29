@@ -1,22 +1,15 @@
-const CACHE_NAME = "knopik-tap-v16";
+const CACHE_NAME = "knopik-tap-v17";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
   "/apple-touch-icon.png",
   "/icon-192.png",
   "/icon-512.png",
-  "/knopik-calm.png",
-  "/knopik-happy.png",
-  "/knopik-joy-1.png",
-  "/knopik-joy-2.png",
-  "/knopik-joy-3.png",
-  "/knopik-rage-1.png",
-  "/knopik-rage-2.png",
-  "/knopik-rage-3.png",
+  "/knopik-joy-sprite.png",
+  "/knopik-rage-sprite.png",
   "/knopik-ear-left.png",
   "/knopik-ear-right.png",
   "/knopik-warning.png",
-  "/knopik-angry.png",
 ];
 
 self.addEventListener("install", (event) => {
