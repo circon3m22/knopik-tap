@@ -88,8 +88,8 @@ const LAST_TAP_CHANCE = 0.0025;
 const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 100;
-const HASBIK_HAT_PRICE = 1_000;
-const MOHAWK_PRICE = 2_000;
+const HASBIK_HAT_PRICE = 1_500;
+const MOHAWK_PRICE = 3_000;
 const MOHAWK_RISK_BONUS = 1.08;
 const ZHIVCHIK_PRICE = 100;
 const PITBULL_PRICE = 50;
@@ -1517,11 +1517,11 @@ export default function Home() {
       hasbulaRedeemedRef.current = true;
       updateCoins((current) => ({
         ...current,
-        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + 1_000),
+        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + 5_000),
       }));
       setHasbulaRedeemed(true);
       setCheatCode("");
-      setCheatMessage("Начислено +1 000 активных монет");
+      setCheatMessage("Начислено +5 000 активных монет");
       getSound().purchase();
       vibrate([16, 22, 34], settingsRef.current.vibration);
       return;

@@ -1,13 +1,13 @@
 export const RISK_OPTIONS = [
-  { chance: 10, multiplier: 5 },
-  { chance: 20, multiplier: 3 },
-  { chance: 30, multiplier: 2.2 },
-  { chance: 40, multiplier: 1.75 },
-  { chance: 50, multiplier: 1.45 },
-  { chance: 60, multiplier: 1.25 },
-  { chance: 70, multiplier: 1.15 },
-  { chance: 80, multiplier: 1.08 },
-  { chance: 90, multiplier: 1.03 },
+  { chance: 10, multiplier: 6 },
+  { chance: 20, multiplier: 3.6 },
+  { chance: 30, multiplier: 2.65 },
+  { chance: 40, multiplier: 2.1 },
+  { chance: 50, multiplier: 1.75 },
+  { chance: 60, multiplier: 1.5 },
+  { chance: 70, multiplier: 1.35 },
+  { chance: 80, multiplier: 1.2 },
+  { chance: 90, multiplier: 1.08 },
 ] as const;
 
 export type RiskChance = (typeof RISK_OPTIONS)[number]["chance"];
