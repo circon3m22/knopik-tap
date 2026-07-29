@@ -11,7 +11,6 @@ import {
   type PointerEvent,
 } from "react";
 import {
-  SAFE_CATALOG,
   SAVE_KEY,
   SAVE_VERSION,
   createDefaultSave,
@@ -20,8 +19,6 @@ import {
   type DogState,
   type GameSettings,
   type GameStats,
-  type OwnedSafe,
-  type SafeSize,
 } from "./game-logic";
 import {
   FATIGUE_DURATION_MS,
@@ -76,9 +73,9 @@ const tutorialSlides = [
     copy: "Всего 10 уровней. Каждый даёт небольшой бонус, но проигрыш сбрасывает всё до первого.",
   },
   {
-    eyebrow: "СЕЙФЫ",
-    title: "Только монеты в сейфах переживают проигрыш",
-    copy: "Покупка сейфа сразу оплачивает его и полностью заполняет.",
+    eyebrow: "СЕЙФ",
+    title: "Сейф бесплатный и переживает проигрыш",
+    copy: "Перевод необратим: из отправленной суммы защищается половина. Например, 100 монет превращаются в 50 сохранённых.",
   },
 ];
 
@@ -86,13 +83,6 @@ function vibrate(pattern: number | number[], enabled: boolean) {
   if (enabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
     navigator.vibrate(pattern);
   }
-}
-
-function createSafeId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
@@ -115,7 +105,8 @@ export default function Home() {
     walletCoins: 0,
     streakCoins: 0,
   });
-  const [safes, setSafes] = useState<OwnedSafe[]>([]);
+  const [vaultCoins, setVaultCoins] = useState(0);
+  const [depositInput, setDepositInput] = useState("100");
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
     vibration: true,
@@ -283,7 +274,7 @@ export default function Home() {
       const parsed = stored ? JSON.parse(stored) : createDefaultSave();
       const saved = sanitizeSave(parsed);
       const loadedCoins = {
-        walletCoins: saved.walletCoins,
+        walletCoins: 0,
         streakCoins: 0,
       };
       const loadedStats = {
@@ -306,7 +297,7 @@ export default function Home() {
       levelStateRef.current = loadedLevel;
       fatigueUntilRef.current = activeFatigue;
       setCoins(loadedCoins);
-      setSafes(saved.safes);
+      setVaultCoins(saved.vaultCoins);
       setSettings(saved.settings);
       setStats(loadedStats);
       setLevelState(loadedLevel);
@@ -339,35 +330,37 @@ export default function Home() {
 
   useEffect(() => {
     if (!hydrated) return;
-    try {
-      localStorage.setItem(
-        SAVE_KEY,
-        JSON.stringify({
-          version: SAVE_VERSION,
-          walletCoins: coins.walletCoins,
-          safes,
-          settings,
-          tutorialSeen,
-          bestStreak: stats.bestStreak,
-          totalTaps: stats.totalTaps,
-          totalBites: stats.totalBites,
-          ultraFatigueUntil: fatigueUntil,
-          level: levelState.level,
-          levelCoins: levelState.progressCoins,
-        }),
-      );
-    } catch {
-      // The game remains playable when local storage is unavailable.
-    }
+    const saveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          SAVE_KEY,
+          JSON.stringify({
+            version: SAVE_VERSION,
+            vaultCoins,
+            settings,
+            tutorialSeen,
+            bestStreak: stats.bestStreak,
+            totalTaps: stats.totalTaps,
+            totalBites: stats.totalBites,
+            ultraFatigueUntil: fatigueUntil,
+            level: levelState.level,
+            levelCoins: levelState.progressCoins,
+          }),
+        );
+      } catch {
+        // The game remains playable when local storage is unavailable.
+      }
+    }, 450);
+
+    return () => clearTimeout(saveTimer);
   }, [
-    coins.walletCoins,
     fatigueUntil,
     hydrated,
     levelState,
-    safes,
     settings,
     stats,
     tutorialSeen,
+    vaultCoins,
   ]);
 
   useEffect(() => {
@@ -647,7 +640,7 @@ export default function Home() {
           overheatTriggeredRef.current = true;
           triggerBite(true);
         }
-      }, 50);
+      }, 80);
     },
     [getSound, triggerBite],
   );
@@ -758,28 +751,24 @@ export default function Home() {
     [finishHold],
   );
 
-  const buySafe = useCallback(
-    (size: SafeSize) => {
-      const definition = SAFE_CATALOG.find((entry) => entry.size === size);
-      if (!definition) return;
-      const requiredCoins = definition.price + definition.capacity;
-      if (coinsRef.current.walletCoins < requiredCoins) return;
+  const depositToVault = useCallback(
+    (amount: number) => {
+      const requestedCoins = Math.floor(amount);
+      if (
+        !Number.isFinite(requestedCoins) ||
+        requestedCoins < 2 ||
+        coinsRef.current.walletCoins < requestedCoins
+      ) {
+        return;
+      }
+      const protectedCoins = Math.floor(requestedCoins / 2);
 
       updateCoins((current) => ({
         ...current,
-        walletCoins: current.walletCoins - requiredCoins,
+        walletCoins: current.walletCoins - requestedCoins,
       }));
-      setSafes((current) => [
-        ...current,
-        {
-          id: createSafeId(),
-          size: definition.size,
-          capacity: definition.capacity,
-          stored: definition.capacity,
-          purchasedAt: Date.now(),
-        },
-      ]);
-      setPurchaseMessage(`${definition.name} сейф заполнен`);
+      setVaultCoins((current) => current + protectedCoins);
+      setPurchaseMessage(`Защищено +${protectedCoins} монет`);
       getSound().safe();
       vibrate([20, 30, 50], settingsRef.current.vibration);
       if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
@@ -815,7 +804,8 @@ export default function Home() {
     bonusCarryRef.current = 0;
     fatigueUntilRef.current = 0;
     setCoins(resetCoins);
-    setSafes([]);
+    setVaultCoins(0);
+    setDepositInput("100");
     setStats(resetStats);
     setLevelState(resetLevel);
     setSettings(defaults.settings);
@@ -839,10 +829,14 @@ export default function Home() {
     transitionTo,
   ]);
 
-  const vaultCoins = useMemo(
-    () => safes.reduce((total, safe) => total + safe.stored, 0),
-    [safes],
-  );
+  const requestedDeposit = /^\d+$/.test(depositInput)
+    ? Number(depositInput)
+    : 0;
+  const protectedDeposit = Math.floor(requestedDeposit / 2);
+  const canDeposit =
+    Number.isSafeInteger(requestedDeposit) &&
+    requestedDeposit >= 2 &&
+    requestedDeposit <= coins.walletCoins;
 
   const statusTitle =
     dogState === "warning"
@@ -912,7 +906,7 @@ export default function Home() {
       data-hydrated={hydrated}
       style={gameStyle}
     >
-      <div className={`game-motion-layer ${tapVariant}`}>
+      <div className="game-motion-layer">
       <header className="app-header">
         <div className="top-bar">
           <div className="wordmark" aria-label="Knopik Tap">
@@ -1025,8 +1019,7 @@ export default function Home() {
       <footer className="bottom-bar">
         <button type="button" onClick={() => setSafesOpen(true)}>
           <span className="safe-icon" aria-hidden="true"><i /></span>
-          <span>Сейфы</span>
-          {safes.length > 0 && <b>{safes.length}</b>}
+          <span>Сейф</span>
         </button>
         <button type="button" onClick={() => setSettingsOpen(true)}>
           <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
@@ -1105,7 +1098,7 @@ export default function Home() {
         >
           <section className="sheet safe-sheet" role="dialog" aria-modal="true" aria-labelledby="safes-title">
             <div className="sheet-heading">
-              <div><p className="sheet-kicker">ХРАНИЛИЩЕ</p><h2 id="safes-title">Мои сейфы</h2></div>
+              <div><p className="sheet-kicker">ХРАНИЛИЩЕ</p><h2 id="safes-title">Сейф</h2></div>
               <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setSafesOpen(false)}><span /></button>
             </div>
 
@@ -1116,50 +1109,62 @@ export default function Home() {
 
             {purchaseMessage && <p className="purchase-message" role="status">{purchaseMessage}</p>}
 
-            <div className="sheet-scroll">
-              <section className="owned-section">
-                <h3>Купленные</h3>
-                {safes.length === 0 ? (
-                  <p className="empty-safes">Пока пусто. Монеты защищаются только после покупки заполненного сейфа.</p>
-                ) : (
-                  <div className="owned-safe-list">
-                    {safes.map((safe, index) => {
-                      const definition = SAFE_CATALOG.find((entry) => entry.size === safe.size)!;
-                      return (
-                        <article className={`owned-safe size-${safe.size}`} key={safe.id}>
-                          <span className="safe-icon" aria-hidden="true"><i /></span>
-                          <div><strong>{definition.name} #{index + 1}</strong><small>{safe.stored} из {safe.capacity} монет</small></div>
-                          <b>ЗАЩИЩЁН</b>
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+            <div className="vault-deposit">
+              <div className="vault-rule">
+                <strong>Курс защиты 2 : 1</strong>
+                <span>Положишь 100 — в сейф попадёт 50. Защищённые монеты не сгорают.</span>
+              </div>
 
-              <section className="safe-shop">
-                <h3>Купить и заполнить</h3>
-                <p>Списывается стоимость сейфа и такая же сумма для вклада.</p>
-                <div className="safe-options">
-                  {SAFE_CATALOG.map((safe) => {
-                    const required = safe.price + safe.capacity;
-                    const available = coins.walletCoins >= required;
-                    return (
-                      <article className={`safe-option size-${safe.size}`} key={safe.size}>
-                        <span className="safe-icon" aria-hidden="true"><i /></span>
-                        <div>
-                          <strong>{safe.name}</strong>
-                          <span>{safe.capacity} монет</span>
-                          <small>{safe.price} сейф + {safe.capacity} вклад</small>
-                        </div>
-                        <button type="button" disabled={!available} onClick={() => buySafe(safe.size)}>
-                          {available ? `КУПИТЬ · ${required}` : `НУЖНО ${required}`}
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
+              <div className="deposit-presets" aria-label="Быстрый выбор суммы">
+                {[50, 100, 500].map((amount) => (
+                  <button
+                    type="button"
+                    key={amount}
+                    disabled={coins.walletCoins < amount}
+                    onClick={() => setDepositInput(String(amount))}
+                  >
+                    {amount}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={coins.walletCoins < 2}
+                  onClick={() => setDepositInput(String(coins.walletCoins))}
+                >
+                  ВСЁ
+                </button>
+              </div>
+
+              <label className="deposit-field">
+                <span>СУММА ИЗ ТЕКУЩЕГО БАЛАНСА</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={depositInput}
+                  onChange={(event) =>
+                    setDepositInput(
+                      event.target.value.replace(/\D/g, "").slice(0, 12),
+                    )
+                  }
+                  aria-label="Сумма перевода в сейф"
+                />
+                <small>Доступно {coins.walletCoins.toLocaleString("ru-RU")}</small>
+              </label>
+
+              <div className="deposit-result">
+                <span>В СЕЙФ ПОПАДЁТ</span>
+                <strong>+{Number.isFinite(protectedDeposit) ? protectedDeposit.toLocaleString("ru-RU") : 0}</strong>
+              </div>
+
+              <button
+                className="deposit-button"
+                type="button"
+                disabled={!canDeposit}
+                onClick={() => depositToVault(requestedDeposit)}
+              >
+                {canDeposit ? "ЗАЩИТИТЬ МОНЕТЫ" : "НЕДОСТАТОЧНО МОНЕТ"}
+              </button>
+              <p className="deposit-note">Перевод необратим. Нечётная монета округляется вниз.</p>
             </div>
           </section>
         </div>
@@ -1190,7 +1195,7 @@ export default function Home() {
               <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>СБРОСИТЬ ПРОГРЕСС</button>
             ) : (
               <div className="reset-confirm" role="alert">
-                <p>Удалить баланс, сейфы, усталость, рекорды и настройки?</p>
+                <p>Удалить баланс, сейф, усталость, рекорды и настройки?</p>
                 <div><button type="button" onClick={() => setResetConfirmOpen(false)}>ОТМЕНА</button><button className="confirm-reset" type="button" onClick={resetProgress}>СБРОСИТЬ</button></div>
               </div>
             )}

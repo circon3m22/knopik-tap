@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase,
     title: "KNOPIK TAP",
     description:
-      "Тапай быстрее, заряжай ультра-тап и защищай монеты в сейфах.",
+      "Тапай быстрее, заряжай ультра-тап и защищай половину монет в бесплатном сейфе.",
     applicationName: "Knopik Tap",
     manifest: "/manifest.webmanifest",
     formatDetection: { telephone: false },

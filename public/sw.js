@@ -1,4 +1,4 @@
-const CACHE_NAME = "knopik-tap-v6";
+const CACHE_NAME = "knopik-tap-v7";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",

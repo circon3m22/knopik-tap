@@ -63,8 +63,8 @@ test("levels advance every 100 earned coins and cap at ten", () => {
 
 test("corrupted saves recover without unsafe values", () => {
   const saved = sanitizeSave({
-    version: 4,
-    walletCoins: -10,
+    version: 5,
+    vaultCoins: -10,
     ultraFatigueUntil: Number.NaN,
     tutorialSeen: "yes",
     settings: { sound: "loud", vibration: false },
@@ -72,7 +72,7 @@ test("corrupted saves recover without unsafe values", () => {
     level: 999,
     levelCoins: Number.NaN,
   });
-  assert.equal(saved.walletCoins, 0);
+  assert.equal(saved.vaultCoins, 0);
   assert.equal(saved.ultraFatigueUntil, 0);
   assert.equal(saved.tutorialSeen, false);
   assert.equal(saved.settings.sound, true);
@@ -80,4 +80,14 @@ test("corrupted saves recover without unsafe values", () => {
   assert.equal(saved.bestStreak, 0);
   assert.equal(saved.level, 10);
   assert.equal(saved.levelCoins, 0);
+});
+
+test("legacy purchased safes merge into the free vault", () => {
+  const saved = sanitizeSave({
+    version: 4,
+    walletCoins: 999,
+    safes: [{ stored: 100 }, { stored: 200 }, { stored: -50 }],
+  });
+  assert.equal(saved.vaultCoins, 300);
+  assert.equal("walletCoins" in saved, false);
 });

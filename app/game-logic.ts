@@ -16,20 +16,9 @@ export type GameStats = {
   totalBites: number;
 };
 
-export type SafeSize = "small" | "medium" | "large";
-
-export type OwnedSafe = {
-  id: string;
-  size: SafeSize;
-  capacity: number;
-  stored: number;
-  purchasedAt: number;
-};
-
 export type SaveData = {
-  version: 4;
-  walletCoins: number;
-  safes: OwnedSafe[];
+  version: 5;
+  vaultCoins: number;
   settings: GameSettings;
   tutorialSeen: boolean;
   bestStreak: number;
@@ -40,20 +29,13 @@ export type SaveData = {
   levelCoins: number;
 };
 
-export const SAFE_CATALOG = [
-  { size: "small", name: "Малый", capacity: 100, price: 100 },
-  { size: "medium", name: "Средний", capacity: 200, price: 200 },
-  { size: "large", name: "Большой", capacity: 500, price: 500 },
-] as const;
-
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 4 as const;
+export const SAVE_VERSION = 5 as const;
 
 export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
-    walletCoins: 0,
-    safes: [],
+    vaultCoins: 0,
     settings: { sound: true, vibration: true },
     tutorialSeen: false,
     bestStreak: 0,
@@ -70,30 +52,14 @@ function safeInteger(value: unknown): number {
   return Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, Math.floor(value)));
 }
 
-function sanitizeSafes(value: unknown): OwnedSafe[] {
-  if (!Array.isArray(value)) return [];
-
-  return value.slice(0, 500).flatMap((item, index) => {
-    if (!item || typeof item !== "object") return [];
-    const candidate = item as Partial<OwnedSafe>;
-    const definition = SAFE_CATALOG.find(
-      (entry) => entry.size === candidate.size,
-    );
-    if (!definition) return [];
-
-    return [
-      {
-        id:
-          typeof candidate.id === "string" && candidate.id.length > 0
-            ? candidate.id
-            : `restored-${index}`,
-        size: definition.size,
-        capacity: definition.capacity,
-        stored: Math.min(definition.capacity, safeInteger(candidate.stored)),
-        purchasedAt: safeInteger(candidate.purchasedAt),
-      },
-    ];
-  });
+function legacyVaultCoins(value: unknown): number {
+  if (!Array.isArray(value)) return 0;
+  return safeInteger(
+    value.slice(0, 500).reduce((total, item) => {
+      if (!item || typeof item !== "object") return total;
+      return total + safeInteger((item as { stored?: unknown }).stored);
+    }, 0),
+  );
 }
 
 export function sanitizeSave(value: unknown): SaveData {
@@ -102,6 +68,8 @@ export function sanitizeSave(value: unknown): SaveData {
   const candidate = value as Partial<SaveData> & {
     version?: unknown;
     bankCoins?: unknown;
+    walletCoins?: unknown;
+    safes?: unknown;
     sound?: unknown;
     vibration?: unknown;
   };
@@ -112,18 +80,14 @@ export function sanitizeSave(value: unknown): SaveData {
 
   return {
     version: SAVE_VERSION,
-    walletCoins:
-      candidate.version === 2 ||
-      candidate.version === 3 ||
-      candidate.version === 4
-        ? safeInteger(candidate.walletCoins)
-        : safeInteger(candidate.bankCoins),
-    safes:
-      candidate.version === 2 ||
-      candidate.version === 3 ||
-      candidate.version === 4
-        ? sanitizeSafes(candidate.safes)
-        : [],
+    vaultCoins:
+      candidate.version === 5
+        ? safeInteger(candidate.vaultCoins)
+        : candidate.version === 2 ||
+            candidate.version === 3 ||
+            candidate.version === 4
+          ? legacyVaultCoins(candidate.safes)
+          : safeInteger(candidate.bankCoins),
     settings: {
       sound:
         typeof settings.sound === "boolean" ? settings.sound : true,
@@ -131,7 +95,7 @@ export function sanitizeSave(value: unknown): SaveData {
         typeof settings.vibration === "boolean" ? settings.vibration : true,
     },
     tutorialSeen:
-      candidate.version === 4 &&
+      (candidate.version === 4 || candidate.version === 5) &&
       typeof candidate.tutorialSeen === "boolean"
         ? candidate.tutorialSeen
         : false,
@@ -139,15 +103,17 @@ export function sanitizeSave(value: unknown): SaveData {
     totalTaps: safeInteger(candidate.totalTaps),
     totalBites: safeInteger(candidate.totalBites),
     ultraFatigueUntil:
-      candidate.version === 3 || candidate.version === 4
+      candidate.version === 3 ||
+      candidate.version === 4 ||
+      candidate.version === 5
         ? safeInteger(candidate.ultraFatigueUntil)
         : 0,
     level:
-      candidate.version === 4
+      candidate.version === 4 || candidate.version === 5
         ? Math.min(10, Math.max(1, safeInteger(candidate.level)))
         : 1,
     levelCoins:
-      candidate.version === 4
+      candidate.version === 4 || candidate.version === 5
         ? Math.min(100, safeInteger(candidate.levelCoins))
         : 0,
   };
