@@ -89,6 +89,8 @@ const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 100;
 const HASBIK_HAT_PRICE = 1_000;
+const MOHAWK_PRICE = 2_000;
+const MOHAWK_RISK_BONUS = 1.08;
 const ZHIVCHIK_PRICE = 100;
 const PITBULL_PRICE = 50;
 const ZHIVCHIK_DURATION_MS = 60_000;
@@ -171,11 +173,14 @@ export default function Home() {
   const [pitbullQuantity, setPitbullQuantity] = useState(1);
   const [hatOwned, setHatOwned] = useState(false);
   const [hatEquipped, setHatEquipped] = useState(false);
+  const [mohawkOwned, setMohawkOwned] = useState(false);
+  const [mohawkEquipped, setMohawkEquipped] = useState(false);
   const [boostUntil, setBoostUntil] = useState(0);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
     vibration: true,
     suliman: false,
+    yellow: false,
   });
   const [stats, setStats] = useState<GameStats>({
     bestStreak: 0,
@@ -210,7 +215,9 @@ export default function Home() {
   const [shopMessage, setShopMessage] = useState("");
   const [cheatCode, setCheatCode] = useState("");
   const [cheatMessage, setCheatMessage] = useState("");
+  const [hasbulaRedeemed, setHasbulaRedeemed] = useState(false);
   const [hatBounce, setHatBounce] = useState(0);
+  const [mohawkSwing, setMohawkSwing] = useState(0);
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
@@ -238,6 +245,7 @@ export default function Home() {
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
   const settingsRef = useRef(settings);
+  const hasbulaRedeemedRef = useRef(false);
   const statsRef = useRef(stats);
   const levelStateRef = useRef(levelState);
   const boostUntilRef = useRef(0);
@@ -447,10 +455,12 @@ export default function Home() {
         level: saved.level,
         progressCoins: saved.levelCoins,
       });
-      const activeFatigue = Math.max(
-        saved.ultraFatigueUntil > Date.now() ? saved.ultraFatigueUntil : 0,
-        saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
-      );
+      const activeFatigue = saved.settings.yellow
+        ? 0
+        : Math.max(
+            saved.ultraFatigueUntil > Date.now() ? saved.ultraFatigueUntil : 0,
+            saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
+          );
 
       coinsRef.current = loadedCoins;
       settingsRef.current = saved.settings;
@@ -466,10 +476,16 @@ export default function Home() {
       setPitbullCount(saved.pitbullCount);
       setHatOwned(saved.hatOwned);
       setHatEquipped(saved.hatEquipped);
+      setMohawkOwned(saved.mohawkOwned);
+      setMohawkEquipped(saved.mohawkEquipped);
+      setHasbulaRedeemed(saved.hasbulaRedeemed);
+      hasbulaRedeemedRef.current = saved.hasbulaRedeemed;
       setBoostUntil(saved.boostUntil > Date.now() ? saved.boostUntil : 0);
       setRiskChance(saved.lastRiskChance as RiskChance);
       setRiskFatigueUntil(
-        saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
+        !saved.settings.yellow && saved.riskFatigueUntil > Date.now()
+          ? saved.riskFatigueUntil
+          : 0,
       );
       setRiskStats({
         spins: saved.riskSpins,
@@ -537,6 +553,9 @@ export default function Home() {
             pitbullCount,
             hatOwned,
             hatEquipped,
+            mohawkOwned,
+            mohawkEquipped,
+            hasbulaRedeemed,
             riskFatigueUntil,
             riskSpins: riskStats.spins,
             riskWins: riskStats.wins,
@@ -569,6 +588,9 @@ export default function Home() {
     pitbullCount,
     hatEquipped,
     hatOwned,
+    hasbulaRedeemed,
+    mohawkEquipped,
+    mohawkOwned,
     hydrated,
     levelState,
     riskChance,
@@ -649,6 +671,13 @@ export default function Home() {
 
   const enterTiredMood = useCallback(
     (persistent = false) => {
+      if (settingsRef.current.yellow) {
+        fatigueUntilRef.current = 0;
+        setFatigueUntil(0);
+        setRiskFatigueUntil(0);
+        transitionTo("calm");
+        return;
+      }
       transitionTo("tired");
       if (tiredTimerRef.current) clearTimeout(tiredTimerRef.current);
       tiredTimerRef.current = null;
@@ -672,7 +701,12 @@ export default function Home() {
   );
 
   const finishRecovery = useCallback(() => {
-    if (fatigueUntilRef.current > Date.now()) {
+    if (settingsRef.current.yellow) {
+      fatigueUntilRef.current = 0;
+      setFatigueUntil(0);
+      setRiskFatigueUntil(0);
+      transitionTo("calm");
+    } else if (fatigueUntilRef.current > Date.now()) {
       enterTiredMood(true);
     } else {
       transitionTo("calm");
@@ -893,6 +927,7 @@ export default function Home() {
         vibrate([26, 42, 26], settingsRef.current.vibration);
         armIdleTimer("warning");
       } else if (
+        !settingsRef.current.yellow &&
         currentState === "calm" &&
         nextSeries >= 4 &&
         Math.random() < RANDOM_TIRED_CHANCE
@@ -1045,6 +1080,13 @@ export default function Home() {
       );
       stopHoldVisual("success");
       awardCoins(baseReward, 1_000);
+      if (settingsRef.current.yellow) {
+        resetSeries();
+        clearRoundTimers();
+        transitionTo("calm");
+        vibrate([35, 35, 70, 35, 110], settingsRef.current.vibration);
+        return;
+      }
       const nextFatigueUntil = Date.now() + FATIGUE_DURATION_MS;
       fatigueUntilRef.current = nextFatigueUntil;
       setFatigueUntil(nextFatigueUntil);
@@ -1078,14 +1120,18 @@ export default function Home() {
   const startRiskSpin = useCallback(() => {
     if (riskPhaseRef.current !== "selecting" || riskCommittedRef.current) return;
     const tiredNow =
-      dogStateRef.current === "tired" || fatigueUntilRef.current > Date.now();
+      !settingsRef.current.yellow &&
+      (dogStateRef.current === "tired" || fatigueUntilRef.current > Date.now());
     if (tiredNow) {
       showRiskNotice("Сиба устала");
       vibrate([12, 26, 12], settingsRef.current.vibration);
       return;
     }
 
-    const bet = coinsRef.current.walletCoins;
+    const availableCoins = coinsRef.current.walletCoins;
+    const bet = mohawkEquipped
+      ? Math.min(availableCoins, Math.max(1, Math.floor(riskBetAmount)))
+      : availableCoins;
     if (bet < 1) {
       showRiskNotice("Нет монет для ставки");
       vibrate(16, settingsRef.current.vibration);
@@ -1096,6 +1142,12 @@ export default function Home() {
     clearRoundTimers();
     resetSeries();
     const outcome = createRiskOutcome(riskChance, bet);
+    const payout = outcome.won
+      ? Math.round(
+          bet * riskMultiplier(riskChance) *
+            (mohawkEquipped ? MOHAWK_RISK_BONUS : 1),
+        )
+      : 0;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const spinDuration = reducedMotion ? 280 : RISK_SPIN_MS;
     setRiskBetAmount(bet);
@@ -1104,7 +1156,10 @@ export default function Home() {
     setRiskRotation(1_800 + outcome.finalAngle);
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
-    updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
+    updateCoins((current) => ({
+      walletCoins: Math.max(0, current.walletCoins - bet),
+      streakCoins: Math.max(0, current.streakCoins - bet),
+    }));
     setRiskStats((current) => ({
       ...current,
       spins: current.spins + 1,
@@ -1138,7 +1193,7 @@ export default function Home() {
         }
         const mathematicallyWon = outcome.won;
         setRiskResult(mathematicallyWon ? "win" : "lose");
-        setRiskPayout(mathematicallyWon ? outcome.payout : 0);
+        setRiskPayout(mathematicallyWon ? payout : 0);
         transitionRisk("result");
         setRiskStats((current) => ({
           ...current,
@@ -1148,7 +1203,7 @@ export default function Home() {
         if (mathematicallyWon) {
           updateCoins((current) => ({
             ...current,
-            walletCoins: current.walletCoins + outcome.payout,
+            walletCoins: current.walletCoins + payout,
           }));
           getSound().riskWin();
           vibrate([25, 28, 54, 30, 80], settingsRef.current.vibration);
@@ -1158,16 +1213,23 @@ export default function Home() {
         }
 
         riskReturnTimerRef.current = setTimeout(() => {
-          const tiredUntil =
-            Date.now() +
-            RISK_RECOVERY_MIN_MS +
-            Math.random() * RISK_RECOVERY_SPREAD_MS;
-          fatigueUntilRef.current = tiredUntil;
-          setFatigueUntil(tiredUntil);
-          setRiskFatigueUntil(tiredUntil);
-          setClock(Date.now());
-          setRecoveryReason("rest");
-          transitionTo("tired");
+          if (settingsRef.current.yellow) {
+            fatigueUntilRef.current = 0;
+            setFatigueUntil(0);
+            setRiskFatigueUntil(0);
+            transitionTo("calm");
+          } else {
+            const tiredUntil =
+              Date.now() +
+              RISK_RECOVERY_MIN_MS +
+              Math.random() * RISK_RECOVERY_SPREAD_MS;
+            fatigueUntilRef.current = tiredUntil;
+            setFatigueUntil(tiredUntil);
+            setRiskFatigueUntil(tiredUntil);
+            setClock(Date.now());
+            setRecoveryReason("rest");
+            transitionTo("tired");
+          }
           transitionRisk("transition");
           riskTransitionTimerRef.current = setTimeout(() => {
             transitionRisk("normal");
@@ -1182,7 +1244,9 @@ export default function Home() {
   }, [
     clearRoundTimers,
     getSound,
+    mohawkEquipped,
     resetSeries,
+    riskBetAmount,
     riskChance,
     showRiskNotice,
     transitionRisk,
@@ -1276,16 +1340,23 @@ export default function Home() {
 
     updateCoins((current) => ({ ...current, walletCoins: 0 }));
     setVaultCoins((current) => current + protectedCoins);
-    const tiredUntil =
-      Date.now() + SAVE_RECOVERY_MIN_MS + Math.random() * SAVE_RECOVERY_SPREAD_MS;
     clearRoundTimers();
     resetSeries();
-    fatigueUntilRef.current = tiredUntil;
-    setFatigueUntil(tiredUntil);
-    setRiskFatigueUntil(tiredUntil);
-    setClock(Date.now());
-    setRecoveryReason("rest");
-    transitionTo("tired");
+    if (settingsRef.current.yellow) {
+      fatigueUntilRef.current = 0;
+      setFatigueUntil(0);
+      setRiskFatigueUntil(0);
+      transitionTo("calm");
+    } else {
+      const tiredUntil =
+        Date.now() + SAVE_RECOVERY_MIN_MS + Math.random() * SAVE_RECOVERY_SPREAD_MS;
+      fatigueUntilRef.current = tiredUntil;
+      setFatigueUntil(tiredUntil);
+      setRiskFatigueUntil(tiredUntil);
+      setClock(Date.now());
+      setRecoveryReason("rest");
+      transitionTo("tired");
+    }
     getSound().safe();
     vibrate([20, 28, 44], settingsRef.current.vibration);
   }, [clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
@@ -1365,7 +1436,7 @@ export default function Home() {
     if (
       pitbullCount < 1 ||
       riskPhaseRef.current !== "normal" ||
-      fatigueUntilRef.current > Date.now() ||
+      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
       dogStateRef.current !== "calm"
     ) return;
     if (coinsRef.current.walletCoins < 1) {
@@ -1418,6 +1489,43 @@ export default function Home() {
       vibrate([16, 22, 34], settingsRef.current.vibration);
       return;
     }
+    if (normalizedCode === "yellow") {
+      const nextEnabled = !settingsRef.current.yellow;
+      setSettings((current) => ({ ...current, yellow: nextEnabled }));
+      setCheatCode("");
+      setCheatMessage(
+        nextEnabled ? "Секретный режим включён" : "Секретный режим выключен",
+      );
+      if (nextEnabled) {
+        clearRoundTimers();
+        stopHoldVisual("cancel");
+        resetSeries();
+        fatigueUntilRef.current = 0;
+        setFatigueUntil(0);
+        setRiskFatigueUntil(0);
+        setRecoveryReason("rest");
+        transitionTo("calm");
+      }
+      getSound().safe();
+      return;
+    }
+    if (normalizedCode === "hasbula") {
+      if (hasbulaRedeemedRef.current) {
+        setCheatMessage("Промокод уже был использован");
+        return;
+      }
+      hasbulaRedeemedRef.current = true;
+      updateCoins((current) => ({
+        ...current,
+        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + 1_000),
+      }));
+      setHasbulaRedeemed(true);
+      setCheatCode("");
+      setCheatMessage("Начислено +1 000 активных монет");
+      getSound().purchase();
+      vibrate([16, 22, 34], settingsRef.current.vibration);
+      return;
+    }
     if (normalizedCode !== "baobab") {
       setCheatMessage("Код не найден");
       return;
@@ -1445,6 +1553,13 @@ export default function Home() {
     event.stopPropagation();
     setHatBounce((current) => current + 1);
     registerTap(50, 16);
+  }, [registerTap]);
+
+  const swingMohawk = useCallback((event: PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMohawkSwing((current) => current + 1);
+    registerTap(50, 14);
   }, [registerTap]);
 
   const selectNavigation = useCallback((index: number) => {
@@ -1502,9 +1617,13 @@ export default function Home() {
       }));
       setHatOwned(true);
       setHatEquipped(true);
+      setMohawkEquipped(false);
       setShopMessage("Тюбетейка куплена и надета");
     } else {
-      setHatEquipped((current) => !current);
+      setHatEquipped((current) => {
+        if (!current) setMohawkEquipped(false);
+        return !current;
+      });
       setShopMessage(hatEquipped ? "Тюбетейка снята" : "Тюбетейка надета");
     }
     getSound().purchase();
@@ -1512,6 +1631,30 @@ export default function Home() {
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
   }, [getSound, hatEquipped, hatOwned, updateCoins]);
+
+  const buyOrToggleMohawk = useCallback(() => {
+    if (!mohawkOwned) {
+      if (coinsRef.current.walletCoins < MOHAWK_PRICE) return;
+      updateCoins((current) => ({
+        ...current,
+        walletCoins: current.walletCoins - MOHAWK_PRICE,
+      }));
+      setMohawkOwned(true);
+      setMohawkEquipped(true);
+      setHatEquipped(false);
+      setShopMessage("Эрокез куплен и надет");
+    } else {
+      setMohawkEquipped((current) => {
+        if (!current) setHatEquipped(false);
+        return !current;
+      });
+      setShopMessage(mohawkEquipped ? "Эрокез снят" : "Эрокез надет");
+    }
+    getSound().purchase();
+    vibrate(22, settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [getSound, mohawkEquipped, mohawkOwned, updateCoins]);
 
   const feedDog = useCallback(() => {
     const tiredNow =
@@ -1571,6 +1714,10 @@ export default function Home() {
     setBoostUntil(0);
     setHatOwned(false);
     setHatEquipped(false);
+    setMohawkOwned(false);
+    setMohawkEquipped(false);
+    setHasbulaRedeemed(false);
+    hasbulaRedeemedRef.current = false;
     setRiskFatigueUntil(0);
     setRiskChance(50);
     setRiskBetAmount(0);
@@ -1609,8 +1756,9 @@ export default function Home() {
 
   const vaultLocked = dogState !== "calm" || holding || riskPhase !== "normal";
   const isDogTired =
-    dogState === "tired" ||
-    (dogState === "recovering" && fatigueUntil > Date.now());
+    !settings.yellow &&
+    (dogState === "tired" ||
+      (dogState === "recovering" && fatigueUntil > Date.now()));
   const canFeedDog = isDogTired && foodCount > 0;
   const canSave = !vaultLocked && coins.walletCoins >= 2;
   const saveAmount = Math.floor(coins.walletCoins / 2);
@@ -1621,6 +1769,7 @@ export default function Home() {
     foodQuantity <= remainingFoodSlots &&
     coins.walletCoins >= foodTotalPrice;
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
+  const canBuyMohawk = mohawkOwned || coins.walletCoins >= MOHAWK_PRICE;
   const remainingDrinkSlots = Math.max(0, 10 - drinkCount);
   const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
   const canBuyDrink =
@@ -1634,7 +1783,9 @@ export default function Home() {
     pitbullQuantity <= remainingPitbullSlots &&
     coins.walletCoins >= pitbullTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
-  const selectedRiskMultiplier = riskMultiplier(riskChance);
+  const selectedRiskMultiplier = Math.round(
+    riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS : 1) * 100,
+  ) / 100;
   const riskMode = riskPhase !== "normal";
   const navIndex = shopOpen ? 0 : settingsOpen ? 2 : 1;
 
@@ -1880,6 +2031,21 @@ export default function Home() {
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
         )}
+        {riskPhase === "selecting" && mohawkEquipped && (
+          <div className="risk-bet-control" aria-label="Размер ставки рулетки">
+            <span><small>СТАВКА</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
+            <input
+              type="range"
+              min="1"
+              max={Math.max(1, coins.walletCoins)}
+              step="1"
+              value={Math.min(coins.walletCoins, Math.max(1, riskBetAmount))}
+              aria-label="Активных монет на прокрутку"
+              onChange={(event) => setRiskBetAmount(Number(event.currentTarget.value))}
+            />
+            <button type="button" onClick={() => setRiskBetAmount(coins.walletCoins)}>ВСЁ</button>
+          </div>
+        )}
         <div className="boost-row" aria-label="Предметы Кнопика">
           <button className="inventory-item inventory-food" type="button" disabled={!canFeedDog} onClick={feedDog}>
             <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
@@ -2005,6 +2171,24 @@ export default function Home() {
                   <span
                     className="hat-hit-zone"
                     onPointerDown={bounceHat}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
+                </>
+              )}
+              {mohawkOwned && mohawkEquipped && (
+                <>
+                  <img
+                    className={`dog-mohawk ${mohawkSwing ? "mohawk-swing" : ""}`}
+                    key={`mohawk-${mohawkSwing}`}
+                    src="/knopik-mohawk.png"
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                  />
+                  <span
+                    className="mohawk-hit-zone"
+                    onPointerDown={swingMohawk}
                     onPointerUp={(event) => event.stopPropagation()}
                     onPointerCancel={(event) => event.stopPropagation()}
                   />
@@ -2325,7 +2509,7 @@ export default function Home() {
             </article>
             </>}
 
-            {shopCategory === "clothes" && (
+            {shopCategory === "clothes" && (<>
             <article className={`shop-card hat-card ${hatOwned ? "owned" : ""}`}>
               <span className="hat-preview" aria-hidden="true">
                 <img src="/hasbik-tubeteika.png" alt="" draggable={false} />
@@ -2342,7 +2526,23 @@ export default function Home() {
                   : canBuyHat ? `КУПИТЬ · ${HASBIK_HAT_PRICE}` : `НУЖНО ${HASBIK_HAT_PRICE}`}
               </button>
             </article>
-            )}
+            <article className={`shop-card mohawk-card ${mohawkOwned ? "owned" : ""}`}>
+              <span className="mohawk-preview" aria-hidden="true">
+                <img src="/knopik-mohawk.png" alt="" draggable={false} />
+              </span>
+              <div className="food-copy">
+                <small>{mohawkOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
+                <h3>Эрокез</h3>
+                <p>Слегка повышает коэффициенты рулетки и открывает выбор размера ставки активными монетами.</p>
+              </div>
+              <div className="food-price"><strong>{mohawkOwned ? "✓" : MOHAWK_PRICE}</strong><span>{mohawkOwned ? "твой" : "монет"}</span></div>
+              <button className="shop-buy-button mohawk-action" type="button" disabled={!canBuyMohawk} onClick={buyOrToggleMohawk}>
+                {mohawkOwned
+                  ? mohawkEquipped ? "СНЯТЬ ЭРОКЕЗ" : "НАДЕТЬ ЭРОКЕЗ"
+                  : canBuyMohawk ? `КУПИТЬ · ${MOHAWK_PRICE}` : `НУЖНО ${MOHAWK_PRICE}`}
+              </button>
+            </article>
+            </>)}
           </section>
         </div>
       )}
@@ -2367,7 +2567,7 @@ export default function Home() {
               <button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button>
             </div>
             <form
-              className={`cheat-row ${settings.suliman ? "is-active" : ""}`}
+              className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
               onSubmit={(event) => {
                 event.preventDefault();
                 submitCheatCode();
@@ -2375,7 +2575,7 @@ export default function Home() {
             >
               <div>
                 <strong>Чит-код</strong>
-                <span>{settings.suliman ? "Секретный режим активен" : "Введи секретное слово"}</span>
+                <span>{settings.suliman || settings.yellow ? `Секретных режимов активно: ${Number(settings.suliman) + Number(settings.yellow)}` : "Введи секретное слово"}</span>
               </div>
               <label>
                 <input

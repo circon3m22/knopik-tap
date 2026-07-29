@@ -135,6 +135,34 @@ test("pitbull inventory and suliman mode persist safely", () => {
   });
   assert.equal(legacy.pitbullCount, 0);
   assert.equal(legacy.settings.suliman, false);
+  assert.equal(saved.settings.yellow, false);
+  assert.equal(saved.mohawkOwned, false);
+});
+
+test("mohawk ownership and fatigue-free mode persist in version ten", () => {
+  const saved = sanitizeSave({
+    version: 10,
+    walletCoins: 2_500,
+    hatOwned: true,
+    hatEquipped: true,
+    mohawkOwned: true,
+    mohawkEquipped: true,
+    settings: { sound: true, vibration: true, suliman: false, yellow: true },
+  });
+  assert.equal(saved.mohawkOwned, true);
+  assert.equal(saved.mohawkEquipped, true);
+  assert.equal(saved.hatEquipped, false);
+  assert.equal(saved.settings.yellow, true);
+  assert.equal(saved.hasbulaRedeemed, false);
+});
+
+test("one-time promo redemption persists in version eleven", () => {
+  const saved = sanitizeSave({
+    version: 11,
+    hasbulaRedeemed: true,
+    settings: { sound: true, vibration: true, suliman: false, yellow: false },
+  });
+  assert.equal(saved.hasbulaRedeemed, true);
 });
 
 test("risk wheel resolves payout and final angle from the configured chance", () => {
