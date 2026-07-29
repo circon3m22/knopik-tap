@@ -831,22 +831,30 @@ img,
   overflow: hidden;
   opacity: 0;
   background:
-    radial-gradient(ellipse at 50% 100%, rgb(255 119 0 / 28%), transparent 64%),
-    linear-gradient(0deg, rgb(49 5 0 / 86%), rgb(70 11 0 / 42%) 62%, rgb(26 3 0 / 14%));
-  clip-path: inset(calc(100% - var(--ultra-fill)) 0 0 0);
+    radial-gradient(circle at 50% 48%, rgb(255 190 77 / 35%), transparent 50%),
+    linear-gradient(180deg, #ff8c1a, #e85108 68%, #bf2e00);
+  contain: strict;
   pointer-events: none;
-  transition: clip-path 90ms linear, opacity 180ms ease;
+  transition: opacity 180ms ease;
+  will-change: opacity;
 }
 
 .ultra-active .ultra-fire {
-  opacity: 1;
+  animation: ultra-orange-pulse 980ms ease-in-out infinite alternate;
+}
+
+.game-shell.ultra-active::after {
+  background: #ef5d09;
+  animation: ultra-orange-pulse 980ms ease-in-out infinite alternate;
+}
+
+.ultra-active .dog-stage {
+  animation: ultra-stage-rumble 150ms linear infinite;
+  will-change: transform;
 }
 
 .ultra-fire svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  display: none;
 }
 
 .fire-haze {
@@ -878,7 +886,6 @@ img,
 
 .ember-field {
   fill: #ffd158;
-  filter: drop-shadow(0 0 4px #ff5a00);
 }
 
 .ember-field circle {
@@ -2071,6 +2078,18 @@ img,
 @keyframes coin-kick-b {
   0%, 100% { transform: rotate(0) scale(1); }
   38% { transform: rotate(4deg) scale(1.07); }
+}
+
+@keyframes ultra-orange-pulse {
+  from { opacity: 0.7; }
+  to { opacity: 0.94; }
+}
+
+@keyframes ultra-stage-rumble {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-1px, 0.5px, 0); }
+  50% { transform: translate3d(0.6px, -0.6px, 0); }
+  75% { transform: translate3d(0.8px, 0.4px, 0); }
 }
 
 @keyframes flame-rise-back {

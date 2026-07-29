@@ -775,7 +775,7 @@ export default function Home() {
           overheatTriggeredRef.current = true;
           triggerBite(true);
         }
-      }, 80);
+      }, 120);
     },
     [getSound, triggerBite],
   );
@@ -1163,36 +1163,21 @@ export default function Home() {
               <stop offset="0.72" stopColor="#ff6300" />
               <stop offset="1" stopColor="#df2108" stopOpacity="0" />
             </linearGradient>
-            <filter id="fire-warp" x="-25%" y="-18%" width="150%" height="140%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.038" numOctaves="2" seed="7" result="noise">
-                <animate attributeName="baseFrequency" dur="1.1s" values="0.012 0.038;0.019 0.058;0.012 0.038" repeatCount="indefinite" />
-              </feTurbulence>
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="B" result="distorted" />
-              <feGaussianBlur in="distorted" stdDeviation="5" result="glow" />
-              <feColorMatrix in="glow" values="1 0 0 0 0.35  0 0.55 0 0 0.04  0 0 0.1 0 0  0 0 0 0.75 0" result="warmGlow" />
-              <feMerge><feMergeNode in="warmGlow" /><feMergeNode in="distorted" /></feMerge>
-            </filter>
-            <filter id="heat-warp" x="-20%" y="-15%" width="140%" height="135%">
-              <feTurbulence type="turbulence" baseFrequency="0.009 0.024" numOctaves="2" seed="12" result="heat">
-                <animate attributeName="seed" dur="1.8s" values="12;18;12" repeatCount="indefinite" />
-              </feTurbulence>
-              <feDisplacementMap in="SourceGraphic" in2="heat" scale="12" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
           </defs>
-          <g className="fire-haze" filter="url(#heat-warp)">
+          <g className="fire-haze">
             <path d="M0 844V520C34 568 45 455 79 510C106 552 119 402 150 462C177 513 188 348 222 438C251 515 268 383 294 453C323 529 345 397 390 502V844Z" />
           </g>
-          <g className="flame-layer flame-layer-back" filter="url(#fire-warp)">
+          <g className="flame-layer flame-layer-back">
             <path fill="url(#fire-back)" d="M0 844V600C23 642 36 521 61 566C82 603 82 382 112 470C128 517 147 430 158 360C173 455 190 487 203 548C222 505 224 292 251 420C263 478 279 505 294 562C322 514 329 377 349 481C361 544 371 523 390 586V844Z" />
             <path fill="url(#fire-back)" opacity=".62" d="M76 844C105 711 82 603 121 491C144 425 128 286 151 94C194 309 166 421 205 528C237 615 214 731 242 844ZM238 844C263 721 245 625 280 520C302 454 290 305 312 42C350 324 329 441 362 563C382 641 370 748 390 844Z" />
             <path fill="url(#fire-back)" opacity=".82" d="M20 844C36 748 18 699 49 631C67 590 60 511 73 440C103 541 82 594 111 657C137 714 121 779 145 844ZM151 844C164 748 147 706 177 622C197 567 187 487 204 398C230 527 211 585 242 657C266 715 249 782 270 844ZM271 844C294 763 276 711 310 633C333 580 327 499 344 414C369 544 353 607 381 672V844Z" />
           </g>
-          <g className="flame-layer flame-layer-front" filter="url(#fire-warp)">
+          <g className="flame-layer flame-layer-front">
             <path fill="url(#fire-core)" d="M0 844V704C24 732 32 646 53 682C68 706 72 587 91 627C106 658 120 672 130 725C149 687 151 552 173 633C187 685 192 697 204 733C225 685 228 590 248 646C264 692 267 696 279 731C301 692 306 557 329 642C342 692 356 658 368 609C384 688 380 724 390 746V844Z" />
             <path fill="#fff7b2" opacity=".78" d="M34 844C48 787 39 742 61 707C77 682 72 644 83 610C101 672 91 719 111 754C126 780 119 816 129 844ZM181 844C194 792 187 751 207 718C222 693 217 657 227 623C245 682 235 726 255 762C270 790 263 818 273 844ZM302 844C314 796 307 756 327 723C342 699 337 664 347 633C364 690 354 733 374 768V844Z" />
           </g>
           <g className="ember-field">
-            {Array.from({ length: 18 }, (_, index) => (
+            {Array.from({ length: 8 }, (_, index) => (
               <circle
                 key={index}
                 cx={18 + ((index * 71) % 354)}
