@@ -361,6 +361,38 @@ img,
 .settings-icon i:nth-child(odd)::after { left: 3px; }
 .settings-icon i:nth-child(2)::after { right: 3px; }
 
+.food-icon {
+  position: relative;
+  display: inline-block;
+  width: 23px;
+  height: 18px;
+  flex: 0 0 23px;
+}
+
+.food-icon::after {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  left: 1px;
+  height: 9px;
+  border: 1.7px solid currentColor;
+  border-radius: 3px 3px 10px 10px;
+  content: "";
+}
+
+.food-icon i {
+  position: absolute;
+  top: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.food-icon i:nth-child(1) { left: 4px; }
+.food-icon i:nth-child(2) { left: 10px; top: 0; }
+.food-icon i:nth-child(3) { right: 3px; top: 3px; }
+
 .game-stage {
   position: relative;
   z-index: 2;
@@ -495,7 +527,7 @@ img,
   object-position: 50% 24%;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-2.4%);
+  transform: translateY(-0.9%);
   transition: opacity 130ms ease;
 }
 
@@ -859,7 +891,7 @@ img,
   position: relative;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   margin: 0 2px clamp(9px, 1.8dvh, 15px);
   padding: 6px;
@@ -906,6 +938,10 @@ img,
 
 .bottom-bar .settings-icon {
   transform: scale(0.96);
+}
+
+.bottom-bar .food-icon {
+  transform: scale(0.88);
 }
 
 .bottom-bar button > b {
@@ -1356,6 +1392,130 @@ img,
   font-size: 8px;
   line-height: 1.4;
   text-align: center;
+}
+
+.shop-wallet {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  color: #34506a;
+  background: #eef4f9;
+}
+
+.shop-wallet span {
+  font-size: 7px;
+  font-weight: 820;
+  letter-spacing: 0.11em;
+}
+
+.shop-wallet strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 880;
+}
+
+.food-card {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #e0e3e5;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 14px 34px rgb(30 47 64 / 8%);
+}
+
+.food-card.needed {
+  border-color: #a8d8bd;
+  box-shadow: 0 14px 34px rgb(28 119 73 / 10%);
+}
+
+.food-pack {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border-radius: 19px;
+  color: #9a5b22;
+  background: linear-gradient(145deg, #ffe39d, #f1b95f);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 56%);
+}
+
+.food-pack .food-icon {
+  transform: scale(1.8);
+}
+
+.food-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.food-copy small {
+  color: var(--green);
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.food-copy h3 {
+  margin: 3px 0 4px;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+}
+
+.food-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.food-price {
+  display: grid;
+  justify-items: end;
+}
+
+.food-price strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 880;
+}
+
+.food-price span {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.food-card > button {
+  grid-column: 1 / 4;
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  color: white;
+  background: var(--green);
+  box-shadow: 0 10px 22px rgb(19 138 85 / 20%);
+  font-size: 9px;
+  font-weight: 880;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.food-card > button:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.food-card > button:disabled {
+  color: #8f969d;
+  background: #e7e9ea;
+  box-shadow: none;
+  cursor: default;
 }
 
 .setting-row {

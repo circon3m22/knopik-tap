@@ -28,6 +28,7 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /knopik-angry\.png/);
   assert.match(html, /Экран белый, пока Кнопик спокоен/);
   assert.match(html, /<span>Сейф<\/span>/);
+  assert.match(html, /<span>Магазин<\/span>/);
   assert.match(html, /УРОВЕНЬ/);
   assert.match(html, /class="saved-balance"/);
   assert.match(html, /class="bottom-bar"/);

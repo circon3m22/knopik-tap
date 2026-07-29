@@ -66,6 +66,7 @@ const TIRED_SNAP_CHANCE = 0.04;
 const LAST_TAP_CHANCE = 0.0025;
 const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
+const DOG_FOOD_PRICE = 150;
 
 const tutorialSlides = [
   {
@@ -136,6 +137,7 @@ export default function Home() {
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [safesOpen, setSafesOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -151,6 +153,7 @@ export default function Home() {
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState("");
+  const [shopMessage, setShopMessage] = useState("");
   const [levelBurstKey, setLevelBurstKey] = useState(0);
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
 
@@ -844,6 +847,31 @@ export default function Home() {
     [getSound, updateCoins],
   );
 
+  const feedDog = useCallback(() => {
+    const tiredNow =
+      dogStateRef.current === "tired" ||
+      (dogStateRef.current === "recovering" &&
+        fatigueUntilRef.current > Date.now());
+    if (!tiredNow || coinsRef.current.walletCoins < DOG_FOOD_PRICE) return;
+
+    clearRoundTimers();
+    updateCoins((current) => ({
+      ...current,
+      walletCoins: current.walletCoins - DOG_FOOD_PRICE,
+    }));
+    fatigueUntilRef.current = 0;
+    setFatigueUntil(0);
+    setClock(Date.now());
+    setRecoveryReason("rest");
+    resetSeries();
+    transitionTo("calm");
+    setShopMessage("Кнопик поел и снова спокоен");
+    getSound().safe();
+    vibrate([18, 24, 38], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
+
   const finishTutorial = useCallback(() => {
     setTutorialSeen(true);
     setTutorialOpen(false);
@@ -878,10 +906,12 @@ export default function Home() {
     setTutorialStep(0);
     setTutorialOpen(true);
     setSafesOpen(false);
+    setShopOpen(false);
     setSettingsOpen(false);
     setResetConfirmOpen(false);
     setRecoveryReason("rest");
     setLevelBurstVisible(false);
+    setShopMessage("");
     resetSeries();
     transitionTo("calm");
     localStorage.removeItem(SAVE_KEY);
@@ -897,6 +927,11 @@ export default function Home() {
     : 0;
   const protectedDeposit = Math.floor(requestedDeposit / 2);
   const vaultLocked = dogState !== "calm" || holding;
+  const isDogTired =
+    dogState === "tired" ||
+    (dogState === "recovering" && fatigueUntil > Date.now());
+  const canBuyFood =
+    isDogTired && coins.walletCoins >= DOG_FOOD_PRICE;
   const canDeposit =
     !vaultLocked &&
     Number.isSafeInteger(requestedDeposit) &&
@@ -1069,6 +1104,10 @@ export default function Home() {
           <span className="safe-icon" aria-hidden="true"><i /></span>
           <span>Сейф</span>
         </button>
+        <button type="button" onClick={() => setShopOpen(true)}>
+          <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
+          <span>Магазин</span>
+        </button>
         <button type="button" onClick={() => setSettingsOpen(true)}>
           <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
           <span>Настройки</span>
@@ -1225,6 +1264,48 @@ export default function Home() {
               </button>
               <p className="deposit-note">Перевод необратим. Нечётная монета округляется вниз.</p>
             </div>
+          </section>
+        </div>
+      )}
+
+      {shopOpen && (
+        <div
+          className="modal-backdrop"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setShopOpen(false);
+          }}
+        >
+          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+            <div className="sheet-heading">
+              <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Забота о Кнопике</h2></div>
+              <button className="close-button" type="button" aria-label="Закрыть" onClick={() => setShopOpen(false)}><span /></button>
+            </div>
+
+            <div className="shop-wallet">
+              <span>ТЕКУЩИЙ БАЛАНС</span>
+              <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+            </div>
+
+            {shopMessage && <p className="purchase-message" role="status">{shopMessage}</p>}
+
+            <article className={`food-card ${isDogTired ? "needed" : ""}`}>
+              <span className="food-pack" aria-hidden="true">
+                <span className="food-icon"><i /><i /><i /></span>
+              </span>
+              <div className="food-copy">
+                <small>ВОССТАНОВЛЕНИЕ</small>
+                <h3>Корм для Кнопика</h3>
+                <p>Полностью снимает усталость и возвращает спокойное настроение.</p>
+              </div>
+              <div className="food-price"><strong>{DOG_FOOD_PRICE}</strong><span>монет</span></div>
+              <button type="button" disabled={!canBuyFood} onClick={feedDog}>
+                {canBuyFood
+                  ? `ПОКОРМИТЬ · ${DOG_FOOD_PRICE}`
+                  : !isDogTired
+                    ? "КНОПИК НЕ УСТАЛ"
+                    : `НУЖНО ${DOG_FOOD_PRICE}`}
+              </button>
+            </article>
           </section>
         </div>
       )}
