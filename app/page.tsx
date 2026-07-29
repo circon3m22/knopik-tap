@@ -156,6 +156,7 @@ export default function Home() {
   const [shopMessage, setShopMessage] = useState("");
   const [levelBurstKey, setLevelBurstKey] = useState(0);
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
+  const [joyFrame, setJoyFrame] = useState(0);
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
@@ -939,6 +940,31 @@ export default function Home() {
     seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const isHappy =
     dogState === "calm" && seriesTaps >= 2 && tempoRatio >= 0.65;
+  useEffect(() => {
+    if (dogState !== "calm") {
+      setJoyFrame(0);
+      return;
+    }
+
+    const targetFrame = isHappy ? 4 : 0;
+    const timer = window.setInterval(() => {
+      setJoyFrame((currentFrame) => {
+        if (currentFrame === targetFrame) {
+          window.clearInterval(timer);
+          return currentFrame;
+        }
+
+        const nextFrame =
+          currentFrame + (targetFrame > currentFrame ? 1 : -1);
+        if (nextFrame === targetFrame) window.clearInterval(timer);
+        return nextFrame;
+      });
+    }, 250);
+
+    return () => window.clearInterval(timer);
+  }, [dogState, isHappy]);
+
+  const joyImageState = ["calm", "joy-1", "joy-2", "joy-3", "happy"][joyFrame];
   const dogImageState =
     dogState === "angry"
       ? "angry"
@@ -946,9 +972,7 @@ export default function Home() {
           dogState === "warning" ||
           (dogState === "recovering" && recoveryReason === "ultra")
         ? "warning"
-        : isHappy
-          ? "happy"
-          : "calm";
+        : joyImageState;
   const dogDisabled = dogState === "angry" || dogState === "recovering";
   const multiplier = levelMultiplier(levelState.level);
   const levelBonus = Math.round((multiplier - 1) * 100);
@@ -976,7 +1000,7 @@ export default function Home() {
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
       } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
-        isHappy ? "is-happy" : ""
+        dogState === "calm" && joyFrame > 0 ? "is-happy" : ""
       }`}
       data-state={dogState}
       data-hydrated={hydrated}
@@ -1049,6 +1073,9 @@ export default function Home() {
             </span>
             <span className="dog-images" data-image-state={dogImageState}>
               <img className="dog-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
+              <img className="dog-image joy-1-image" src="/knopik-joy-1.png" alt="" draggable={false} />
+              <img className="dog-image joy-2-image" src="/knopik-joy-2.png" alt="" draggable={false} />
+              <img className="dog-image joy-3-image" src="/knopik-joy-3.png" alt="" draggable={false} />
               <img className="dog-image happy-image" src="/knopik-happy.png" alt="" draggable={false} />
               <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
               <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />

@@ -492,10 +492,13 @@ img,
   object-position: 50% 24%;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 130ms ease;
+  transition: opacity 220ms ease-in-out;
 }
 
 .dog-images[data-image-state="calm"] .calm-image,
+.dog-images[data-image-state="joy-1"] .joy-1-image,
+.dog-images[data-image-state="joy-2"] .joy-2-image,
+.dog-images[data-image-state="joy-3"] .joy-3-image,
 .dog-images[data-image-state="happy"] .happy-image,
 .dog-images[data-image-state="warning"] .warning-image,
 .dog-images[data-image-state="angry"] .angry-image {
