@@ -19,7 +19,9 @@ import {
   type DogState,
   type GameSettings,
   type GameStats,
+  type SaveData,
 } from "./game-logic";
+import { CloudAccountGate } from "./cloud-account";
 import {
   FATIGUE_DURATION_MS,
   ULTRA_TAP_MIN_HOLD_MS,
@@ -104,6 +106,8 @@ const RISK_RECOVERY_MIN_MS = 30_000;
 const RISK_RECOVERY_SPREAD_MS = 30_000;
 const SAVE_RECOVERY_MIN_MS = 20_000;
 const SAVE_RECOVERY_SPREAD_MS = 40_000;
+const PUBLIC_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
+const publicAsset = (path: string) => `${PUBLIC_BASE_PATH}${path}`;
 
 const tutorialSlides = [
   {
@@ -156,7 +160,12 @@ function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
   return `rgb(${channels.join(" ")})`;
 }
 
-export default function Home() {
+type KnopikGameProps = {
+  initialSave: SaveData;
+  onSave: (save: SaveData) => void;
+};
+
+function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
   const [dogState, setDogState] = useState<DogState>("calm");
   const [recoveryReason, setRecoveryReason] =
     useState<RecoveryReason>("rest");
@@ -440,7 +449,7 @@ export default function Home() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SAVE_KEY);
-      const parsed = stored ? JSON.parse(stored) : createDefaultSave();
+      const parsed = stored ? JSON.parse(stored) : initialSave;
       const saved = sanitizeSave(parsed);
       const loadedCoins = {
         walletCoins: saved.walletCoins,
@@ -511,9 +520,9 @@ export default function Home() {
       "serviceWorker" in navigator &&
       process.env.NODE_ENV === "production"
     ) {
-      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      navigator.serviceWorker.register(publicAsset("/sw.js")).catch(() => undefined);
     }
-  }, []);
+  }, [initialSave]);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -542,37 +551,36 @@ export default function Home() {
     if (!hydrated) return;
     const saveTimer = setTimeout(() => {
       try {
-        localStorage.setItem(
-          SAVE_KEY,
-          JSON.stringify({
-            version: SAVE_VERSION,
-            vaultCoins,
-            walletCoins: coins.walletCoins,
-            foodCount,
-            drinkCount,
-            pitbullCount,
-            hatOwned,
-            hatEquipped,
-            mohawkOwned,
-            mohawkEquipped,
-            hasbulaRedeemed,
-            riskFatigueUntil,
-            riskSpins: riskStats.spins,
-            riskWins: riskStats.wins,
-            riskLosses: riskStats.losses,
-            lastRiskBet: riskStats.lastBet,
-            lastRiskChance: riskChance,
-            boostUntil,
-            settings,
-            tutorialSeen,
-            bestStreak: stats.bestStreak,
-            totalTaps: stats.totalTaps,
-            totalBites: stats.totalBites,
-            ultraFatigueUntil: fatigueUntil,
-            level: levelState.level,
-            levelCoins: levelState.progressCoins,
-          }),
-        );
+        const nextSave: SaveData = {
+          version: SAVE_VERSION,
+          vaultCoins,
+          walletCoins: coins.walletCoins,
+          foodCount,
+          drinkCount,
+          pitbullCount,
+          hatOwned,
+          hatEquipped,
+          mohawkOwned,
+          mohawkEquipped,
+          hasbulaRedeemed,
+          riskFatigueUntil,
+          riskSpins: riskStats.spins,
+          riskWins: riskStats.wins,
+          riskLosses: riskStats.losses,
+          lastRiskBet: riskStats.lastBet,
+          lastRiskChance: riskChance,
+          boostUntil,
+          settings,
+          tutorialSeen,
+          bestStreak: stats.bestStreak,
+          totalTaps: stats.totalTaps,
+          totalBites: stats.totalBites,
+          ultraFatigueUntil: fatigueUntil,
+          level: levelState.level,
+          levelCoins: levelState.progressCoins,
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(nextSave));
+        onSave(nextSave);
       } catch {
         // The game remains playable when local storage is unavailable.
       }
@@ -591,6 +599,7 @@ export default function Home() {
     hasbulaRedeemed,
     mohawkEquipped,
     mohawkOwned,
+    onSave,
     hydrated,
     levelState,
     riskChance,
@@ -2106,7 +2115,7 @@ export default function Home() {
             <span className="dog-images" data-image-state={dogImageState}>
               <img
                 className="dog-image calm-image"
-                src="/knopik-calm-earless.png"
+                src={publicAsset("/knopik-calm-earless.png")}
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -2115,7 +2124,7 @@ export default function Home() {
               <img
                 ref={joySpriteImageRef}
                 className="dog-image emotion-strip joy-strip"
-                src="/knopik-joy-sprite-earless.png"
+                src={publicAsset("/knopik-joy-sprite-earless.png")}
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -2126,7 +2135,7 @@ export default function Home() {
               />
               <img
                 className="dog-image warning-image"
-                src="/knopik-warning-earless.png"
+                src={publicAsset("/knopik-warning-earless.png")}
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -2135,7 +2144,7 @@ export default function Home() {
               <img
                 ref={rageSpriteImageRef}
                 className="dog-image emotion-strip rage-strip"
-                src="/knopik-rage-sprite-earless.png"
+                src={publicAsset("/knopik-rage-sprite-earless.png")}
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -2148,13 +2157,13 @@ export default function Home() {
             <span className="dog-ears" aria-hidden="true">
               <img
                 className="dog-ear dog-ear-left"
-                src="/knopik-ear-left.png"
+                src={publicAsset("/knopik-ear-left.png")}
                 alt=""
                 draggable={false}
               />
               <img
                 className="dog-ear dog-ear-right"
-                src="/knopik-ear-right.png"
+                src={publicAsset("/knopik-ear-right.png")}
                 alt=""
                 draggable={false}
               />
@@ -2163,7 +2172,7 @@ export default function Home() {
                   <img
                     className={`dog-hat ${hatBounce ? "hat-jump" : ""}`}
                     key={`hat-${hatBounce}`}
-                    src="/hasbik-tubeteika.png"
+                    src={publicAsset("/hasbik-tubeteika.png")}
                     alt=""
                     aria-hidden="true"
                     draggable={false}
@@ -2181,7 +2190,7 @@ export default function Home() {
                   <img
                     className={`dog-mohawk ${mohawkSwing ? "mohawk-swing" : ""}`}
                     key={`mohawk-${mohawkSwing}`}
-                    src="/knopik-mohawk-v2.png"
+                    src={publicAsset("/knopik-mohawk-v2.png")}
                     alt=""
                     aria-hidden="true"
                     draggable={false}
@@ -2512,7 +2521,7 @@ export default function Home() {
             {shopCategory === "clothes" && (<>
             <article className={`shop-card hat-card ${hatOwned ? "owned" : ""}`}>
               <span className="hat-preview" aria-hidden="true">
-                <img src="/hasbik-tubeteika.png" alt="" draggable={false} />
+                <img src={publicAsset("/hasbik-tubeteika.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
                 <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
@@ -2528,7 +2537,7 @@ export default function Home() {
             </article>
             <article className={`shop-card mohawk-card ${mohawkOwned ? "owned" : ""}`}>
               <span className="mohawk-preview" aria-hidden="true">
-                <img src="/knopik-mohawk-v2.png" alt="" draggable={false} />
+                <img src={publicAsset("/knopik-mohawk-v2.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
                 <small>{mohawkOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
@@ -2611,5 +2620,19 @@ export default function Home() {
 
       <div className="red-flash" aria-hidden="true" />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <CloudAccountGate>
+      {({ initialSave, gameKey, saveProgress }) => (
+        <KnopikGame
+          key={gameKey}
+          initialSave={initialSave}
+          onSave={saveProgress}
+        />
+      )}
+    </CloudAccountGate>
   );
 }

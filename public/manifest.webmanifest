@@ -2,8 +2,8 @@
   "name": "Knopik Tap",
   "short_name": "Knopik",
   "description": "Тапай быстрее, заряжай ультра-тап и защищай монеты в сейфах.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f7f9fc",
@@ -11,13 +11,13 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "/icon-192-v2.png",
+      "src": "icon-192-v2.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512-v2.png",
+      "src": "icon-512-v2.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
