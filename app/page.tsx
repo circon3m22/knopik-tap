@@ -172,6 +172,7 @@ export default function Home() {
   const [rageFrame, setRageFrame] = useState(0);
   const [joySpriteReady, setJoySpriteReady] = useState(false);
   const [rageSpriteReady, setRageSpriteReady] = useState(false);
+  const [earPulse, setEarPulse] = useState({ left: 0, right: 0 });
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
@@ -205,6 +206,10 @@ export default function Home() {
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const joySpriteImageRef = useRef<HTMLImageElement | null>(null);
   const rageSpriteImageRef = useRef<HTMLImageElement | null>(null);
+  const earTapStateRef = useRef({
+    left: { count: 0, lastAt: 0 },
+    right: { count: 0, lastAt: 0 },
+  });
 
   useEffect(() => {
     const watchImage = (
@@ -591,6 +596,42 @@ export default function Home() {
       );
     },
     [beginRecovery, resetSeries],
+  );
+
+  const handleEarTap = useCallback(
+    (ear: "left" | "right") => {
+      const currentState = dogStateRef.current;
+      if (
+        holdingRef.current ||
+        currentState === "angry" ||
+        currentState === "recovering"
+      ) {
+        return;
+      }
+
+      getSound().unlock();
+      const now = performance.now();
+      const previous = earTapStateRef.current[ear];
+      const nextCount = now - previous.lastAt <= 2_500 ? previous.count + 1 : 1;
+      earTapStateRef.current[ear] = { count: nextCount, lastAt: now };
+      setEarPulse((current) => ({
+        ...current,
+        [ear]: current[ear] + 1,
+      }));
+      getSound().warning(0.38 + nextCount * 0.18);
+      vibrate(nextCount >= 3 ? [34, 28, 58] : 16, settingsRef.current.vibration);
+
+      if (nextCount >= 3) {
+        earTapStateRef.current.left = { count: 0, lastAt: 0 };
+        earTapStateRef.current.right = { count: 0, lastAt: 0 };
+        triggerBite();
+        return;
+      }
+
+      transitionTo("warning");
+      armIdleTimer("warning");
+    },
+    [armIdleTimer, getSound, transitionTo, triggerBite],
   );
 
   const addParticle = useCallback((
@@ -1292,8 +1333,47 @@ export default function Home() {
               />
             </span>
             <span className="dog-ears" aria-hidden="true">
-              <img className="dog-ear dog-ear-left" src="/knopik-ear-left.png" alt="" draggable={false} />
-              <img className="dog-ear dog-ear-right" src="/knopik-ear-right.png" alt="" draggable={false} />
+              <img
+                className={`dog-ear dog-ear-left ${
+                  earPulse.left > 0
+                    ? `ear-tap-${earPulse.left % 2 === 0 ? "b" : "a"}`
+                    : ""
+                }`}
+                src="/knopik-ear-left.png"
+                alt=""
+                draggable={false}
+                onAnimationEnd={() =>
+                  setEarPulse((current) => ({ ...current, left: 0 }))
+                }
+              />
+              <img
+                className={`dog-ear dog-ear-right ${
+                  earPulse.right > 0
+                    ? `ear-tap-${earPulse.right % 2 === 0 ? "b" : "a"}`
+                    : ""
+                }`}
+                src="/knopik-ear-right.png"
+                alt=""
+                draggable={false}
+                onAnimationEnd={() =>
+                  setEarPulse((current) => ({ ...current, right: 0 }))
+                }
+              />
+            </span>
+            <span className="ear-hit-zones" aria-hidden="true">
+              {(["left", "right"] as const).map((ear) => (
+                <span
+                  className={`ear-hit ear-hit-${ear}`}
+                  key={ear}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleEarTap(ear);
+                  }}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onPointerCancel={(event) => event.stopPropagation()}
+                />
+              ))}
             </span>
             <span className="tap-particles" aria-hidden="true">
               {particles.map((particle) => (
