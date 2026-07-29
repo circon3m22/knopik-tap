@@ -25,14 +25,13 @@ import {
 } from "./game-logic";
 import {
   FATIGUE_DURATION_MS,
-  ULTRA_TAP_MAX_HOLD_MS,
   ULTRA_TAP_MIN_HOLD_MS,
   appendTapInterval,
   calculateFatigueRatio,
   calculateTapLimit,
   calculateTempoRatio,
   calculateUltraTapCoins,
-  classifyTapTempo,
+  chooseUltraTapOverheatDeadline,
   isUltraTapOverheated,
   rollingAverageTapInterval,
 } from "./tempo-engine";
@@ -41,8 +40,16 @@ import {
   type KnopikSoundEngine,
   type UltraStopResult,
 } from "./sound-engine";
+import {
+  COINS_PER_LEVEL,
+  MAX_LEVEL,
+  addLevelCoins,
+  levelMultiplier,
+  sanitizeLevelState,
+  type LevelState,
+} from "./level-engine";
 
-type TapParticle = { id: number; x: number; y: number };
+type TapParticle = { id: number; x: number; y: number; amount: number };
 type RecoveryReason = "rest" | "bite" | "ultra";
 
 const CALM_SERIES_RESET_MS = 6_000;
@@ -54,18 +61,18 @@ const ULTRA_VISUAL_DELAY_MS = 360;
 const tutorialSlides = [
   {
     eyebrow: "ТЕМП",
-    title: "Быстрые тапы дают длинную серию — от 30 до 100",
-    copy: "Если тапать медленно, Кнопик напрягается уже через 5–15 касаний.",
+    title: "Светлый фон означает, что Кнопик быстро устаёт",
+    copy: "Тапай два раза в секунду или быстрее — синий станет глубже, а серия устойчивее.",
   },
   {
     eyebrow: "УЛЬТРА-ТАП",
-    title: "Зажми Кнопика и отпусти между 2 и 15 секундами",
-    copy: "Чем дольше держишь, тем больше награда. Максимум — 1000 монет.",
+    title: "У ультра-тапа каждый раз новый скрытый предел",
+    copy: "Обычно Кнопик срывается через 2–5 секунд. Иногда он выдерживает намного дольше.",
   },
   {
-    eyebrow: "РИСК",
-    title: "Передержишь после 15 секунд — весь баланс сгорит",
-    copy: "После удачного ультра-тапа Кнопик 90 секунд быстрее устаёт.",
+    eyebrow: "УРОВНИ",
+    title: "Каждые 100 заработанных монет повышают уровень",
+    copy: "Всего 10 уровней. Каждый даёт небольшой бонус, но проигрыш сбрасывает всё до первого.",
   },
   {
     eyebrow: "СЕЙФЫ",
@@ -87,8 +94,14 @@ function createSafeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function formatSeconds(milliseconds: number) {
-  return (Math.max(0, milliseconds) / 1_000).toFixed(1);
+function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
+  const ratio = hasTaps ? calculateTempoRatio(averageInterval) : 0.56;
+  const light = [105, 184, 245];
+  const deep = [10, 82, 199];
+  const channels = light.map((channel, index) =>
+    Math.round(channel + (deep[index] - channel) * ratio),
+  );
+  return `rgb(${channels.join(" ")})`;
 }
 
 export default function Home() {
@@ -109,6 +122,11 @@ export default function Home() {
     totalTaps: 0,
     totalBites: 0,
   });
+  const [levelState, setLevelState] = useState<LevelState>({
+    level: 1,
+    progressCoins: 0,
+    lifetimeCoins: 0,
+  });
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(true);
   const [tutorialStep, setTutorialStep] = useState(0);
@@ -117,24 +135,26 @@ export default function Home() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [seriesTaps, setSeriesTaps] = useState(0);
-  const [tapLimit, setTapLimit] = useState(0);
   const [averageInterval, setAverageInterval] = useState(600);
   const [fatigueUntil, setFatigueUntil] = useState(0);
   const [clock, setClock] = useState(() => Date.now());
   const [holding, setHolding] = useState(false);
   const [ultraActive, setUltraActive] = useState(false);
-  const [ultraElapsed, setUltraElapsed] = useState(0);
   const [ultraPreview, setUltraPreview] = useState(0);
   const [tapPulse, setTapPulse] = useState(0);
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState("");
   const [momentMessage, setMomentMessage] = useState("");
+  const [levelBurstKey, setLevelBurstKey] = useState(0);
+  const [levelBurstVisible, setLevelBurstVisible] = useState(false);
 
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
   const settingsRef = useRef(settings);
   const statsRef = useRef(stats);
+  const levelStateRef = useRef(levelState);
+  const bonusCarryRef = useRef(0);
   const fatigueUntilRef = useRef(0);
   const seriesTapsRef = useRef(0);
   const tapLimitRef = useRef(0);
@@ -148,12 +168,14 @@ export default function Home() {
   const holdingRef = useRef(false);
   const ultraActiveRef = useRef(false);
   const overheatTriggeredRef = useRef(false);
+  const ultraDeadlineRef = useRef(3_000);
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const angryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getSound = useCallback(() => {
     if (!soundRef.current) {
@@ -192,6 +214,43 @@ export default function Home() {
     [],
   );
 
+  const triggerLevelBurst = useCallback(() => {
+    setLevelBurstKey((current) => current + 1);
+    setLevelBurstVisible(true);
+    getSound().levelUp();
+    vibrate([18, 24, 35], settingsRef.current.vibration);
+    if (levelBurstTimerRef.current) {
+      clearTimeout(levelBurstTimerRef.current);
+    }
+    levelBurstTimerRef.current = setTimeout(
+      () => setLevelBurstVisible(false),
+      1_050,
+    );
+  }, [getSound]);
+
+  const awardCoins = useCallback(
+    (baseAmount: number, maximum = Number.MAX_SAFE_INTEGER) => {
+      const base = Math.max(0, Math.floor(baseAmount));
+      const multiplier = levelMultiplier(levelStateRef.current.level);
+      const precise = base * multiplier + bonusCarryRef.current;
+      const earned = Math.min(maximum, Math.max(0, Math.floor(precise)));
+      bonusCarryRef.current =
+        earned >= maximum ? 0 : Math.max(0, precise - earned);
+
+      if (earned === 0) return 0;
+      updateCoins((current) => ({
+        walletCoins: current.walletCoins + earned,
+        streakCoins: current.streakCoins + earned,
+      }));
+      const result = addLevelCoins(levelStateRef.current, earned);
+      levelStateRef.current = result.state;
+      setLevelState(result.state);
+      if (result.levelsGained > 0) triggerLevelBurst();
+      return earned;
+    },
+    [triggerLevelBurst, updateCoins],
+  );
+
   const clearRoundTimers = useCallback(() => {
     [idleTimerRef, recoveryTimerRef, angryTimerRef, flashTimerRef].forEach(
       (timerRef) => {
@@ -208,7 +267,6 @@ export default function Home() {
     lastTapAtRef.current = null;
     patienceRollRef.current = Math.random();
     setSeriesTaps(0);
-    setTapLimit(0);
     setAverageInterval(600);
     updateCoins((current) => ({ ...current, streakCoins: 0 }));
   }, [updateCoins]);
@@ -227,6 +285,10 @@ export default function Home() {
         totalTaps: saved.totalTaps,
         totalBites: saved.totalBites,
       };
+      const loadedLevel = sanitizeLevelState({
+        level: saved.level,
+        progressCoins: saved.levelCoins,
+      });
       const activeFatigue =
         saved.ultraFatigueUntil > Date.now()
           ? saved.ultraFatigueUntil
@@ -235,11 +297,13 @@ export default function Home() {
       coinsRef.current = loadedCoins;
       settingsRef.current = saved.settings;
       statsRef.current = loadedStats;
+      levelStateRef.current = loadedLevel;
       fatigueUntilRef.current = activeFatigue;
       setCoins(loadedCoins);
       setSafes(saved.safes);
       setSettings(saved.settings);
       setStats(loadedStats);
+      setLevelState(loadedLevel);
       setFatigueUntil(activeFatigue);
       setTutorialSeen(saved.tutorialSeen);
       setTutorialOpen(!saved.tutorialSeen);
@@ -282,6 +346,8 @@ export default function Home() {
           totalTaps: stats.totalTaps,
           totalBites: stats.totalBites,
           ultraFatigueUntil: fatigueUntil,
+          level: levelState.level,
+          levelCoins: levelState.progressCoins,
         }),
       );
     } catch {
@@ -291,6 +357,7 @@ export default function Home() {
     coins.walletCoins,
     fatigueUntil,
     hydrated,
+    levelState,
     safes,
     settings,
     stats,
@@ -315,6 +382,9 @@ export default function Home() {
       clearRoundTimers();
       if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
       if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      if (levelBurstTimerRef.current) {
+        clearTimeout(levelBurstTimerRef.current);
+      }
       soundRef.current?.close();
     },
     [clearRoundTimers],
@@ -326,8 +396,6 @@ export default function Home() {
     return calculateFatigueRatio(FATIGUE_DURATION_MS - remaining);
   }, [clock, fatigueUntil]);
 
-  const fatigueSeconds = Math.ceil(Math.max(0, fatigueUntil - clock) / 1_000);
-
   const stopHoldVisual = useCallback(
     (result: UltraStopResult) => {
       if (holdIntervalRef.current) {
@@ -338,7 +406,6 @@ export default function Home() {
       ultraActiveRef.current = false;
       setHolding(false);
       setUltraActive(false);
-      setUltraElapsed(0);
       setUltraPreview(0);
       getSound().stopUltraLoop(result);
     },
@@ -380,11 +447,19 @@ export default function Home() {
         ...current,
         totalBites: current.totalBites + 1,
       }));
+      const resetLevel = {
+        level: 1,
+        progressCoins: 0,
+        lifetimeCoins: levelStateRef.current.lifetimeCoins,
+      };
+      levelStateRef.current = resetLevel;
+      bonusCarryRef.current = 0;
+      setLevelState(resetLevel);
+      setLevelBurstVisible(false);
       seriesTapsRef.current = 0;
       tapLimitRef.current = 0;
       tapIntervalsRef.current = [];
       setSeriesTaps(0);
-      setTapLimit(0);
       vibrate([90, 35, 80, 35, 55], settingsRef.current.vibration);
       if (!fromOverheat) getSound().bite();
       flashTimerRef.current = setTimeout(() => setBiteFlash(false), 420);
@@ -421,9 +496,12 @@ export default function Home() {
     [beginRecovery, resetSeries],
   );
 
-  const addParticle = useCallback((x: number, y: number) => {
+  const addParticle = useCallback((x: number, y: number, amount: number) => {
     const id = ++particleIdRef.current;
-    setParticles((current) => [...current.slice(-8), { id, x, y }]);
+    setParticles((current) => [
+      ...current.slice(-8),
+      { id, x, y, amount },
+    ]);
     setTimeout(
       () =>
         setParticles((current) =>
@@ -447,11 +525,12 @@ export default function Home() {
         tapIntervalsRef.current = appendTapInterval(
           tapIntervalsRef.current,
           now - lastTapAtRef.current,
+          5,
         );
       }
       lastTapAtRef.current = now;
 
-      const average = rollingAverageTapInterval(tapIntervalsRef.current);
+      const average = rollingAverageTapInterval(tapIntervalsRef.current, 5);
       const remaining = Math.max(0, fatigueUntilRef.current - Date.now());
       const currentFatigue =
         remaining > 0
@@ -469,14 +548,10 @@ export default function Home() {
       seriesTapsRef.current = nextSeries;
       tapLimitRef.current = nextLimit;
       setSeriesTaps(nextSeries);
-      setTapLimit(nextLimit);
       setAverageInterval(average);
       setTapPulse((current) => current + 1);
-      addParticle(x, y);
-      updateCoins((current) => ({
-        walletCoins: current.walletCoins + 1,
-        streakCoins: current.streakCoins + 1,
-      }));
+      const earned = awardCoins(1);
+      addParticle(x, y, earned);
       updateStats((current) => ({
         ...current,
         totalTaps: current.totalTaps + 1,
@@ -499,10 +574,10 @@ export default function Home() {
     [
       addParticle,
       armIdleTimer,
+      awardCoins,
       getSound,
       transitionTo,
       triggerBite,
-      updateCoins,
       updateStats,
     ],
   );
@@ -524,18 +599,17 @@ export default function Home() {
       getSound().unlock();
       holdPointRef.current = { x, y };
       holdStartRef.current = performance.now();
+      ultraDeadlineRef.current = chooseUltraTapOverheatDeadline();
       holdingRef.current = true;
       ultraActiveRef.current = false;
       overheatTriggeredRef.current = false;
       setHolding(true);
       setUltraActive(false);
-      setUltraElapsed(0);
       setUltraPreview(0);
       setMomentMessage("Держи. Ультра включится через мгновение");
 
       holdIntervalRef.current = setInterval(() => {
         const elapsed = performance.now() - holdStartRef.current;
-        setUltraElapsed(elapsed);
 
         if (
           elapsed >= ULTRA_VISUAL_DELAY_MS &&
@@ -544,17 +618,19 @@ export default function Home() {
           ultraActiveRef.current = true;
           setUltraActive(true);
           getSound().ultraStart();
-          setMomentMessage("Отпусти до 15 секунд");
+          setMomentMessage("Огонь усиливается. Момент срыва неизвестен");
           vibrate(18, settingsRef.current.vibration);
         }
 
         if (ultraActiveRef.current) {
-          setUltraPreview(calculateUltraTapCoins(elapsed));
-          getSound().ultraPulse(elapsed / ULTRA_TAP_MAX_HOLD_MS);
+          setUltraPreview(
+            calculateUltraTapCoins(elapsed, ultraDeadlineRef.current),
+          );
+          getSound().ultraPulse(elapsed / ultraDeadlineRef.current);
         }
 
         if (
-          isUltraTapOverheated(elapsed) &&
+          isUltraTapOverheated(elapsed, ultraDeadlineRef.current) &&
           !overheatTriggeredRef.current
         ) {
           overheatTriggeredRef.current = true;
@@ -577,6 +653,12 @@ export default function Home() {
         return;
       }
 
+      if (isUltraTapOverheated(elapsed, ultraDeadlineRef.current)) {
+        overheatTriggeredRef.current = true;
+        triggerBite(true);
+        return;
+      }
+
       if (elapsed < ULTRA_TAP_MIN_HOLD_MS) {
         stopHoldVisual("cancel");
         registerTap(point.x, point.y);
@@ -586,12 +668,12 @@ export default function Home() {
         return;
       }
 
-      const reward = calculateUltraTapCoins(elapsed);
+      const baseReward = calculateUltraTapCoins(
+        elapsed,
+        ultraDeadlineRef.current,
+      );
       stopHoldVisual("success");
-      updateCoins((current) => ({
-        walletCoins: current.walletCoins + reward,
-        streakCoins: 0,
-      }));
+      const reward = awardCoins(baseReward, 1_000);
       const nextFatigueUntil = Date.now() + FATIGUE_DURATION_MS;
       fatigueUntilRef.current = nextFatigueUntil;
       setFatigueUntil(nextFatigueUntil);
@@ -606,12 +688,13 @@ export default function Home() {
     },
     [
       clearRoundTimers,
+      awardCoins,
       finishRecovery,
       registerTap,
       resetSeries,
       stopHoldVisual,
       transitionTo,
-      updateCoins,
+      triggerBite,
     ],
   );
 
@@ -708,13 +791,21 @@ export default function Home() {
     const defaults = createDefaultSave();
     const resetCoins = { walletCoins: 0, streakCoins: 0 };
     const resetStats = { bestStreak: 0, totalTaps: 0, totalBites: 0 };
+    const resetLevel = {
+      level: 1,
+      progressCoins: 0,
+      lifetimeCoins: 0,
+    };
     coinsRef.current = resetCoins;
     settingsRef.current = defaults.settings;
     statsRef.current = resetStats;
+    levelStateRef.current = resetLevel;
+    bonusCarryRef.current = 0;
     fatigueUntilRef.current = 0;
     setCoins(resetCoins);
     setSafes([]);
     setStats(resetStats);
+    setLevelState(resetLevel);
     setSettings(defaults.settings);
     setFatigueUntil(0);
     setTutorialSeen(false);
@@ -725,6 +816,7 @@ export default function Home() {
     setResetConfirmOpen(false);
     setRecoveryReason("rest");
     setMomentMessage("");
+    setLevelBurstVisible(false);
     resetSeries();
     transitionTo("calm");
     localStorage.removeItem(SAVE_KEY);
@@ -739,14 +831,6 @@ export default function Home() {
     () => safes.reduce((total, safe) => total + safe.stored, 0),
     [safes],
   );
-
-  const tempo = classifyTapTempo(averageInterval);
-  const tempoLabel =
-    tempo === "fast"
-      ? "быстрый"
-      : tempo === "slow"
-        ? "медленный"
-        : "ровный";
 
   const statusTitle =
     dogState === "warning"
@@ -763,7 +847,7 @@ export default function Home() {
 
   const statusCopy =
     dogState === "warning"
-      ? "Не трогай — дай Кнопику успокоиться"
+      ? "Ещё одно касание может стоить всего баланса"
       : dogState === "angry"
         ? "Сейфы целы, незащищённые монеты сгорели"
         : dogState === "recovering"
@@ -771,8 +855,8 @@ export default function Home() {
             ? "После ультра-тапа нужна пауза"
             : "Скоро можно продолжить"
           : fatigueRatio > 0
-            ? `Агрессивная усталость пройдёт через ${fatigueSeconds} сек`
-            : "Тапай быстро или удерживай для ультра-тапа";
+            ? "После ультра Кнопик срывается намного быстрее"
+            : "Светлее фон — Кнопик устает быстрее";
 
   const dogImageState =
     dogState === "angry"
@@ -782,17 +866,16 @@ export default function Home() {
         ? "warning"
         : "calm";
   const dogDisabled = dogState === "angry" || dogState === "recovering";
-  const progress =
-    tapLimit > 0 ? Math.min(1, seriesTaps / Math.max(1, tapLimit)) : 0;
-  const ultraProgress = Math.min(
-    1,
-    ultraElapsed / ULTRA_TAP_MAX_HOLD_MS,
-  );
-  const ultraReady = ultraElapsed >= ULTRA_TAP_MIN_HOLD_MS;
+  const multiplier = levelMultiplier(levelState.level);
+  const levelBonus = Math.round((multiplier - 1) * 100);
+  const levelProgress =
+    levelState.level >= MAX_LEVEL
+      ? 1
+      : levelState.progressCoins / COINS_PER_LEVEL;
 
   const gameStyle = {
-    "--series-progress": progress,
-    "--ultra-angle": `${ultraProgress * 360}deg`,
+    "--calm-scene": tempoSceneColor(averageInterval, seriesTaps > 1),
+    "--level-progress": levelProgress,
   } as CSSProperties;
 
   return (
@@ -806,29 +889,45 @@ export default function Home() {
       data-hydrated={hydrated}
       style={gameStyle}
     >
-      <header className="top-bar">
-        <div className="wordmark" aria-label="Knopik Tap">
-          <span>K</span>
-          <strong>KNOPIK <small>TAP</small></strong>
+      <header className="app-header">
+        <div className="top-bar">
+          <div className="wordmark" aria-label="Knopik Tap">
+            <span>K</span>
+            <strong>KNOPIK <small>TAP</small></strong>
+          </div>
+          <div className="top-actions">
+            <button
+              className="vault-button"
+              type="button"
+              onClick={() => setSafesOpen(true)}
+              aria-label={`Открыть сейфы. Защищено ${vaultCoins} монет`}
+            >
+              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span><small>ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+            </button>
+            <button
+              className="round-icon-button"
+              type="button"
+              aria-label="Настройки"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
+            </button>
+          </div>
         </div>
-        <div className="top-actions">
-          <button
-            className="vault-button"
-            type="button"
-            onClick={() => setSafesOpen(true)}
-            aria-label={`Открыть сейфы. Защищено ${vaultCoins} монет`}
-          >
-            <span className="safe-icon" aria-hidden="true"><i /></span>
-            <span><small>ЗАЩИЩЕНО</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
-          </button>
-          <button
-            className="round-icon-button"
-            type="button"
-            aria-label="Настройки"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
-          </button>
+        <div
+          className="level-strip"
+          aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
+        >
+          <div className="level-title">
+            <span>УРОВЕНЬ</span>
+            <strong>{levelState.level}<small>/ {MAX_LEVEL}</small></strong>
+          </div>
+          <div className="level-track"><span /></div>
+          <div className="level-reward">
+            <strong>{levelState.level >= MAX_LEVEL ? "MAX" : `${levelState.progressCoins}/100`}</strong>
+            <small>БОНУС +{levelBonus}%</small>
+          </div>
         </div>
       </header>
 
@@ -867,7 +966,6 @@ export default function Home() {
               <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
               <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
             </span>
-            <span className="ultra-progress-ring" aria-hidden="true" />
             <span className="tap-particles" aria-hidden="true">
               {particles.map((particle) => (
                 <span
@@ -875,15 +973,15 @@ export default function Home() {
                   key={particle.id}
                   style={{ left: `${particle.x}%`, top: `${particle.y}%` }}
                 >
-                  +1
+                  +{particle.amount}
                 </span>
               ))}
             </span>
             {ultraActive && (
-              <span className={`ultra-readout ${ultraReady ? "ready" : ""}`}>
-                <small>{ultraReady ? "ОТПУСКАЙ КОГДА ГОТОВ" : "РАЗОГРЕВ"}</small>
+              <span className="ultra-readout">
+                <small>УЛЬТРА-ТАП</small>
                 <strong>+{ultraPreview}</strong>
-                <b>{formatSeconds(ultraElapsed)} / 15.0 сек</b>
+                <b>ОТПУСТИ НА ИНТУИЦИИ</b>
               </span>
             )}
           </button>
@@ -898,26 +996,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="tempo-panel">
-            <div className="tempo-row">
-              <span>Темп <strong>{tempoLabel}</strong></span>
-              <span>Серия <strong>{seriesTaps} / {tapLimit || "—"}</strong></span>
-            </div>
-            <div className="series-track" aria-label={`Серия ${seriesTaps} из ${tapLimit || 0}`}>
-              <span />
-            </div>
-            <div className="tempo-footer">
-              <span>
-                {fatigueRatio > 0
-                  ? `Усталость · ${fatigueSeconds} сек`
-                  : "Быстрее темп — длиннее серия"}
-              </span>
-              <span>Удерживай 2–15 сек</span>
-            </div>
-          </div>
-
           <p className="moment-message" role="status">
-            {momentMessage || "Короткий тап — монета. Удержание — ультра."}
+            {momentMessage || "Тёмный синий означает устойчивый темп"}
           </p>
         </div>
       </section>
@@ -940,6 +1020,21 @@ export default function Home() {
           <span>Как играть</span>
         </button>
       </footer>
+
+      {levelBurstVisible && (
+        <div className="level-burst" key={levelBurstKey} aria-hidden="true">
+          {Array.from({ length: 24 }, (_, index) => (
+            <i
+              key={index}
+              style={{
+                "--burst-angle": `${index * 15}deg`,
+                "--burst-distance": `${-(125 + (index % 4) * 24)}px`,
+                "--burst-delay": `${(index % 6) * 18}ms`,
+              } as CSSProperties}
+            />
+          ))}
+        </div>
+      )}
 
       {tutorialOpen && (
         <div className="modal-backdrop tutorial-backdrop">

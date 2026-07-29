@@ -6,14 +6,23 @@ import {
   calculateFatigueRatio,
   calculateTapLimit,
   calculateUltraTapCoins,
+  chooseUltraTapOverheatDeadline,
   isUltraTapOverheated,
 } from "../app/tempo-engine.ts";
+import {
+  addLevelCoins,
+  levelMultiplier,
+} from "../app/level-engine.ts";
 
 test("tap limit rewards speed and keeps requested ranges", () => {
   assert.equal(calculateTapLimit(1_000, 0, () => 0), 5);
-  assert.equal(calculateTapLimit(1_000, 0, () => 0.999), 15);
-  assert.equal(calculateTapLimit(150, 0, () => 0), 30);
-  assert.equal(calculateTapLimit(150, 0, () => 0.999), 100);
+  assert.equal(calculateTapLimit(1_000, 0, () => 0.999), 10);
+  assert.equal(calculateTapLimit(1_300, 0, () => 0), 3);
+  assert.equal(calculateTapLimit(1_300, 0, () => 0.999), 5);
+  assert.equal(calculateTapLimit(500, 0, () => 0), 20);
+  assert.equal(calculateTapLimit(500, 0, () => 0.999), 45);
+  assert.equal(calculateTapLimit(150, 0, () => 0), 35);
+  assert.equal(calculateTapLimit(150, 0, () => 0.999), 70);
 });
 
 test("post-ultra fatigue starts at 10-20 and fades after 90 seconds", () => {
@@ -25,21 +34,39 @@ test("post-ultra fatigue starts at 10-20 and fades after 90 seconds", () => {
 
 test("ultra tap pays up to 1000 and burns after the deadline", () => {
   assert.equal(calculateUltraTapCoins(1_999), 0);
-  assert.equal(calculateUltraTapCoins(2_000), 133);
-  assert.equal(calculateUltraTapCoins(15_000), 1_000);
-  assert.equal(calculateUltraTapCoins(15_001), 0);
-  assert.equal(isUltraTapOverheated(15_000), false);
-  assert.equal(isUltraTapOverheated(15_001), true);
+  assert.equal(calculateUltraTapCoins(2_000, 3_000), 666);
+  assert.equal(calculateUltraTapCoins(3_000, 3_000), 1_000);
+  assert.equal(calculateUltraTapCoins(3_001, 3_000), 0);
+  assert.equal(isUltraTapOverheated(3_000, 3_000), false);
+  assert.equal(isUltraTapOverheated(3_001, 3_000), true);
+  assert.equal(chooseUltraTapOverheatDeadline(() => 0), 2_100);
+  assert.ok(chooseUltraTapOverheatDeadline(() => 0.999) > 8_000);
+});
+
+test("levels advance every 100 earned coins and cap at ten", () => {
+  const first = addLevelCoins(
+    { level: 1, progressCoins: 95, lifetimeCoins: 95 },
+    10,
+  );
+  assert.equal(first.state.level, 2);
+  assert.equal(first.state.progressCoins, 5);
+  const maximum = addLevelCoins(first.state, 10_000);
+  assert.equal(maximum.state.level, 10);
+  assert.equal(maximum.progressRatio, 1);
+  assert.equal(levelMultiplier(1), 1);
+  assert.equal(levelMultiplier(10), 1.45);
 });
 
 test("corrupted saves recover without unsafe values", () => {
   const saved = sanitizeSave({
-    version: 3,
+    version: 4,
     walletCoins: -10,
     ultraFatigueUntil: Number.NaN,
     tutorialSeen: "yes",
     settings: { sound: "loud", vibration: false },
     bestStreak: Number.NaN,
+    level: 999,
+    levelCoins: Number.NaN,
   });
   assert.equal(saved.walletCoins, 0);
   assert.equal(saved.ultraFatigueUntil, 0);
@@ -47,4 +74,6 @@ test("corrupted saves recover without unsafe values", () => {
   assert.equal(saved.settings.sound, true);
   assert.equal(saved.settings.vibration, false);
   assert.equal(saved.bestStreak, 0);
+  assert.equal(saved.level, 10);
+  assert.equal(saved.levelCoins, 0);
 });

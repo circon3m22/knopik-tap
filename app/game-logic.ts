@@ -27,7 +27,7 @@ export type OwnedSafe = {
 };
 
 export type SaveData = {
-  version: 3;
+  version: 4;
   walletCoins: number;
   safes: OwnedSafe[];
   settings: GameSettings;
@@ -36,6 +36,8 @@ export type SaveData = {
   totalTaps: number;
   totalBites: number;
   ultraFatigueUntil: number;
+  level: number;
+  levelCoins: number;
 };
 
 export const SAFE_CATALOG = [
@@ -45,7 +47,7 @@ export const SAFE_CATALOG = [
 ] as const;
 
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 3 as const;
+export const SAVE_VERSION = 4 as const;
 
 export function createDefaultSave(): SaveData {
   return {
@@ -58,6 +60,8 @@ export function createDefaultSave(): SaveData {
     totalTaps: 0,
     totalBites: 0,
     ultraFatigueUntil: 0,
+    level: 1,
+    levelCoins: 0,
   };
 }
 
@@ -109,11 +113,15 @@ export function sanitizeSave(value: unknown): SaveData {
   return {
     version: SAVE_VERSION,
     walletCoins:
-      candidate.version === 2 || candidate.version === 3
+      candidate.version === 2 ||
+      candidate.version === 3 ||
+      candidate.version === 4
         ? safeInteger(candidate.walletCoins)
         : safeInteger(candidate.bankCoins),
     safes:
-      candidate.version === 2 || candidate.version === 3
+      candidate.version === 2 ||
+      candidate.version === 3 ||
+      candidate.version === 4
         ? sanitizeSafes(candidate.safes)
         : [],
     settings: {
@@ -123,7 +131,7 @@ export function sanitizeSave(value: unknown): SaveData {
         typeof settings.vibration === "boolean" ? settings.vibration : true,
     },
     tutorialSeen:
-      candidate.version === 3 &&
+      candidate.version === 4 &&
       typeof candidate.tutorialSeen === "boolean"
         ? candidate.tutorialSeen
         : false,
@@ -131,7 +139,17 @@ export function sanitizeSave(value: unknown): SaveData {
     totalTaps: safeInteger(candidate.totalTaps),
     totalBites: safeInteger(candidate.totalBites),
     ultraFatigueUntil:
-      candidate.version === 3 ? safeInteger(candidate.ultraFatigueUntil) : 0,
+      candidate.version === 3 || candidate.version === 4
+        ? safeInteger(candidate.ultraFatigueUntil)
+        : 0,
+    level:
+      candidate.version === 4
+        ? Math.min(10, Math.max(1, safeInteger(candidate.level)))
+        : 1,
+    levelCoins:
+      candidate.version === 4
+        ? Math.min(100, safeInteger(candidate.levelCoins))
+        : 0,
   };
 }
 

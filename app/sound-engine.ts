@@ -126,6 +126,26 @@ export class KnopikSoundEngine {
     });
   }
 
+  levelUp() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    this.filteredSweep(now, 0.56, 520, 4_200, 0.038);
+    [392, 523.25, 659.25, 783.99, 1_046.5].forEach(
+      (frequency, index) => {
+        this.tonalHit(now + index * 0.055, {
+          type: index % 2 === 0 ? "sine" : "triangle",
+          from: frequency,
+          to: frequency * 1.018,
+          duration: 0.46,
+          gain: 0.035 - index * 0.003,
+          attack: 0.012,
+        });
+      },
+    );
+  }
+
   safe() {
     const ctx = this.ready();
     if (!ctx) return;
