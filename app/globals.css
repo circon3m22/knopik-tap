@@ -14,10 +14,11 @@
 /* Supabase account and cloud-save surfaces */
 .auth-screen {
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 0;
   display: grid;
   place-items: center;
+  overflow-y: auto;
   padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at 50% 18%, rgb(38 126 255 / 36%), transparent 36%),
@@ -254,6 +255,7 @@ body {
   width: 100%;
   min-width: 320px;
   height: 100%;
+  min-height: 0;
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
@@ -261,12 +263,13 @@ body {
 }
 
 html {
-  min-height: 100dvh;
+  min-height: 100%;
   color-scheme: only light;
 }
 
 body {
-  min-height: 100dvh;
+  position: fixed;
+  inset: 0;
 }
 
 body,
@@ -298,8 +301,8 @@ img,
   isolation: isolate;
   display: block;
   width: min(100%, 500px);
-  height: 100dvh;
-  min-height: 520px;
+  height: 100%;
+  min-height: 0;
   margin: 0 auto;
   padding:
     calc(env(safe-area-inset-top) + 12px)
