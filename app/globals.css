@@ -258,7 +258,10 @@ body {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #f7f9fc;
+  background-color: #071126;
+  background-image: linear-gradient(0deg, rgb(0 0 0 / 9%), transparent 30%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 html {
