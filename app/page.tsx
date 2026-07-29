@@ -191,6 +191,37 @@ export default function Home() {
   const tiredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const joySpriteImageRef = useRef<HTMLImageElement | null>(null);
+  const rageSpriteImageRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const watchImage = (
+      image: HTMLImageElement | null,
+      markReady: (ready: boolean) => void,
+    ) => {
+      if (!image) return () => undefined;
+      const handleReady = () => {
+        if (image.naturalWidth > 0) markReady(true);
+      };
+
+      if (image.complete) handleReady();
+      image.addEventListener("load", handleReady);
+      return () => image.removeEventListener("load", handleReady);
+    };
+
+    const stopWatchingJoy = watchImage(
+      joySpriteImageRef.current,
+      setJoySpriteReady,
+    );
+    const stopWatchingRage = watchImage(
+      rageSpriteImageRef.current,
+      setRageSpriteReady,
+    );
+    return () => {
+      stopWatchingJoy();
+      stopWatchingRage();
+    };
+  }, []);
 
   const getSound = useCallback(() => {
     if (!soundRef.current) {
@@ -1129,6 +1160,7 @@ export default function Home() {
                 decoding="sync"
               />
               <img
+                ref={joySpriteImageRef}
                 className="dog-image emotion-strip joy-strip"
                 src="/knopik-joy-sprite.png"
                 alt=""
@@ -1137,10 +1169,7 @@ export default function Home() {
                 decoding="sync"
                 fetchPriority="high"
                 style={{ transform: `translate3d(-${joyFrame * 20}%, 0, 0)` }}
-                onLoad={(event) => {
-                  const image = event.currentTarget;
-                  void image.decode().catch(() => undefined).then(() => setJoySpriteReady(true));
-                }}
+                onLoad={() => setJoySpriteReady(true)}
               />
               <img
                 className="dog-image warning-image"
@@ -1151,6 +1180,7 @@ export default function Home() {
                 decoding="sync"
               />
               <img
+                ref={rageSpriteImageRef}
                 className="dog-image emotion-strip rage-strip"
                 src="/knopik-rage-sprite.png"
                 alt=""
@@ -1159,10 +1189,7 @@ export default function Home() {
                 decoding="sync"
                 fetchPriority="high"
                 style={{ transform: `translate3d(-${rageFrame * 20}%, 0, 0)` }}
-                onLoad={(event) => {
-                  const image = event.currentTarget;
-                  void image.decode().catch(() => undefined).then(() => setRageSpriteReady(true));
-                }}
+                onLoad={() => setRageSpriteReady(true)}
               />
             </span>
             <span className="dog-ears" aria-hidden="true">
