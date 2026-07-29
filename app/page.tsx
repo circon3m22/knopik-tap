@@ -89,10 +89,10 @@ const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 100;
 const HASBIK_HAT_PRICE = 500;
-const ZHIVCHIK_PRICE = 150;
+const ZHIVCHIK_PRICE = 100;
 const PITBULL_PRICE = 50;
 const ZHIVCHIK_DURATION_MS = 60_000;
-const ZHIVCHIK_MULTIPLIER = 3;
+const ZHIVCHIK_MULTIPLIER = 4;
 const HAT_ULTRA_BONUS_MS = 350;
 const MAX_CHEAT_COIN_GRANT = 1_000_000_000;
 const RISK_SPIN_MS = 5_400;
@@ -1878,7 +1878,7 @@ export default function Home() {
           </button>
           <button className="inventory-item inventory-zhivchik" type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
             <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
-            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×3 · ${boostSeconds}с` : "Живчик"}</strong><small>Тройной тап</small></span>
+            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>Тап ×4</small></span>
             <b className="inventory-count">{drinkCount}</b>
           </button>
           <button className="inventory-item inventory-pitbull" type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
@@ -2271,11 +2271,11 @@ export default function Home() {
             </article>
 
             <article className="shop-card drink-card">
-              <span className="drink-pack zhivchik-pack" aria-hidden="true"><span className="drink-icon drink-zhivchik"><i /></span><b>×3</b></span>
+              <span className="drink-pack zhivchik-pack" aria-hidden="true"><span className="drink-icon drink-zhivchik"><i /></span><b>×4</b></span>
               <div className="food-copy">
                 <small>ЗАПАС {drinkCount}/10</small>
                 <h3>Напиток «Живчик»</h3>
-                <p>Даёт ×3 монет за обычные тапы на одну минуту. Порции включаются отдельно сверху.</p>
+                <p>Даёт ×4 монет за обычные тапы на одну минуту. Порции включаются отдельно сверху.</p>
               </div>
               <div className="food-price"><strong>{ZHIVCHIK_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество напитков">
