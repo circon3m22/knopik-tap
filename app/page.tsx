@@ -1293,7 +1293,7 @@ export default function Home() {
             <span className="dog-images" data-image-state={dogImageState}>
               <img
                 className="dog-image calm-image"
-                src="/knopik-calm.png"
+                src="/knopik-calm-earless.png"
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -1302,7 +1302,7 @@ export default function Home() {
               <img
                 ref={joySpriteImageRef}
                 className="dog-image emotion-strip joy-strip"
-                src="/knopik-joy-sprite.png"
+                src="/knopik-joy-sprite-earless.png"
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -1313,7 +1313,7 @@ export default function Home() {
               />
               <img
                 className="dog-image warning-image"
-                src="/knopik-warning.png"
+                src="/knopik-warning-earless.png"
                 alt=""
                 draggable={false}
                 loading="eager"
@@ -1322,7 +1322,7 @@ export default function Home() {
               <img
                 ref={rageSpriteImageRef}
                 className="dog-image emotion-strip rage-strip"
-                src="/knopik-rage-sprite.png"
+                src="/knopik-rage-sprite-earless.png"
                 alt=""
                 draggable={false}
                 loading="eager"

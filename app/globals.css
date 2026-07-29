@@ -2019,30 +2019,30 @@ img,
 
 @keyframes left-ear-tap-a {
   0%, 100% { transform: translateY(0) rotate(0); }
-  28% { transform: translateY(4%) rotate(-12deg) scaleY(0.96); }
-  58% { transform: translateY(-2%) rotate(7deg) scaleY(1.02); }
-  78% { transform: translateY(1%) rotate(-2.5deg); }
+  28% { transform: translateY(0.4%) rotate(-3.6deg) scale(1.065); }
+  58% { transform: translateY(-0.3%) rotate(2.2deg) scale(1.045); }
+  78% { transform: rotate(-0.8deg) scale(1.025); }
 }
 
 @keyframes left-ear-tap-b {
   0%, 100% { transform: translateY(0) rotate(0); }
-  28% { transform: translateY(4%) rotate(-12.5deg) scaleY(0.96); }
-  58% { transform: translateY(-2%) rotate(7.5deg) scaleY(1.02); }
-  78% { transform: translateY(1%) rotate(-2deg); }
+  28% { transform: translateY(0.4%) rotate(-3.9deg) scale(1.07); }
+  58% { transform: translateY(-0.3%) rotate(2.4deg) scale(1.045); }
+  78% { transform: rotate(-0.7deg) scale(1.025); }
 }
 
 @keyframes right-ear-tap-a {
   0%, 100% { transform: translateY(0) rotate(0); }
-  28% { transform: translateY(4%) rotate(12deg) scaleY(0.96); }
-  58% { transform: translateY(-2%) rotate(-7deg) scaleY(1.02); }
-  78% { transform: translateY(1%) rotate(2.5deg); }
+  28% { transform: translateY(0.4%) rotate(3.6deg) scale(1.065); }
+  58% { transform: translateY(-0.3%) rotate(-2.2deg) scale(1.045); }
+  78% { transform: rotate(0.8deg) scale(1.025); }
 }
 
 @keyframes right-ear-tap-b {
   0%, 100% { transform: translateY(0) rotate(0); }
-  28% { transform: translateY(4%) rotate(12.5deg) scaleY(0.96); }
-  58% { transform: translateY(-2%) rotate(-7.5deg) scaleY(1.02); }
-  78% { transform: translateY(1%) rotate(2deg); }
+  28% { transform: translateY(0.4%) rotate(3.9deg) scale(1.07); }
+  58% { transform: translateY(-0.3%) rotate(-2.4deg) scale(1.045); }
+  78% { transform: rotate(0.7deg) scale(1.025); }
 }
 
 @keyframes emotion-shift {
