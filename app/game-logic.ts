@@ -1,4 +1,4 @@
-export type DogState = "calm" | "warning" | "angry" | "recovering";
+export type DogState = "calm" | "tired" | "warning" | "angry" | "recovering";
 
 export type CoinState = {
   walletCoins: number;

@@ -104,6 +104,12 @@ img,
     linear-gradient(0deg, rgb(16 54 89 / 5%), transparent 32%);
 }
 
+.game-shell.state-tired {
+  --scene: #e8c65d;
+  --on-scene: #292415;
+  --glass-alpha: 0.25;
+}
+
 .game-shell.state-warning,
 .game-shell.state-recovering.has-fatigue {
   --scene: var(--yellow);
@@ -147,6 +153,7 @@ img,
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%);
 }
 
+.state-tired .level-strip,
 .state-warning .level-strip,
 .state-recovering.has-fatigue .level-strip {
   border-color: rgb(35 33 22 / 9%);
@@ -253,6 +260,8 @@ img,
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 9%);
 }
 
+.state-tired .saved-balance,
+.state-tired .bottom-bar,
 .state-warning .saved-balance,
 .state-warning .bottom-bar,
 .state-recovering.has-fatigue .saved-balance,
@@ -357,45 +366,9 @@ img,
   z-index: 2;
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  padding: 8px 0 7px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 13px 0 7px;
   transform-origin: 50% 48%;
-}
-
-.state-copy {
-  display: grid;
-  min-height: 65px;
-  justify-items: center;
-  align-content: center;
-  text-align: center;
-}
-
-.state-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.state-label i {
-  width: 6px;
-  height: 6px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 0 4px rgb(255 255 255 / 12%);
-}
-
-.state-copy h1 {
-  max-width: 390px;
-  margin: 6px 0 0;
-  font-size: clamp(16px, 4.7vw, 21px);
-  font-weight: 750;
-  letter-spacing: -0.035em;
-  line-height: 1.14;
 }
 
 .dog-stage {
@@ -443,6 +416,25 @@ img,
     inset 0 0 0 1px rgb(0 0 0 / 4%);
 }
 
+.portrait-surface::after {
+  position: absolute;
+  inset: -7px;
+  border: 2px solid rgb(255 255 255 / 58%);
+  border-radius: 50%;
+  opacity: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.dog-button.tap-a:not(:disabled) .portrait-surface::after {
+  animation: portrait-pulse-a 440ms ease-out both;
+}
+
+.dog-button.tap-b:not(:disabled) .portrait-surface::after {
+  animation: portrait-pulse-b 440ms ease-out both;
+}
+
+.state-tired .portrait-surface,
 .state-warning .portrait-surface,
 .state-recovering.has-fatigue .portrait-surface {
   border-color: rgb(255 255 255 / 74%);
@@ -477,15 +469,61 @@ img,
   opacity: 1;
 }
 
-.state-warning .dog-images {
+.dog-ears {
+  position: absolute;
+  z-index: 4;
+  inset: -7% -4% -1%;
+  pointer-events: none;
+  -webkit-mask-image:
+    radial-gradient(ellipse 27% 39% at 20% 14%, #000 66%, transparent 72%),
+    radial-gradient(ellipse 27% 39% at 80% 14%, #000 66%, transparent 72%);
+  -webkit-mask-repeat: no-repeat;
+  mask-image:
+    radial-gradient(ellipse 27% 39% at 20% 14%, #000 66%, transparent 72%),
+    radial-gradient(ellipse 27% 39% at 80% 14%, #000 66%, transparent 72%);
+  mask-repeat: no-repeat;
+  animation: calm-breathe 3.7s ease-in-out infinite;
+}
+
+.dog-ear-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 24%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+}
+
+.dog-ears[data-image-state="calm"] .calm-image,
+.dog-ears[data-image-state="warning"] .warning-image,
+.dog-ears[data-image-state="angry"] .angry-image {
+  opacity: 1;
+}
+
+.state-tired .dog-images {
+  animation: tired-breathe 1.65s ease-in-out infinite;
+}
+
+.state-tired .dog-ears {
+  animation: tired-breathe 1.65s ease-in-out infinite;
+}
+
+.state-warning .dog-images,
+.state-warning .dog-ears {
   animation: warning-breathe 1.1s ease-in-out infinite;
 }
 
-.state-recovering .dog-images {
+.state-recovering .dog-images,
+.state-recovering .dog-ears {
   animation: recovery-breathe 1.8s ease-in-out infinite;
 }
 
-.state-angry .dog-images {
+.state-angry .dog-images,
+.state-angry .dog-ears {
   animation: angry-jolt 330ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
@@ -512,13 +550,24 @@ img,
   animation: tap-ring 480ms cubic-bezier(0.16, 0.75, 0.25, 1) both;
 }
 
+.tap-wave.jackpot {
+  border-color: rgb(255 219 90 / 82%);
+  box-shadow: 0 0 24px rgb(255 190 35 / 48%);
+  animation-duration: 720ms;
+}
+
 .state-calm.pale-calm .tap-wave {
   border-color: rgb(13 98 190 / 24%);
 }
 
+.state-tired .tap-wave,
 .state-warning .tap-wave,
 .state-recovering.has-fatigue .tap-wave {
   border-color: rgb(35 33 22 / 20%);
+}
+
+.tap-wave.tap-wave.jackpot {
+  border-color: rgb(255 219 90 / 82%);
 }
 
 .tap-particles {
@@ -528,8 +577,18 @@ img,
   pointer-events: none;
 }
 
+.tap-impact {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  color: white;
+}
+
 .tap-particle {
   position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
   color: white;
   font-size: 18px;
   font-weight: 900;
@@ -539,14 +598,76 @@ img,
   transform: translate(-50%, -50%);
 }
 
+.tap-sparks {
+  position: absolute;
+  inset: 0;
+}
+
+.tap-sparks i {
+  position: absolute;
+  top: -2px;
+  left: -1.5px;
+  width: 3px;
+  height: 12px;
+  border-radius: 99px;
+  background: currentColor;
+  box-shadow: 0 0 7px currentColor;
+  opacity: 0;
+  transform-origin: 50% 2px;
+  animation: tap-spark 500ms cubic-bezier(0.16, 0.72, 0.24, 1) both;
+}
+
+.tap-impact.jackpot {
+  color: #ffd34f;
+}
+
+.tap-impact.jackpot .tap-particle {
+  color: #fff2a7;
+}
+
+.tap-impact.jackpot .tap-particle {
+  color: #fff2a7;
+  font-size: clamp(14px, 4vw, 18px);
+  letter-spacing: -0.02em;
+  text-shadow:
+    0 2px 10px rgb(79 44 0 / 48%),
+    0 0 18px rgb(255 190 35 / 68%);
+}
+
+.tap-impact.jackpot .tap-sparks i {
+  width: 4px;
+  height: 17px;
+  animation-duration: 700ms;
+}
+
+.state-tired .tap-particle,
 .state-warning .tap-particle {
   color: #272418;
   text-shadow: 0 2px 10px rgb(255 255 255 / 55%);
 }
 
+.state-tired .tap-impact,
+.state-warning .tap-impact {
+  color: #3d3415;
+}
+
 .state-calm.pale-calm .tap-particle {
   color: #116bc9;
   text-shadow: 0 2px 10px rgb(255 255 255 / 72%);
+}
+
+.state-calm.pale-calm .tap-impact {
+  color: #2f8be1;
+}
+
+.tap-impact.jackpot {
+  color: #ffd34f;
+}
+
+.state-tired .tap-impact.jackpot .tap-particle,
+.state-warning .tap-impact.jackpot .tap-particle,
+.state-calm.pale-calm .tap-impact.jackpot .tap-particle {
+  color: #fff2a7;
 }
 
 .ultra-readout {
@@ -578,17 +699,6 @@ img,
   font-weight: 900;
   letter-spacing: -0.055em;
   line-height: 1;
-}
-
-.ultra-readout b {
-  color: #ffc95c;
-  font-size: 8px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 750;
-}
-
-.ultra-readout.ready {
-  background: rgb(21 73 48 / 82%);
 }
 
 .ultra-aura {
@@ -742,16 +852,6 @@ img,
   font-weight: 800;
   letter-spacing: 0.13em;
   opacity: 0.67;
-}
-
-.moment-message {
-  min-height: 15px;
-  margin: 7px 0 0;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  text-align: center;
-  opacity: 0.82;
 }
 
 .bottom-bar {
@@ -1124,6 +1224,18 @@ img,
   line-height: 1.4;
 }
 
+.vault-locked {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid #ebcf72;
+  border-radius: 13px;
+  color: #6a5312;
+  background: #fff6d9;
+  font-size: 9px;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
 .deposit-presets {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1397,6 +1509,11 @@ img,
   50% { transform: translateY(-2px) scale(1.006); }
 }
 
+@keyframes tired-breathe {
+  0%, 100% { transform: translateY(1px) scale(0.998); }
+  50% { transform: translateY(4px) scale(0.988); }
+}
+
 @keyframes warning-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.016); }
@@ -1427,6 +1544,27 @@ img,
   0% { opacity: 0.3; transform: scale(0.985); }
   45% { opacity: 0.13; }
   100% { opacity: 0; transform: scale(1.12); }
+}
+
+@keyframes portrait-pulse-a {
+  0% { opacity: 0.52; transform: scale(0.975); }
+  100% { opacity: 0; transform: scale(1.065); }
+}
+
+@keyframes portrait-pulse-b {
+  0% { opacity: 0.52; transform: scale(0.975); }
+  100% { opacity: 0; transform: scale(1.065); }
+}
+
+@keyframes tap-spark {
+  0% {
+    opacity: 0.9;
+    transform: rotate(var(--spark-angle)) translateY(-7px) scaleY(0.55);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--spark-angle)) translateY(-31px) scaleY(0.1);
+  }
 }
 
 @keyframes balance-pop-a {
@@ -1526,15 +1664,12 @@ img,
   }
 
   .game-stage { padding-top: 5px; }
-  .state-copy { min-height: 51px; }
-  .state-copy h1 { margin-top: 3px; font-size: 15px; }
   .app-header { gap: 6px; }
   .level-strip { min-height: 34px; padding-block: 5px; }
   .dog-button { width: min(70vw, 300px, calc(100dvh - 350px)); }
   .ultra-aura { width: min(78vw, 335px, calc(100dvh - 295px)); }
   .wallet-balance { margin-bottom: 7px; }
   .wallet-balance strong { font-size: 30px; }
-  .moment-message { margin-top: 4px; }
   .bottom-bar { margin-bottom: 5px; }
   .bottom-bar button { min-height: 43px; }
 }

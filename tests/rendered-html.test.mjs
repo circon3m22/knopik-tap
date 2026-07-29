@@ -26,12 +26,13 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /knopik-calm\.png/);
   assert.match(html, /knopik-warning\.png/);
   assert.match(html, /knopik-angry\.png/);
-  assert.match(html, /Начинай быстро — Кнопик не любит паузы/);
   assert.match(html, /Экран белый, пока Кнопик спокоен/);
   assert.match(html, /<span>Сейф<\/span>/);
   assert.match(html, /УРОВЕНЬ/);
   assert.match(html, /class="saved-balance"/);
   assert.match(html, /class="bottom-bar"/);
+  assert.doesNotMatch(html, /state-copy|moment-message/);
+  assert.doesNotMatch(html, /Начинай быстро — Кнопик не любит паузы/);
   assert.doesNotMatch(html, /Тёмный синий означает устойчивый темп/);
   assert.doesNotMatch(html, /series-track|Серия 0/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);

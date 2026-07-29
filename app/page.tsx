@@ -47,7 +47,13 @@ import {
   type LevelState,
 } from "./level-engine";
 
-type TapParticle = { id: number; x: number; y: number; amount: number };
+type TapParticle = {
+  id: number;
+  x: number;
+  y: number;
+  amount: number;
+  jackpot: boolean;
+};
 type RecoveryReason = "rest" | "bite" | "ultra";
 
 const CALM_SERIES_RESET_MS = 6_000;
@@ -55,6 +61,11 @@ const WARNING_REST_MS = 2_650;
 const RECOVERY_MS = 1_350;
 const ANGRY_MS = 1_650;
 const ULTRA_VISUAL_DELAY_MS = 360;
+const RANDOM_TIRED_CHANCE = 0.015;
+const TIRED_SNAP_CHANCE = 0.04;
+const LAST_TAP_CHANCE = 0.0025;
+const TIRED_MOOD_MIN_MS = 7_000;
+const TIRED_MOOD_SPREAD_MS = 6_000;
 
 const tutorialSlides = [
   {
@@ -140,7 +151,6 @@ export default function Home() {
   const [particles, setParticles] = useState<TapParticle[]>([]);
   const [biteFlash, setBiteFlash] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState("");
-  const [momentMessage, setMomentMessage] = useState("");
   const [levelBurstKey, setLevelBurstKey] = useState(0);
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
 
@@ -170,6 +180,7 @@ export default function Home() {
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const angryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tiredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -249,7 +260,13 @@ export default function Home() {
   );
 
   const clearRoundTimers = useCallback(() => {
-    [idleTimerRef, recoveryTimerRef, angryTimerRef, flashTimerRef].forEach(
+    [
+      idleTimerRef,
+      recoveryTimerRef,
+      angryTimerRef,
+      flashTimerRef,
+      tiredTimerRef,
+    ].forEach(
       (timerRef) => {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -371,10 +388,14 @@ export default function Home() {
       if (now >= fatigueUntilRef.current) {
         fatigueUntilRef.current = 0;
         setFatigueUntil(0);
+        if (dogStateRef.current === "tired") {
+          transitionTo("calm");
+          resetSeries();
+        }
       }
     }, 1_000);
     return () => clearInterval(timer);
-  }, [fatigueUntil]);
+  }, [fatigueUntil, resetSeries, transitionTo]);
 
   useEffect(
     () => () => {
@@ -411,12 +432,40 @@ export default function Home() {
     [getSound],
   );
 
+  const enterTiredMood = useCallback(
+    (persistent = false) => {
+      transitionTo("tired");
+      if (tiredTimerRef.current) clearTimeout(tiredTimerRef.current);
+      tiredTimerRef.current = null;
+
+      if (persistent) return;
+      const duration =
+        TIRED_MOOD_MIN_MS + Math.random() * TIRED_MOOD_SPREAD_MS;
+      tiredTimerRef.current = setTimeout(() => {
+        tiredTimerRef.current = null;
+        if (
+          dogStateRef.current === "tired" &&
+          fatigueUntilRef.current <= Date.now()
+        ) {
+          transitionTo("calm");
+          resetSeries();
+          getSound().rest();
+        }
+      }, duration);
+    },
+    [getSound, resetSeries, transitionTo],
+  );
+
   const finishRecovery = useCallback(() => {
-    transitionTo("calm");
+    if (fatigueUntilRef.current > Date.now()) {
+      enterTiredMood(true);
+    } else {
+      transitionTo("calm");
+    }
     setRecoveryReason("rest");
     resetSeries();
     getSound().rest();
-  }, [getSound, resetSeries, transitionTo]);
+  }, [enterTiredMood, getSound, resetSeries, transitionTo]);
 
   const beginRecovery = useCallback(
     (reason: RecoveryReason) => {
@@ -436,11 +485,6 @@ export default function Home() {
       transitionTo("angry");
       setRecoveryReason("bite");
       setBiteFlash(true);
-      setMomentMessage(
-        fromOverheat
-          ? "Перегрев. Незащищённый баланс сгорел"
-          : "Кнопик укусил. Баланс сгорел",
-      );
       updateCoins(() => ({ walletCoins: 0, streakCoins: 0 }));
       updateStats((current) => ({
         ...current,
@@ -479,13 +523,15 @@ export default function Home() {
   );
 
   const armIdleTimer = useCallback(
-    (state: "calm" | "warning") => {
+    (state: "calm" | "tired" | "warning") => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       idleTimerRef.current = setTimeout(
         () => {
           if (state === "warning" && dogStateRef.current === "warning") {
             beginRecovery("rest");
           } else if (state === "calm" && dogStateRef.current === "calm") {
+            resetSeries();
+          } else if (state === "tired" && dogStateRef.current === "tired") {
             resetSeries();
           }
         },
@@ -495,11 +541,16 @@ export default function Home() {
     [beginRecovery, resetSeries],
   );
 
-  const addParticle = useCallback((x: number, y: number, amount: number) => {
+  const addParticle = useCallback((
+    x: number,
+    y: number,
+    amount: number,
+    jackpot: boolean,
+  ) => {
     const id = ++particleIdRef.current;
     setParticles((current) => [
       ...current.slice(-8),
-      { id, x, y, amount },
+      { id, x, y, amount, jackpot },
     ]);
     setTimeout(
       () =>
@@ -536,9 +587,13 @@ export default function Home() {
           ? calculateFatigueRatio(FATIGUE_DURATION_MS - remaining)
           : 0;
       const nextSeries = seriesTapsRef.current + 1;
+      const effectiveFatigue =
+        currentState === "tired"
+          ? Math.max(currentFatigue, 0.72)
+          : currentFatigue;
       const dynamicLimit = calculateTapLimit(
         average,
-        currentFatigue,
+        effectiveFatigue,
         () => patienceRollRef.current,
       );
       const nextLimit = Math.max(nextSeries, dynamicLimit);
@@ -549,8 +604,9 @@ export default function Home() {
       setSeriesTaps(nextSeries);
       setAverageInterval(average);
       setTapPulse((current) => current + 1);
-      const earned = awardCoins(1);
-      addParticle(x, y, earned);
+      const jackpot = Math.random() < LAST_TAP_CHANCE;
+      const earned = awardCoins(jackpot ? 5 : 1);
+      addParticle(x, y, earned, jackpot);
       updateStats((current) => ({
         ...current,
         totalTaps: current.totalTaps + 1,
@@ -559,21 +615,34 @@ export default function Home() {
       getSound().tap(tempoRatio);
       vibrate(7, settingsRef.current.vibration);
 
+      if (currentState === "tired" && Math.random() < TIRED_SNAP_CHANCE) {
+        triggerBite();
+        return;
+      }
+
       if (nextSeries >= nextLimit) {
         transitionTo("warning");
-        setMomentMessage("Кнопик напрягся. Отпусти его отдохнуть");
-        getSound().warning(currentFatigue > 0 ? 0.92 : 0.68);
+        getSound().warning(effectiveFatigue > 0 ? 0.92 : 0.68);
         vibrate([26, 42, 26], settingsRef.current.vibration);
         armIdleTimer("warning");
+      } else if (
+        currentState === "calm" &&
+        nextSeries >= 4 &&
+        Math.random() < RANDOM_TIRED_CHANCE
+      ) {
+        enterTiredMood(false);
+        getSound().warning(0.46);
+        vibrate([18, 32, 18], settingsRef.current.vibration);
+        armIdleTimer("tired");
       } else {
-        setMomentMessage("");
-        armIdleTimer("calm");
+        armIdleTimer(currentState === "tired" ? "tired" : "calm");
       }
     },
     [
       addParticle,
       armIdleTimer,
       awardCoins,
+      enterTiredMood,
       getSound,
       transitionTo,
       triggerBite,
@@ -606,7 +675,6 @@ export default function Home() {
       setHolding(true);
       setUltraActive(false);
       setUltraPreview(0);
-      setMomentMessage("Держи. Ультра включится через мгновение");
 
       holdIntervalRef.current = setInterval(() => {
         const elapsed = performance.now() - holdStartRef.current;
@@ -618,7 +686,6 @@ export default function Home() {
           ultraActiveRef.current = true;
           setUltraActive(true);
           getSound().ultraStart();
-          setMomentMessage("Огонь усиливается. Момент срыва неизвестен");
           vibrate(18, settingsRef.current.vibration);
         }
 
@@ -653,7 +720,6 @@ export default function Home() {
 
       if (cancelled) {
         stopHoldVisual("cancel");
-        setMomentMessage("");
         return;
       }
 
@@ -666,9 +732,6 @@ export default function Home() {
       if (elapsed < ULTRA_TAP_MIN_HOLD_MS) {
         stopHoldVisual("cancel");
         registerTap(point.x, point.y);
-        if (elapsed >= ULTRA_VISUAL_DELAY_MS) {
-          setMomentMessage("Для ультра-тапа держи минимум 2 секунды");
-        }
         return;
       }
 
@@ -678,12 +741,11 @@ export default function Home() {
         ultraTwoSecondRewardRef.current,
       );
       stopHoldVisual("success");
-      const reward = awardCoins(baseReward, 1_000);
+      awardCoins(baseReward, 1_000);
       const nextFatigueUntil = Date.now() + FATIGUE_DURATION_MS;
       fatigueUntilRef.current = nextFatigueUntil;
       setFatigueUntil(nextFatigueUntil);
       setClock(Date.now());
-      setMomentMessage(`Ультра-тап: +${reward}. Кнопик очень устал`);
       resetSeries();
       clearRoundTimers();
       setRecoveryReason("ultra");
@@ -755,6 +817,8 @@ export default function Home() {
     (amount: number) => {
       const requestedCoins = Math.floor(amount);
       if (
+        dogStateRef.current !== "calm" ||
+        holdingRef.current ||
         !Number.isFinite(requestedCoins) ||
         requestedCoins < 2 ||
         coinsRef.current.walletCoins < requestedCoins
@@ -817,7 +881,6 @@ export default function Home() {
     setSettingsOpen(false);
     setResetConfirmOpen(false);
     setRecoveryReason("rest");
-    setMomentMessage("");
     setLevelBurstVisible(false);
     resetSeries();
     transitionTo("calm");
@@ -833,43 +896,18 @@ export default function Home() {
     ? Number(depositInput)
     : 0;
   const protectedDeposit = Math.floor(requestedDeposit / 2);
+  const vaultLocked = dogState !== "calm" || holding;
   const canDeposit =
+    !vaultLocked &&
     Number.isSafeInteger(requestedDeposit) &&
     requestedDeposit >= 2 &&
     requestedDeposit <= coins.walletCoins;
 
-  const statusTitle =
-    dogState === "warning"
-      ? "Напрягся"
-      : dogState === "angry"
-        ? "Разозлился"
-        : dogState === "recovering"
-          ? recoveryReason === "ultra"
-            ? "Очень устал"
-            : "Отдыхает"
-          : fatigueRatio > 0
-            ? "Устал, но готов"
-            : "Спокоен";
-
-  const statusCopy =
-    dogState === "warning"
-      ? "Ещё одно касание может стоить всего баланса"
-      : dogState === "angry"
-        ? "Сейфы целы, незащищённые монеты сгорели"
-        : dogState === "recovering"
-          ? recoveryReason === "ultra"
-            ? "После ультра-тапа нужна пауза"
-            : "Скоро можно продолжить"
-          : fatigueRatio > 0
-            ? "После ультра Кнопик срывается намного быстрее"
-            : seriesTaps > 0
-              ? "Не сбивай темп"
-              : "Начинай быстро — Кнопик не любит паузы";
-
   const dogImageState =
     dogState === "angry"
       ? "angry"
-      : dogState === "warning" ||
+      : dogState === "tired" ||
+          dogState === "warning" ||
           (dogState === "recovering" && recoveryReason === "ultra")
         ? "warning"
         : "calm";
@@ -939,11 +977,6 @@ export default function Home() {
       <section
         className="game-stage"
       >
-        <div className="state-copy">
-          <span className="state-label"><i />{statusTitle}</span>
-          <h1>{statusCopy}</h1>
-        </div>
-
         <div className="dog-stage">
           <div className="ultra-aura" aria-hidden="true">
             {Array.from({ length: 10 }, (_, index) => (
@@ -970,7 +1003,10 @@ export default function Home() {
             <span className="portrait-surface" aria-hidden="true" />
             <span className="tap-waves" aria-hidden="true">
               {particles.map((particle) => (
-                <i className="tap-wave" key={`wave-${particle.id}`} />
+                <i
+                  className={`tap-wave ${particle.jackpot ? "jackpot" : ""}`}
+                  key={`wave-${particle.id}`}
+                />
               ))}
             </span>
             <span className="dog-images" data-image-state={dogImageState}>
@@ -978,14 +1014,31 @@ export default function Home() {
               <img className="dog-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
               <img className="dog-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
             </span>
+            <span className="dog-ears" data-image-state={dogImageState} aria-hidden="true">
+              <img className="dog-ear-image calm-image" src="/knopik-calm.png" alt="" draggable={false} />
+              <img className="dog-ear-image warning-image" src="/knopik-warning.png" alt="" draggable={false} />
+              <img className="dog-ear-image angry-image" src="/knopik-angry.png" alt="" draggable={false} />
+            </span>
             <span className="tap-particles" aria-hidden="true">
               {particles.map((particle) => (
                 <span
-                  className="tap-particle"
+                  className={`tap-impact ${particle.jackpot ? "jackpot" : ""}`}
                   key={particle.id}
                   style={{ left: `${particle.x}%`, top: `${particle.y}%` }}
                 >
-                  +{particle.amount}
+                  <span className="tap-sparks">
+                    {Array.from({ length: 6 }, (_, index) => (
+                      <i
+                        key={index}
+                        style={{ "--spark-angle": `${index * 60}deg` } as CSSProperties}
+                      />
+                    ))}
+                  </span>
+                  <span className="tap-particle">
+                    {particle.jackpot
+                      ? `+${particle.amount} · ПОСЛЕДНИЙ ТАП ×5`
+                      : `+${particle.amount}`}
+                  </span>
                 </span>
               ))}
             </span>
@@ -993,7 +1046,6 @@ export default function Home() {
               <span className="ultra-readout">
                 <small>УЛЬТРА-ТАП</small>
                 <strong>+{ultraPreview}</strong>
-                <b>ОТПУСТИ НА ИНТУИЦИИ</b>
               </span>
             )}
           </button>
@@ -1009,10 +1061,6 @@ export default function Home() {
               <small>НЕЗАЩИЩЁННЫЕ МОНЕТЫ</small>
             </div>
           </div>
-
-          <p className="moment-message" role="status">
-            {momentMessage}
-          </p>
         </div>
       </section>
 
@@ -1115,12 +1163,18 @@ export default function Home() {
                 <span>Положишь 100 — в сейф попадёт 50. Защищённые монеты не сгорают.</span>
               </div>
 
+              {vaultLocked && (
+                <p className="vault-locked" role="status">
+                  Кнопик устал или напряжён. Пополнение откроется, когда он успокоится.
+                </p>
+              )}
+
               <div className="deposit-presets" aria-label="Быстрый выбор суммы">
                 {[50, 100, 500].map((amount) => (
                   <button
                     type="button"
                     key={amount}
-                    disabled={coins.walletCoins < amount}
+                    disabled={vaultLocked || coins.walletCoins < amount}
                     onClick={() => setDepositInput(String(amount))}
                   >
                     {amount}
@@ -1128,7 +1182,7 @@ export default function Home() {
                 ))}
                 <button
                   type="button"
-                  disabled={coins.walletCoins < 2}
+                  disabled={vaultLocked || coins.walletCoins < 2}
                   onClick={() => setDepositInput(String(coins.walletCoins))}
                 >
                   ВСЁ
@@ -1141,6 +1195,7 @@ export default function Home() {
                   type="text"
                   inputMode="numeric"
                   value={depositInput}
+                  disabled={vaultLocked}
                   onChange={(event) =>
                     setDepositInput(
                       event.target.value.replace(/\D/g, "").slice(0, 12),
@@ -1162,7 +1217,11 @@ export default function Home() {
                 disabled={!canDeposit}
                 onClick={() => depositToVault(requestedDeposit)}
               >
-                {canDeposit ? "ЗАЩИТИТЬ МОНЕТЫ" : "НЕДОСТАТОЧНО МОНЕТ"}
+                {vaultLocked
+                  ? "СЕЙФ ВРЕМЕННО ЗАКРЫТ"
+                  : canDeposit
+                    ? "ЗАЩИТИТЬ МОНЕТЫ"
+                    : "НЕДОСТАТОЧНО МОНЕТ"}
               </button>
               <p className="deposit-note">Перевод необратим. Нечётная монета округляется вниз.</p>
             </div>
