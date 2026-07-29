@@ -472,15 +472,15 @@ img,
 .dog-ears {
   position: absolute;
   z-index: 4;
-  inset: -7% -4% -1%;
+  inset: 3.2%;
   pointer-events: none;
   -webkit-mask-image:
-    radial-gradient(ellipse 27% 39% at 20% 14%, #000 66%, transparent 72%),
-    radial-gradient(ellipse 27% 39% at 80% 14%, #000 66%, transparent 72%);
+    radial-gradient(ellipse 22% 32% at 20% 13%, #000 64%, transparent 71%),
+    radial-gradient(ellipse 22% 32% at 80% 13%, #000 64%, transparent 71%);
   -webkit-mask-repeat: no-repeat;
   mask-image:
-    radial-gradient(ellipse 27% 39% at 20% 14%, #000 66%, transparent 72%),
-    radial-gradient(ellipse 27% 39% at 80% 14%, #000 66%, transparent 72%);
+    radial-gradient(ellipse 22% 32% at 20% 13%, #000 64%, transparent 71%),
+    radial-gradient(ellipse 22% 32% at 80% 13%, #000 64%, transparent 71%);
   mask-repeat: no-repeat;
   animation: calm-breathe 3.7s ease-in-out infinite;
 }
@@ -495,6 +495,7 @@ img,
   object-position: 50% 24%;
   opacity: 0;
   pointer-events: none;
+  transform: translateY(-2.4%);
   transition: opacity 130ms ease;
 }
 
