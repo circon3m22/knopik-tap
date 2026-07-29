@@ -80,6 +80,8 @@ img,
 }
 
 .game-motion-layer {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: 100%;
@@ -822,6 +824,70 @@ img,
   color: #fff2a7;
 }
 
+.ultra-fire {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgb(255 119 0 / 28%), transparent 64%),
+    linear-gradient(0deg, rgb(49 5 0 / 86%), rgb(70 11 0 / 42%) 62%, rgb(26 3 0 / 14%));
+  clip-path: inset(calc(100% - var(--ultra-fill)) 0 0 0);
+  pointer-events: none;
+  transition: clip-path 90ms linear, opacity 180ms ease;
+}
+
+.ultra-active .ultra-fire {
+  opacity: 1;
+}
+
+.ultra-fire svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.fire-haze {
+  fill: rgb(190 32 3 / 42%);
+  animation: fire-haze-breathe 880ms ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+
+.flame-layer {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.flame-layer-back {
+  animation: flame-rise-back 1.08s ease-in-out infinite alternate;
+}
+
+.flame-layer-front {
+  animation: flame-rise-front 760ms ease-in-out infinite alternate;
+}
+
+.ultra-fire.is-farming .flame-layer-back {
+  animation-duration: 820ms;
+}
+
+.ultra-fire.is-farming .flame-layer-front {
+  animation-duration: 560ms;
+}
+
+.ember-field {
+  fill: #ffd158;
+  filter: drop-shadow(0 0 4px #ff5a00);
+}
+
+.ember-field circle {
+  animation: ember-rise 1.75s linear infinite;
+  animation-delay: var(--ember-delay);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 .ultra-readout {
   position: absolute;
   z-index: 11;
@@ -834,13 +900,14 @@ img,
   gap: 8px;
   padding: 10px 16px 11px;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 34%);
+  border: 1px solid rgb(255 183 76 / 48%);
   border-radius: 999px;
   color: white;
-  background: rgb(7 27 55 / 68%);
+  background: rgb(45 9 2 / 76%);
   box-shadow:
-    0 14px 34px rgb(0 25 70 / 28%),
-    inset 0 1px 0 rgb(255 255 255 / 24%);
+    0 14px 34px rgb(54 7 0 / 38%),
+    0 0 24px rgb(255 92 0 / 18%),
+    inset 0 1px 0 rgb(255 218 146 / 24%);
   animation: ultra-readout-float 1.3s ease-in-out infinite alternate;
   backdrop-filter: blur(14px) saturate(1.25);
   pointer-events: none;
@@ -851,14 +918,18 @@ img,
   position: absolute;
   bottom: 0;
   left: 0;
-  width: var(--ultra-progress);
+  width: var(--ultra-fill);
   max-width: 100%;
   height: 3px;
   border-radius: inherit;
-  background: linear-gradient(90deg, #56c9ff, #d8f7ff 72%, #fff);
-  box-shadow: 0 0 12px rgb(83 205 255 / 78%);
+  background: linear-gradient(90deg, #ff4d00, #ffb21b 68%, #fff1a0);
+  box-shadow: 0 0 12px rgb(255 91 0 / 82%);
   content: "";
   transition: width 80ms linear;
+}
+
+.ultra-readout.is-farming::after {
+  width: var(--ultra-progress);
 }
 
 .ultra-readout small {
@@ -875,7 +946,7 @@ img,
   font-weight: 900;
   letter-spacing: -0.045em;
   line-height: 1;
-  text-shadow: 0 0 18px rgb(132 222 255 / 42%);
+  text-shadow: 0 0 18px rgb(255 133 31 / 55%);
 }
 
 .ultra-aura {
@@ -968,13 +1039,13 @@ img,
 .ultra-aura i:nth-child(8) { --orbit-angle: 315deg; --orbit-time: 4.7s; --orbit-delay: -3.8s; --spark-size: 3px; }
 
 .ultra-active .portrait-surface {
-  animation: ultra-core-pulse 1.15s ease-in-out infinite alternate;
-  border-color: rgb(213 244 255 / 94%);
+  animation: ultra-core-pulse 820ms ease-in-out infinite alternate;
+  border-color: rgb(255 221 157 / 94%);
 }
 
 .ultra-active .dog-images,
 .ultra-active .dog-ears {
-  filter: saturate(1.045) contrast(1.025) brightness(1.015);
+  filter: saturate(1.08) contrast(1.03) brightness(1.02) sepia(0.035);
 }
 
 .game-data {
@@ -2002,6 +2073,30 @@ img,
   38% { transform: rotate(4deg) scale(1.07); }
 }
 
+@keyframes flame-rise-back {
+  0% { opacity: 0.82; transform: translate3d(-1.2%, 2.5%, 0) scale(1.035, 0.98) skewX(-0.8deg); }
+  55% { opacity: 0.96; transform: translate3d(0.8%, -1.5%, 0) scale(0.99, 1.045) skewX(1.1deg); }
+  100% { opacity: 0.88; transform: translate3d(-0.3%, -3.2%, 0) scale(1.02, 1.07) skewX(-0.4deg); }
+}
+
+@keyframes flame-rise-front {
+  0% { opacity: 0.9; transform: translate3d(0.8%, 2%, 0) scale(1.02, 0.98) skewX(0.7deg); }
+  50% { opacity: 1; transform: translate3d(-0.8%, -2.8%, 0) scale(0.985, 1.055) skewX(-1deg); }
+  100% { opacity: 0.94; transform: translate3d(0.4%, -4.6%, 0) scale(1.01, 1.085) skewX(0.35deg); }
+}
+
+@keyframes fire-haze-breathe {
+  from { opacity: 0.58; transform: scaleX(1.02) translateY(1.5%); }
+  to { opacity: 0.9; transform: scaleX(0.98) translateY(-1.5%); }
+}
+
+@keyframes ember-rise {
+  0% { opacity: 0; transform: translate3d(0, 24px, 0) scale(0.45); }
+  18% { opacity: 0.95; }
+  75% { opacity: 0.64; }
+  100% { opacity: 0; transform: translate3d(9px, -96px, 0) scale(0.12); }
+}
+
 @keyframes ultra-ring-spin {
   to { transform: rotate(360deg); }
 }
@@ -2020,13 +2115,13 @@ img,
   from {
     box-shadow:
       0 22px 46px rgb(0 0 0 / 20%),
-      0 0 18px rgb(81 195 255 / 28%);
+      0 0 18px rgb(255 119 21 / 30%);
   }
   to {
     box-shadow:
-      0 24px 54px rgb(0 24 68 / 22%),
-      0 0 42px rgb(71 190 255 / 58%),
-      inset 0 0 30px rgb(137 224 255 / 18%);
+      0 24px 54px rgb(58 8 0 / 24%),
+      0 0 44px rgb(255 89 8 / 62%),
+      inset 0 0 30px rgb(255 196 71 / 19%);
   }
 }
 
