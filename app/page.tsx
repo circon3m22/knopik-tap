@@ -92,6 +92,9 @@ const HASBIK_HAT_PRICE = 500;
 const ZHIVCHIK_PRICE = 150;
 const PITBULL_PRICE = 50;
 const ZHIVCHIK_DURATION_MS = 60_000;
+const ZHIVCHIK_MULTIPLIER = 3;
+const HAT_ULTRA_BONUS_MS = 350;
+const MAX_CHEAT_COIN_GRANT = 1_000_000_000;
 const RISK_SPIN_MS = 5_400;
 const RISK_RESULT_MS = 1_650;
 const RISK_RECOVERY_MIN_MS = 30_000;
@@ -376,7 +379,9 @@ export default function Home() {
       const base = Math.max(0, Math.floor(baseAmount));
       const multiplier = levelMultiplier(levelStateRef.current.level);
       const tapBoost =
-        applyTapBoost && boostUntilRef.current > Date.now() ? 2 : 1;
+        applyTapBoost && boostUntilRef.current > Date.now()
+          ? ZHIVCHIK_MULTIPLIER
+          : 1;
       const precise = base * multiplier * tapBoost + bonusCarryRef.current;
       const earned = Math.min(maximum, Math.max(0, Math.floor(precise)));
       bonusCarryRef.current =
@@ -929,10 +934,10 @@ export default function Home() {
       getSound().unlock();
       holdPointRef.current = { x, y };
       holdStartRef.current = performance.now();
-      ultraDeadlineRef.current = chooseUltraTapOverheatDeadline(
-        hatEquipped
-          ? () => Math.min(0.999999999, 0.42 + Math.random() * 0.58)
-          : Math.random,
+      ultraDeadlineRef.current = Math.min(
+        10_000,
+        chooseUltraTapOverheatDeadline() +
+          (hatEquipped ? HAT_ULTRA_BONUS_MS : 0),
       );
       ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward();
       ultraAllowedRef.current = currentState !== "tired";
@@ -1372,13 +1377,33 @@ export default function Home() {
 
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
-    if (normalizedCode === "medoed") {
+    const [secretWord, amountToken, ...extraTokens] = normalizedCode.split(/\s+/);
+    if (secretWord === "medoed") {
+      const hasCustomAmount = amountToken !== undefined;
+      const amountIsValid =
+        !hasCustomAmount ||
+        (extraTokens.length === 0 && /^\d+$/.test(amountToken));
+      const requestedAmount = hasCustomAmount ? Number(amountToken) : 500;
+      if (
+        !amountIsValid ||
+        !Number.isSafeInteger(requestedAmount) ||
+        requestedAmount < 1
+      ) {
+        setCheatMessage("Укажи положительную целую сумму после секретного слова");
+        return;
+      }
+      const grantedAmount = Math.min(requestedAmount, MAX_CHEAT_COIN_GRANT);
       updateCoins((current) => ({
         ...current,
-        walletCoins: current.walletCoins + 500,
+        walletCoins: Math.min(
+          Number.MAX_SAFE_INTEGER,
+          current.walletCoins + grantedAmount,
+        ),
       }));
       setCheatCode("");
-      setCheatMessage("Начислено +500 активных монет");
+      setCheatMessage(
+        `Начислено +${grantedAmount.toLocaleString("ru-RU")} активных монет`,
+      );
       getSound().purchase();
       vibrate([16, 22, 34], settingsRef.current.vibration);
       return;
@@ -1853,7 +1878,7 @@ export default function Home() {
           </button>
           <button className="inventory-item inventory-zhivchik" type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
             <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
-            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×2 · ${boostSeconds}с` : "Живчик"}</strong><small>Двойной тап</small></span>
+            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×3 · ${boostSeconds}с` : "Живчик"}</strong><small>Тройной тап</small></span>
             <b className="inventory-count">{drinkCount}</b>
           </button>
           <button className="inventory-item inventory-pitbull" type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
@@ -2246,11 +2271,11 @@ export default function Home() {
             </article>
 
             <article className="shop-card drink-card">
-              <span className="drink-pack zhivchik-pack" aria-hidden="true"><span className="drink-icon drink-zhivchik"><i /></span><b>×2</b></span>
+              <span className="drink-pack zhivchik-pack" aria-hidden="true"><span className="drink-icon drink-zhivchik"><i /></span><b>×3</b></span>
               <div className="food-copy">
                 <small>ЗАПАС {drinkCount}/10</small>
                 <h3>Напиток «Живчик»</h3>
-                <p>Даёт ×2 монет за обычные тапы на одну минуту. Порции включаются отдельно сверху.</p>
+                <p>Даёт ×3 монет за обычные тапы на одну минуту. Порции включаются отдельно сверху.</p>
               </div>
               <div className="food-price"><strong>{ZHIVCHIK_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество напитков">
@@ -2298,7 +2323,7 @@ export default function Home() {
               <div className="food-copy">
                 <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
                 <h3>Тюбетейка Хасбика</h3>
-                <p>Сидит между ушами и повышает шанс удачного ультра-тапа: Кнопик дольше сохраняет терпение.</p>
+                <p>Сидит между ушами и слегка продлевает безопасное удержание ультра-тапа.</p>
               </div>
               <div className="food-price"><strong>{hatOwned ? "✓" : HASBIK_HAT_PRICE}</strong><span>{hatOwned ? "твоя" : "монет"}</span></div>
               <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>
