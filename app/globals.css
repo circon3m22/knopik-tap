@@ -9,12 +9,13 @@
   --paper: #f7f7f4;
   --line: #e4e5e2;
   --green: #138a55;
+  --standalone-bottom: 0px;
 }
 
 /* Supabase account and cloud-save surfaces */
 .auth-screen {
   width: 100%;
-  min-height: 100dvh;
+  min-height: calc(100dvh + var(--standalone-bottom));
   display: grid;
   place-items: center;
   overflow-y: auto;
@@ -269,6 +270,13 @@ body {
   min-height: 100dvh;
 }
 
+/* iOS standalone PWAs expose the Home Indicator area outside 100dvh. */
+@media (display-mode: standalone) {
+  :root {
+    --standalone-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 body,
 button {
   font-family:
@@ -298,7 +306,7 @@ img,
   isolation: isolate;
   display: block;
   width: min(100%, 500px);
-  height: 100dvh;
+  height: calc(100dvh + var(--standalone-bottom));
   min-height: 520px;
   margin: 0 auto;
   padding:
