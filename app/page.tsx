@@ -1372,7 +1372,7 @@ export default function Home() {
 
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
-    if (normalizedCode === "many") {
+    if (normalizedCode === "medoed") {
       updateCoins((current) => ({
         ...current,
         walletCoins: current.walletCoins + 500,
@@ -1383,7 +1383,7 @@ export default function Home() {
       vibrate([16, 22, 34], settingsRef.current.vibration);
       return;
     }
-    if (normalizedCode !== "suliman") {
+    if (normalizedCode !== "baobab") {
       setCheatMessage("Код не найден");
       return;
     }
