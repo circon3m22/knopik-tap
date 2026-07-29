@@ -4444,7 +4444,7 @@ img,
 .dog-mohawk {
   position: absolute;
   z-index: 8;
-  top: -28%;
+  top: -24%;
   left: 50%;
   display: block;
   width: 72%;
@@ -4459,7 +4459,7 @@ img,
 .mohawk-hit-zone {
   position: absolute;
   z-index: 15;
-  top: -22%;
+  top: -18%;
   left: 37%;
   width: 26%;
   height: 48%;
