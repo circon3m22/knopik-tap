@@ -1378,7 +1378,7 @@ export default function Home() {
         walletCoins: current.walletCoins + 500,
       }));
       setCheatCode("");
-      setCheatMessage("MANY применён — активные монеты +500");
+      setCheatMessage("Начислено +500 активных монет");
       getSound().purchase();
       vibrate([16, 22, 34], settingsRef.current.vibration);
       return;
@@ -1391,7 +1391,7 @@ export default function Home() {
     setSettings((current) => ({ ...current, suliman: nextEnabled }));
     setCheatCode("");
     setCheatMessage(
-      nextEnabled ? "SULIMAN включён — Кнопик спокоен" : "SULIMAN выключен",
+      nextEnabled ? "Секретный режим включён" : "Секретный режим выключен",
     );
     if (nextEnabled) {
       clearRoundTimers();
@@ -2340,7 +2340,7 @@ export default function Home() {
             >
               <div>
                 <strong>Чит-код</strong>
-                <span>{settings.suliman ? "SULIMAN активен · MANY даёт +500" : "Коды SULIMAN и MANY"}</span>
+                <span>{settings.suliman ? "Секретный режим активен" : "Введи секретное слово"}</span>
               </div>
               <label>
                 <input

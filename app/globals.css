@@ -4379,3 +4379,63 @@ img,
     padding-bottom: calc(env(safe-area-inset-bottom) + 75px);
   }
 }
+
+/* Clean, unclipped chance sector — v34 */
+.risk-wheel {
+  overflow: visible;
+  border: 0;
+  background: #171b22;
+  box-shadow:
+    0 26px 64px rgb(0 0 0 / 48%),
+    0 0 0 7px rgb(10 12 16 / 72%),
+    inset 0 0 34px rgb(0 0 0 / 54%);
+}
+
+.risk-wheel::before {
+  inset: -2.4%;
+  border: 3px solid #69717c;
+  background: none;
+  -webkit-mask: none;
+  mask: none;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 34%),
+    0 0 0 1px rgb(0 0 0 / 48%);
+  opacity: 1;
+}
+
+.risk-wheel::after,
+.risk-dial::before {
+  display: none;
+}
+
+.risk-dial {
+  inset: 5.5%;
+  overflow: hidden;
+  border: 0;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    #a9f43e 0deg,
+    #a9f43e var(--risk-chance),
+    #292f39 var(--risk-chance),
+    #292f39 360deg
+  );
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 10%),
+    inset 0 0 34px rgb(0 0 0 / 24%);
+  transform: none !important;
+  transition: none;
+}
+
+.risk-wheel-glass {
+  inset: 0;
+  border: 0;
+  background:
+    radial-gradient(circle at 35% 23%, rgb(255 255 255 / 12%), transparent 28%),
+    radial-gradient(circle, transparent 0 64%, rgb(0 0 0 / 15%) 100%);
+}
+
+.risk-center {
+  width: 36%;
+  border: 2px solid #343a44;
+  background: #151920;
+}
