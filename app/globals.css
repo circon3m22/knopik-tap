@@ -4797,3 +4797,40 @@ img,
   .mohawk-preview { width: 64px; height: 64px; }
   .risk-bet-control { gap: 6px; padding-left: 9px; }
 }
+/* Fix the empty bottom area in iOS standalone PWA */
+@media (display-mode: standalone) and (max-width: 600px) {
+  html,
+  body {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  body {
+    position: fixed !important;
+    inset: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .auth-screen,
+  .game-shell {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  .game-shell {
+    padding-bottom: 0 !important;
+  }
+
+  .bottom-bar {
+    margin-bottom: 0 !important;
+    padding-bottom: calc(5px + env(safe-area-inset-bottom)) !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  .nav-thumb {
+    bottom: calc(5px + env(safe-area-inset-bottom)) !important;
+  }
+}
