@@ -5733,12 +5733,19 @@ img,
   .promo-admin .promo-form button { grid-column: 1 / -1; }
 }
 
-/* Tap contrast and navigation spacing — v53 */
+/* Tap contrast and navigation spacing — v54 */
 .game-shell .quick-save-button:not(:disabled),
 .game-shell.state-calm.pale-calm .quick-save-button:not(:disabled) {
   color: #fff;
   text-shadow: none;
-  transition: transform 120ms ease, opacity 160ms ease;
+  animation: none;
+  transition: none;
+}
+
+.game-shell .quick-save-button *,
+.game-shell.state-calm.pale-calm .quick-save-button * {
+  animation: none;
+  transition: none;
 }
 
 .game-shell.state-calm:not(.pale-calm) .wallet-balance strong,
@@ -5760,6 +5767,18 @@ img,
   opacity: 1;
 }
 
+.game-shell.risk-mode .risk-strip-label {
+  min-width: 76px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: #fff;
+  background: #15364f;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%);
+  font-weight: 950;
+  text-align: center;
+  opacity: 1;
+}
+
 .game-shell .bottom-bar {
-  margin-bottom: 5px;
+  margin-bottom: 9px;
 }

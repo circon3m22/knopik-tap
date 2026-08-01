@@ -2461,11 +2461,12 @@ function KnopikGame({
               className="quick-save-button"
               type="button"
               disabled={!canSave}
+              aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
               onClick={saveAllToVault}
             >
               <span className="safe-icon" aria-hidden="true"><i /></span>
               <span>ПЕРЕНЕСТИ В СЕЙФ</span>
-              <small>+{saveAmount.toLocaleString("ru-RU")}</small>
+              <small>50% БАЛАНСА</small>
             </button>
             <div
               ref={savedBalanceRef}
