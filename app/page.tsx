@@ -19,6 +19,7 @@ import {
   type DogState,
   type GameSettings,
   type GameStats,
+  type SaveData,
 } from "./game-logic";
 import {
   FATIGUE_DURATION_MS,
@@ -51,6 +52,11 @@ import {
   riskMultiplier,
   type RiskChance,
 } from "./risk-engine";
+import {
+  CloudAccountGate,
+  type CloudAccount,
+  type CloudSyncState,
+} from "./cloud-account";
 
 type TapParticle = {
   id: number;
@@ -158,7 +164,23 @@ function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
   return `rgb(${channels.join(" ")})`;
 }
 
-export default function Home() {
+type KnopikGameProps = {
+  account: CloudAccount;
+  initialSave: SaveData;
+  syncState: CloudSyncState;
+  onSave: (save: SaveData) => void;
+  onChangePassword: (password: string) => Promise<string>;
+  onSignOut: () => Promise<void>;
+};
+
+function KnopikGame({
+  account,
+  initialSave,
+  syncState,
+  onSave,
+  onChangePassword,
+  onSignOut,
+}: KnopikGameProps) {
   const [dogState, setDogState] = useState<DogState>("calm");
   const [recoveryReason, setRecoveryReason] =
     useState<RecoveryReason>("rest");
@@ -200,6 +222,9 @@ export default function Home() {
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [accountMessage, setAccountMessage] = useState("");
+  const [accountPending, setAccountPending] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [seriesTaps, setSeriesTaps] = useState(0);
@@ -441,9 +466,7 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(SAVE_KEY);
-      const parsed = stored ? JSON.parse(stored) : createDefaultSave();
-      const saved = sanitizeSave(parsed);
+      const saved = sanitizeSave(initialSave);
       const loadedCoins = {
         walletCoins: saved.walletCoins,
         streakCoins: 0,
@@ -515,7 +538,7 @@ export default function Home() {
     ) {
       navigator.serviceWorker.register(publicAsset("/sw.js")).catch(() => undefined);
     }
-  }, []);
+  }, [initialSave]);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -544,9 +567,7 @@ export default function Home() {
     if (!hydrated) return;
     const saveTimer = setTimeout(() => {
       try {
-        localStorage.setItem(
-          SAVE_KEY,
-          JSON.stringify({
+        const nextSave = {
             version: SAVE_VERSION,
             vaultCoins,
             walletCoins: coins.walletCoins,
@@ -573,8 +594,9 @@ export default function Home() {
             ultraFatigueUntil: fatigueUntil,
             level: levelState.level,
             levelCoins: levelState.progressCoins,
-          }),
-        );
+          } as const;
+        localStorage.setItem(SAVE_KEY, JSON.stringify(nextSave));
+        onSave(nextSave);
       } catch {
         // The game remains playable when local storage is unavailable.
       }
@@ -593,6 +615,7 @@ export default function Home() {
     hasbulaRedeemed,
     mohawkEquipped,
     mohawkOwned,
+    onSave,
     hydrated,
     levelState,
     riskChance,
@@ -603,6 +626,20 @@ export default function Home() {
     tutorialSeen,
     vaultCoins,
   ]);
+
+  const submitPasswordChange = useCallback(async () => {
+    setAccountPending(true);
+    setAccountMessage("");
+    const message = await onChangePassword(newPassword);
+    setAccountMessage(message);
+    if (message === "Пароль изменён.") setNewPassword("");
+    setAccountPending(false);
+  }, [newPassword, onChangePassword]);
+
+  const signOutAccount = useCallback(async () => {
+    setAccountPending(true);
+    await onSignOut();
+  }, [onSignOut]);
 
   useEffect(() => {
     if (!fatigueUntil) return;
@@ -2558,7 +2595,39 @@ export default function Home() {
         >
           <section className="sheet settings-sheet" aria-labelledby="settings-title">
             <div className="sheet-heading">
-              <div><p className="sheet-kicker">KNOPIK TAP</p><h2 id="settings-title">Настройки</h2></div>
+              <div><p className="sheet-kicker">ПРОФИЛЬ</p><h2 id="settings-title">{account.username}</h2></div>
+            </div>
+            <div className="account-settings">
+              <div className="account-summary">
+                <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+                <div>
+                  <strong>{account.username}</strong>
+                  <span>{syncState === "saved" ? "Прогресс сохранён" : syncState === "saving" ? "Сохранение…" : "Сохранится при следующей попытке"}</span>
+                </div>
+              </div>
+              <form
+                className="password-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitPasswordChange();
+                }}
+              >
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => {
+                    setNewPassword(event.currentTarget.value);
+                    setAccountMessage("");
+                  }}
+                  placeholder="Новый пароль"
+                  autoComplete="new-password"
+                  minLength={6}
+                  required
+                />
+                <button type="submit" disabled={accountPending}>ПОМЕНЯТЬ ПАРОЛЬ</button>
+              </form>
+              {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
+              <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>ВЫЙТИ ИЗ АККАУНТА</button>
             </div>
             <div className="setting-row">
               <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
@@ -2613,5 +2682,23 @@ export default function Home() {
 
       <div className="red-flash" aria-hidden="true" />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <CloudAccountGate>
+      {({ account, initialSave, gameKey, syncState, saveProgress, changePassword, signOut }) => (
+        <KnopikGame
+          key={gameKey}
+          account={account}
+          initialSave={initialSave}
+          syncState={syncState}
+          onSave={saveProgress}
+          onChangePassword={changePassword}
+          onSignOut={signOut}
+        />
+      )}
+    </CloudAccountGate>
   );
 }
