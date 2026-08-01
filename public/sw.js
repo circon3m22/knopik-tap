@@ -1,4 +1,4 @@
-const CACHE_NAME = "knopik-tap-v72";
+const CACHE_NAME = "knopik-tap-v74";
 const BASE_PATH = new URL("./", self.location.href).pathname.replace(/\/$/, "");
 const asset = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
@@ -13,6 +13,12 @@ const APP_SHELL = [
   asset("/knopik-ear-right.png"),
   asset("/knopik-warning-earless.png"),
   asset("/knopik-mohawk-v2.png"),
+  asset("/buffs/food.png"),
+  asset("/buffs/zhivchik.png"),
+  asset("/buffs/pitbull.png"),
+  asset("/buffs/cocoa-cola.png"),
+  asset("/buffs/bergamot-tea.png"),
+  asset("/buffs/pepsi.png"),
 ];
 
 self.addEventListener("install", (event) => {

@@ -272,7 +272,6 @@ function KnopikGame({
   const [tutorialStep, setTutorialStep] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
-  const [shopSlide, setShopSlide] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
@@ -390,7 +389,6 @@ function KnopikGame({
   const savedBalanceRef = useRef<HTMLDivElement | null>(null);
   const navDragStartRef = useRef(0);
   const navDidDragRef = useRef(false);
-  const shopCarouselRef = useRef<HTMLDivElement | null>(null);
   const earTapStateRef = useRef({
     left: { count: 0, lastAt: 0 },
     right: { count: 0, lastAt: 0 },
@@ -2307,23 +2305,6 @@ function KnopikGame({
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
   const canBuyMohawk = mohawkOwned || coins.walletCoins >= MOHAWK_PRICE;
 
-  const shopSlideCount = shopCategory === "food" ? 6 : 2;
-  const shopCardClass = (index: number, base: string) =>
-    `${base} shop-showcase-card ${index === shopSlide ? "is-active" : index < shopSlide ? "is-before" : "is-after"}`;
-  const syncShopSlide = (container: HTMLDivElement) => {
-    const center = container.scrollLeft + container.clientWidth / 2;
-    let nearest = 0;
-    let distance = Number.POSITIVE_INFINITY;
-    Array.from(container.children).forEach((child, index) => {
-      const element = child as HTMLElement;
-      const nextDistance = Math.abs(element.offsetLeft + element.offsetWidth / 2 - center);
-      if (nextDistance < distance) {
-        nearest = index;
-        distance = nextDistance;
-      }
-    });
-    setShopSlide(nearest);
-  };
   const remainingDrinkSlots = Math.max(0, 10 - drinkCount);
   const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
   const canBuyDrink =
@@ -2648,32 +2629,32 @@ function KnopikGame({
         )}
         <div className="boost-row" aria-label="Предметы Кнопика">
           <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
-            <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
+            <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
             <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{foodCount || (canQuickBuyFood ? DOG_FOOD_PRICE : 0)}</b>
           </button>
           <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
-            <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
+            <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
             <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{drinkCount || (canQuickBuyDrink ? ZHIVCHIK_PRICE : 0)}</b>
           </button>
           <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
-            <span className="drink-icon drink-pitbull" aria-hidden="true"><i /></span>
+            <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
             <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{pitbullCount || (canQuickBuyPitbull ? PITBULL_PRICE : 0)}</b>
           </button>
           <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
-            <span className="drink-icon drink-cola" aria-hidden="true"><i /></span>
+            <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
             <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{colaCount || (canQuickBuyCola ? COCOA_COLA_PRICE : 0)}</b>
           </button>
           <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
-            <span className="drink-icon drink-tea" aria-hidden="true"><i /></span>
+            <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
             <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{teaCount || (canQuickBuyTea ? BERGAMOT_TEA_PRICE : 0)}</b>
           </button>
           <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
-            <span className="drink-icon drink-vita" aria-hidden="true"><i /></span>
+            <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
             <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : vitaPowerCount || (canQuickBuyVitaPower ? VITA_POWER_PRICE : 0)}</b>
           </button>
@@ -3065,7 +3046,7 @@ function KnopikGame({
         >
           <section className="sheet shop-sheet" aria-labelledby="shop-title">
             <div className="sheet-heading">
-              <div><p className="sheet-kicker">KNOPIK STORE</p><h2 id="shop-title">Витрина Кнопика</h2></div>
+              <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Всё для Кнопика</h2></div>
             </div>
 
             <div className="shop-wallet">
@@ -3079,7 +3060,7 @@ function KnopikGame({
                 type="button"
                 role="tab"
                 aria-selected={shopCategory === "food"}
-                onClick={() => { setShopCategory("food"); setShopSlide(0); }}
+                onClick={() => setShopCategory("food")}
               >
                 Бафы
               </button>
@@ -3088,23 +3069,23 @@ function KnopikGame({
                 type="button"
                 role="tab"
                 aria-selected={shopCategory === "clothes"}
-                onClick={() => { setShopCategory("clothes"); setShopSlide(0); }}
+                onClick={() => setShopCategory("clothes")}
               >
                 Одежда
               </button>
             </div>
 
             <div className="shop-section-copy">
-              <strong>{shopCategory === "food" ? "Бафы и игровые режимы" : "Одежда и способности"}</strong>
-              <span>Листай витрины влево и вправо.</span>
+              <strong>{shopCategory === "food" ? "Бафы" : "Одежда"}</strong>
+              <span>{shopCategory === "food" ? "Усиления, восстановление и игровые режимы." : "Предметы с постоянными способностями."}</span>
             </div>
 
             {shopMessage && <p className="purchase-message" role="status">{shopMessage}</p>}
 
-            {shopCategory === "food" && <div className="shop-showcase-carousel" ref={shopCarouselRef} onScroll={(event) => syncShopSlide(event.currentTarget)}>
-            <article className={shopCardClass(0, "shop-card food-card")}>
+            {shopCategory === "food" && <div className="shop-product-grid">
+            <article className="shop-card shop-product-card food-card">
               <span className="food-pack" aria-hidden="true">
-                <span className="food-icon"><i /><i /><i /></span>
+                <img className="shop-buff-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
                 <small>ЗАПАС {foodCount}/10</small>
@@ -3126,8 +3107,8 @@ function KnopikGame({
               </button>
             </article>
 
-            <article className={shopCardClass(1, "shop-card drink-card")}>
-              <span className="drink-pack zhivchik-pack" aria-hidden="true"><span className="drink-icon drink-zhivchik"><i /></span><b>×4</b></span>
+            <article className="shop-card shop-product-card drink-card">
+              <span className="drink-pack zhivchik-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
                 <small>ЗАПАС {drinkCount}/10</small>
                 <h3>Напиток «Живчик»</h3>
@@ -3148,8 +3129,8 @@ function KnopikGame({
               </button>
             </article>
 
-            <article className={shopCardClass(2, "shop-card pitbull-card")}>
-              <span className="drink-pack pitbull-pack" aria-hidden="true"><span className="drink-icon drink-pitbull"><i /></span><b>RISK</b></span>
+            <article className="shop-card shop-product-card pitbull-card">
+              <span className="drink-pack pitbull-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
                 <small>ЗАПАС {pitbullCount}/10</small>
                 <h3>Напиток «Питбуль»</h3>
@@ -3170,8 +3151,8 @@ function KnopikGame({
               </button>
             </article>
 
-            <article className={shopCardClass(3, "shop-card cola-card")}>
-              <span className="drink-pack cola-pack" aria-hidden="true"><span className="drink-icon drink-cola"><i /></span><b>SLOTS</b></span>
+            <article className="shop-card shop-product-card cola-card">
+              <span className="drink-pack cola-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
                 <small>ЗАПАС {colaCount}/10</small>
                 <h3>Напиток «Какао-Кола»</h3>
@@ -3192,8 +3173,8 @@ function KnopikGame({
               </button>
             </article>
 
-            <article className={shopCardClass(4, "shop-card tea-card")}>
-              <span className="drink-pack tea-pack" aria-hidden="true"><span className="drink-icon drink-tea"><i /></span><b>5 × 1</b></span>
+            <article className="shop-card shop-product-card tea-card">
+              <span className="drink-pack tea-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
                 <small>ЗАПАС {teaCount}/10</small>
                 <h3>Чай с бергамотом</h3>
@@ -3213,8 +3194,8 @@ function KnopikGame({
                     : `НУЖНО ${teaTotalPrice}`}
               </button>
             </article>
-            <article className={shopCardClass(5, "shop-card vita-card")}>
-              <span className="drink-pack vita-pack" aria-hidden="true"><span className="drink-icon drink-vita"><i /></span><b>SHIELD</b></span>
+            <article className="shop-card shop-product-card vita-card">
+              <span className="drink-pack vita-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
                 <small>ЗАПАС {vitaPowerCount}/10 {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
                 <h3>Напиток «Пепси»</h3>
@@ -3236,8 +3217,8 @@ function KnopikGame({
             </article>
             </div>}
 
-            {shopCategory === "clothes" && (<div className="shop-showcase-carousel" ref={shopCarouselRef} onScroll={(event) => syncShopSlide(event.currentTarget)}>
-            <article className={shopCardClass(0, `shop-card hat-card ${hatOwned ? "owned" : ""}`)}>
+            {shopCategory === "clothes" && (<div className="shop-product-grid shop-clothes-grid">
+            <article className={`shop-card shop-product-card hat-card ${hatOwned ? "owned" : ""}`}>
               <span className="hat-preview" aria-hidden="true">
                 <img src={publicAsset("/hasbik-tubeteika.png")} alt="" draggable={false} />
               </span>
@@ -3253,7 +3234,7 @@ function KnopikGame({
                   : canBuyHat ? `КУПИТЬ · ${HASBIK_HAT_PRICE}` : `НУЖНО ${HASBIK_HAT_PRICE}`}
               </button>
             </article>
-            <article className={shopCardClass(1, `shop-card mohawk-card ${mohawkOwned ? "owned" : ""}`)}>
+            <article className={`shop-card shop-product-card mohawk-card ${mohawkOwned ? "owned" : ""}`}>
               <span className="mohawk-preview" aria-hidden="true">
                 <img src={publicAsset("/knopik-mohawk-v2.png")} alt="" draggable={false} />
               </span>
@@ -3271,9 +3252,6 @@ function KnopikGame({
             </article>
             </div>)}
 
-            <div className="shop-showcase-dots" aria-label={`Витрина ${shopSlide + 1} из ${shopSlideCount}`}>
-              {Array.from({ length: shopSlideCount }, (_, index) => <i className={index === shopSlide ? "active" : ""} key={index} />)}
-            </div>
           </section>
         </div>
       )}
@@ -3287,9 +3265,10 @@ function KnopikGame({
         >
           <section className="sheet settings-sheet" aria-labelledby="settings-title">
             <div className="sheet-heading">
-              <div><p className="sheet-kicker">ПРОФИЛЬ</p><h2 id="settings-title">{account.username}</h2></div>
+              <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
             </div>
 
+            <p className="settings-section-title">Аккаунт</p>
             <div className="account-settings">
               <div className="account-summary">
                 <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
@@ -3322,6 +3301,7 @@ function KnopikGame({
               {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
               <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>ВЫЙТИ ИЗ АККАУНТА</button>
             </div>
+            <p className="settings-section-title">Игра</p>
             <div className="setting-row">
               <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
               <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
@@ -3364,6 +3344,7 @@ function KnopikGame({
                 {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
               </section>
             )}
+            <p className="settings-section-title">Бонусы</p>
             <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
               <div className="promo-heading">
                 <span className="promo-symbol" aria-hidden="true">%</span>
@@ -3428,6 +3409,7 @@ function KnopikGame({
                 </div>
               )}
             </section>
+            <p className="settings-section-title">Дополнительно</p>
             <form
               className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
               onSubmit={(event) => {
@@ -3466,6 +3448,7 @@ function KnopikGame({
                 <div><button type="button" onClick={() => setResetConfirmOpen(false)}>ОТМЕНА</button><button className="confirm-reset" type="button" onClick={resetProgress}>СБРОСИТЬ</button></div>
               </div>
             )}
+            <p className="settings-section-title">Статистика</p>
             <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
           </section>
         </div>

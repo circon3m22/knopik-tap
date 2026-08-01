@@ -7239,6 +7239,461 @@ img,
   font-size: 5.8px;
 }
 
+/* iOS product grid and settings rebuild — v73 */
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet {
+  display: flex;
+  height: 100dvh;
+  max-height: none;
+  flex-direction: column;
+  padding:
+    calc(env(safe-area-inset-top) + 12px)
+    12px
+    calc(env(safe-area-inset-bottom) + 8px);
+  overflow: hidden !important;
+  color: #10283d;
+  background:
+    radial-gradient(circle at 90% 0%, rgb(194 226 255 / 42%), transparent 28%),
+    linear-gradient(180deg, #f8fafc, #edf2f6);
+}
+
+.shop-sheet .sheet-heading {
+  min-height: 46px;
+  flex: 0 0 auto;
+  padding: 0 3px 7px;
+}
+
+.shop-sheet .sheet-heading h2 {
+  margin: 0;
+  color: #10283d;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+}
+
+.shop-sheet .sheet-kicker {
+  margin: 0 0 3px;
+  color: #6e8191;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+}
+
+.shop-sheet .shop-wallet {
+  top: calc(env(safe-area-inset-top) + 13px);
+  right: 12px;
+  min-width: 98px;
+  min-height: 36px;
+  padding: 5px 7px 5px 10px;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 15px;
+  background: rgb(16 74 126 / 91%);
+  box-shadow: 0 8px 18px rgb(14 64 108 / 18%), inset 0 1px 0 rgb(255 255 255 / 22%);
+  backdrop-filter: blur(18px);
+}
+
+.shop-sheet .shop-wallet strong { font-size: 17px; }
+.shop-sheet .shop-categories {
+  min-height: 43px;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 16px;
+  background: rgb(117 139 157 / 13%);
+  box-shadow: inset 0 1px 3px rgb(25 49 68 / 6%);
+}
+
+.shop-sheet .shop-categories button {
+  min-height: 35px;
+  border-radius: 12px;
+  color: #697c8c;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.shop-sheet .shop-categories button.active {
+  color: #102e45;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 3px 10px rgb(24 47 65 / 10%), inset 0 1px 0 #fff;
+}
+
+.shop-sheet .shop-section-copy {
+  min-height: 43px;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 8px 3px 5px;
+  text-align: left;
+}
+
+.shop-sheet .shop-section-copy strong { font-size: 14px; font-weight: 900; }
+.shop-sheet .shop-section-copy span { display: block; color: #6e8190; font-size: 8px; }
+
+.shop-product-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  align-content: start;
+  padding: 1px 1px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.shop-product-grid::-webkit-scrollbar { display: none; }
+
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 246px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 82px minmax(70px, auto) 34px 42px;
+  gap: 7px 6px;
+  align-content: stretch;
+  margin: 0;
+  padding: 11px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 92%);
+  border-radius: 22px;
+  color: #102c42;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 8px 24px rgb(28 53 72 / 8%), inset 0 1px 0 #fff;
+  backdrop-filter: blur(18px) saturate(115%);
+  filter: none;
+  opacity: 1;
+  transform: none !important;
+}
+
+.shop-product-card::before,
+.shop-product-card::after { display: none !important; }
+
+.shop-product-card > .food-pack,
+.shop-product-card > .drink-pack,
+.shop-product-card > .hat-preview,
+.shop-product-card > .mohawk-preview {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 82px;
+  min-height: 0;
+  max-height: none;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  place-items: center;
+  align-self: stretch;
+  justify-self: stretch;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 34%, rgb(255 255 255 / 88%), transparent 44%),
+    linear-gradient(145deg, rgb(220 234 244 / 62%), rgb(242 247 250 / 78%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 92%);
+  filter: none;
+  transform: none !important;
+}
+
+.shop-product-card.food-card > .food-pack { background: linear-gradient(145deg, #fff9e9, #f4e8c9); }
+.shop-product-card.drink-card > .drink-pack { background: linear-gradient(145deg, #effbea, #d7efd2); }
+.shop-product-card.pitbull-card > .drink-pack { background: linear-gradient(145deg, #fff1e9, #f3d2c1); }
+.shop-product-card.cola-card > .drink-pack { background: linear-gradient(145deg, #fff0f1, #f0ccd0); }
+.shop-product-card.tea-card > .drink-pack { background: linear-gradient(145deg, #fff9e5, #ece2b5); }
+.shop-product-card.vita-card > .drink-pack { background: linear-gradient(145deg, #eaf9ff, #cce9ff); }
+
+.shop-product-card > .food-pack::before,
+.shop-product-card > .food-pack::after,
+.shop-product-card > .drink-pack::before,
+.shop-product-card > .drink-pack::after,
+.shop-product-card > .hat-preview::before,
+.shop-product-card > .hat-preview::after,
+.shop-product-card > .mohawk-preview::before,
+.shop-product-card > .mohawk-preview::after { display: none; }
+
+.shop-product-card .food-icon,
+.shop-product-card .drink-icon {
+  position: relative;
+  top: auto;
+  left: auto;
+  margin: 0;
+  filter: drop-shadow(0 8px 7px rgb(24 48 65 / 20%));
+  transform: scale(1.75) !important;
+}
+
+.shop-product-card .hat-preview img,
+.shop-product-card .mohawk-preview img {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 8px rgb(26 48 64 / 17%));
+  transform: none;
+}
+
+.shop-product-card .drink-pack > b {
+  right: 7px;
+  bottom: 7px;
+  padding: 4px 6px;
+  border: 0;
+  color: #fff;
+  background: rgb(16 48 71 / 72%);
+  box-shadow: none;
+  font-size: 5.5px;
+  backdrop-filter: blur(8px);
+}
+
+.shop-product-card > .food-copy {
+  min-width: 0;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: start;
+  padding: 0 1px;
+  text-align: left;
+}
+
+.shop-product-card .food-copy small {
+  display: block;
+  overflow: hidden;
+  color: #748593;
+  font-size: 5.8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-product-card .food-copy h3 {
+  display: -webkit-box;
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: #102c42;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.06;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.shop-product-card .food-copy p {
+  display: -webkit-box;
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: #6a7c8b;
+  font-size: 7px;
+  font-weight: 650;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.shop-product-card > .food-price {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  grid-column: 1;
+  grid-row: 3;
+  align-items: baseline;
+  gap: 3px;
+  justify-self: stretch;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 11px;
+  color: #102f48;
+  background: #edf3f7;
+  box-shadow: none;
+}
+
+.shop-product-card > .food-price strong { font-size: 12px; }
+.shop-product-card > .food-price span { font-size: 5.5px; }
+
+.shop-product-card > .quantity-picker {
+  min-width: 69px;
+  min-height: 34px;
+  grid-column: 2;
+  grid-row: 3;
+  grid-template-columns: 22px 24px 22px;
+  align-self: stretch;
+  border: 0;
+  border-radius: 11px;
+  background: #edf3f7;
+  box-shadow: none;
+}
+
+.shop-product-card > .quantity-picker button { width: 22px; min-height: 30px; font-size: 13px; }
+.shop-product-card > .quantity-picker strong { font-size: 10px; }
+
+.shop-product-card > .shop-buy-button {
+  min-height: 42px;
+  grid-column: 1 / -1;
+  grid-row: 4;
+  border-radius: 12px;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  box-shadow: 0 7px 15px rgb(8 101 211 / 16%), inset 0 1px 0 rgb(255 255 255 / 24%);
+}
+
+.shop-clothes-grid .shop-product-card {
+  grid-template-rows: 110px minmax(76px, auto) 34px 42px;
+}
+
+.shop-clothes-grid .shop-product-card > .hat-preview,
+.shop-clothes-grid .shop-product-card > .mohawk-preview { height: 110px; }
+.shop-clothes-grid .shop-product-card > .food-price { grid-column: 1 / -1; }
+
+/* Main buff row: no shared plate, larger isolated icons. */
+.game-shell .boost-row {
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.game-shell .boost-row .inventory-item {
+  min-height: 72px;
+  grid-template-rows: 43px auto 16px;
+  padding: 5px 1px 4px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 17px;
+  background: var(--adaptive-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 15%), 0 5px 12px rgb(5 20 33 / 7%);
+  backdrop-filter: blur(12px);
+}
+
+.game-shell .boost-row .drink-icon {
+  width: 23px;
+  height: 35px;
+  filter: drop-shadow(0 6px 5px rgb(5 20 32 / 25%));
+}
+
+.game-shell .boost-row .food-icon {
+  transform: scale(1.18) perspective(120px) rotateY(-7deg);
+}
+
+.game-shell .boost-row .inventory-copy strong { font-size: 6.8px; }
+
+/* Settings: clean grouped iOS layout for every account. */
+.modal-backdrop:not(.tutorial-backdrop) .settings-sheet {
+  display: block;
+  height: 100dvh;
+  max-height: none;
+  padding:
+    calc(env(safe-area-inset-top) + 14px)
+    14px
+    calc(env(safe-area-inset-bottom) + 28px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: #102c42;
+  background:
+    radial-gradient(circle at 86% 0%, rgb(199 228 255 / 40%), transparent 27%),
+    #f2f5f8;
+  scrollbar-width: none;
+}
+
+.settings-sheet::-webkit-scrollbar { display: none; }
+.settings-sheet .sheet-heading { min-height: 56px; margin: 0; padding: 0 3px 10px; }
+.settings-sheet .sheet-heading h2 { color: #102b41; font-size: 29px; font-weight: 900; letter-spacing: -0.06em; }
+.settings-sheet .sheet-kicker { margin-bottom: 4px; color: #7a8b99; font-size: 6px; }
+
+.settings-section-title {
+  margin: 15px 4px 6px;
+  color: #728492;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.settings-sheet .account-settings,
+.settings-sheet .setting-row,
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row,
+.settings-sheet .settings-action,
+.settings-sheet .reset-confirm,
+.settings-sheet .stats-line {
+  border: 1px solid rgb(255 255 255 / 92%);
+  border-radius: 20px;
+  color: #102d44;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 8px 22px rgb(28 52 70 / 7%), inset 0 1px 0 #fff;
+  backdrop-filter: blur(18px) saturate(110%);
+}
+
+.settings-sheet .account-settings { display: grid; gap: 12px; padding: 14px; }
+.settings-sheet .account-summary { min-height: 55px; gap: 12px; }
+.settings-sheet .account-avatar {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
+  border: 2px solid rgb(255 255 255 / 75%);
+  border-radius: 17px;
+  background: linear-gradient(145deg, #1688f4, #075ac8);
+  box-shadow: 0 8px 17px rgb(9 101 211 / 19%), inset 0 1px 0 rgb(255 255 255 / 28%);
+  font-size: 18px;
+}
+
+.settings-sheet .account-summary strong { color: #102d44; font-size: 16px; }
+.settings-sheet .account-summary span { color: #718391; font-size: 8px; }
+.settings-sheet .password-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.settings-sheet .password-form input { min-width: 0; min-height: 42px; border: 0; border-radius: 13px; background: #edf2f6; }
+.settings-sheet .password-form button { min-height: 42px; padding-inline: 11px; border-radius: 13px; font-size: 7px; }
+.settings-sheet .settings-sign-out { min-height: 42px; border-radius: 13px; color: #d43a3a; background: #fff1f1; }
+
+.settings-sheet .setting-row { min-height: 64px; padding: 11px 14px; }
+.settings-sheet .setting-row strong { color: #102d44; font-size: 12px; }
+.settings-sheet .setting-row span { color: #728491; font-size: 8px; }
+.settings-sheet .switch { background: #cbd5dc; }
+.settings-sheet .switch[aria-checked="true"] { background: #1684ed; }
+
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row { padding: 14px; }
+.settings-sheet .difficulty-heading { padding: 0; background: transparent; }
+.settings-sheet .difficulty-heading strong,
+.settings-sheet .promo-heading strong,
+.settings-sheet .cheat-row strong { color: #102d44; }
+
+.settings-sheet .promo-form input,
+.settings-sheet .cheat-row input { border: 0; background: #edf2f6; }
+.settings-sheet .promo-form button,
+.settings-sheet .cheat-row button { background: #147ee9; }
+.settings-sheet .promo-code-row { background: #edf3f7; }
+
+.settings-sheet .settings-action {
+  min-height: 52px;
+  margin-top: 8px;
+  padding: 0 14px;
+  color: #126fc8;
+  font-size: 8px;
+  text-align: left;
+}
+
+.settings-sheet .danger-action { color: #d33c3c; }
+.settings-sheet .stats-line { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 12px 6px; }
+.settings-sheet .stats-line span { display: grid; gap: 3px; justify-items: center; color: #748593; font-size: 5.5px; }
+.settings-sheet .stats-line strong { color: #102d44; font-size: 15px; }
+
+@media (max-width: 370px) {
+  .shop-product-grid { gap: 7px; }
+  .shop-product-grid .shop-product-card { min-height: 238px; padding: 9px; }
+  .shop-product-card .food-copy h3 { font-size: 12px; }
+  .shop-product-card > .quantity-picker { min-width: 62px; grid-template-columns: 20px 22px 20px; }
+  .settings-sheet .password-form { grid-template-columns: 1fr; }
+}
+
 /* VitaPower inventory, shield and showcase */
 .game-shell .boost-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
@@ -7697,4 +8152,117 @@ img,
   .shop-showcase-card > .mohawk-preview { min-height: 140px; }
   .shop-showcase-card .food-copy p { display: none; }
   .shop-showcase-card .food-copy h3 { font-size: 16px; }
+}
+
+/* Final shop shell reset: remove every legacy showcase behavior. */
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet {
+  display: flex;
+  height: 100dvh;
+  max-height: none;
+  flex-direction: column;
+  padding:
+    calc(env(safe-area-inset-top) + 12px)
+    12px
+    calc(env(safe-area-inset-bottom) + 8px);
+  overflow: hidden !important;
+  background:
+    radial-gradient(circle at 90% 0%, rgb(194 226 255 / 42%), transparent 28%),
+    linear-gradient(180deg, #f8fafc, #edf2f6);
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .sheet-heading {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 55px;
+  margin: 0;
+  padding: 0 3px 8px;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .sheet-heading h2 {
+  margin: 0;
+  color: #10283d;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-wallet {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 13px);
+  right: 12px;
+  left: auto;
+  width: auto;
+  min-width: 104px;
+  max-width: 44%;
+  min-height: 38px;
+  margin: 0;
+  padding: 5px 7px 5px 10px;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #157edc, #0b579e);
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-categories {
+  position: static;
+  width: 100%;
+  min-height: 43px;
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 16px;
+  background: rgb(117 139 157 / 13%);
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-section-copy {
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 9px 3px 6px;
+  text-align: left;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-section-copy strong {
+  color: #102c42;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-section-copy span {
+  display: block;
+  color: #6e8190;
+  font-size: 8px;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-product-grid {
+  width: 100%;
+  margin: 0;
+}
+
+/* Compressed photographic buff artwork. */
+.game-shell .boost-row .buff-icon-image {
+  display: block;
+  width: 42px;
+  height: 42px;
+  align-self: center;
+  justify-self: center;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 6px rgb(8 28 43 / 22%));
+  transform: translateZ(0);
+  user-select: none;
+}
+
+.shop-product-card .shop-buff-image {
+  display: block;
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 9px 8px rgb(19 44 63 / 20%));
+  user-select: none;
+}
+
+.shop-product-card > .food-pack:has(.shop-buff-image),
+.shop-product-card > .drink-pack:has(.shop-buff-image) {
+  padding: 2px;
 }
