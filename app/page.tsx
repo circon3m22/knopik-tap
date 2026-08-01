@@ -3031,7 +3031,7 @@ function KnopikGame({
                   : finishTutorial()
               }
             >
-              {tutorialStep === tutorialSlides.length - 1 ? "НАЧАТЬ ИГРУ" : "ДАЛЬШЕ"}
+              {tutorialStep === tutorialSlides.length - 1 ? "Начать игру" : "Дальше"}
             </button>
           </section>
         </div>
@@ -3044,7 +3044,7 @@ function KnopikGame({
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet shop-sheet" aria-labelledby="shop-title">
+          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Всё для Кнопика</h2></div>
             </div>
@@ -3060,7 +3060,15 @@ function KnopikGame({
                 type="button"
                 role="tab"
                 aria-selected={shopCategory === "food"}
+                tabIndex={shopCategory === "food" ? 0 : -1}
                 onClick={() => setShopCategory("food")}
+                onKeyDown={(event) => {
+                  if (["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) {
+                    event.preventDefault();
+                    setShopCategory("clothes");
+                    (event.currentTarget.nextElementSibling as HTMLButtonElement | null)?.focus();
+                  }
+                }}
               >
                 Бафы
               </button>
@@ -3069,7 +3077,15 @@ function KnopikGame({
                 type="button"
                 role="tab"
                 aria-selected={shopCategory === "clothes"}
+                tabIndex={shopCategory === "clothes" ? 0 : -1}
                 onClick={() => setShopCategory("clothes")}
+                onKeyDown={(event) => {
+                  if (["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) {
+                    event.preventDefault();
+                    setShopCategory("food");
+                    (event.currentTarget.previousElementSibling as HTMLButtonElement | null)?.focus();
+                  }
+                }}
               >
                 Одежда
               </button>
@@ -3263,7 +3279,7 @@ function KnopikGame({
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet settings-sheet" aria-labelledby="settings-title">
+          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
             </div>
@@ -3284,22 +3300,27 @@ function KnopikGame({
                   void submitPasswordChange();
                 }}
               >
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(event) => {
-                    setNewPassword(event.currentTarget.value);
-                    setAccountMessage("");
-                  }}
-                  placeholder="Новый пароль"
-                  autoComplete="new-password"
-                  minLength={6}
-                  required
-                />
-                <button type="submit" disabled={accountPending}>ПОМЕНЯТЬ ПАРОЛЬ</button>
+                <label>
+                  <span>Новый пароль</span>
+                  <input
+                    id="new-password"
+                    name="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.currentTarget.value);
+                      setAccountMessage("");
+                    }}
+                    placeholder="Минимум 6 символов"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                  />
+                </label>
+                <button type="submit" disabled={accountPending}>Сменить пароль</button>
               </form>
               {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
-              <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>ВЫЙТИ ИЗ АККАУНТА</button>
+              <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>Выйти из аккаунта</button>
             </div>
             <p className="settings-section-title">Игра</p>
             <div className="setting-row">
@@ -3339,7 +3360,7 @@ function KnopikGame({
                   disabled={difficultyPending || difficultyDraft === difficulty}
                   onClick={() => void submitDifficulty()}
                 >
-                  {difficultyPending ? "СОХРАНЕНИЕ…" : "СОХРАНИТЬ СЛОЖНОСТЬ"}
+                  {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
                 </button>
                 {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
               </section>
@@ -3360,38 +3381,46 @@ function KnopikGame({
                   void submitPromoCode();
                 }}
               >
-                <input
-                  type="text"
-                  value={promoCode}
-                  placeholder="ПРОМОКОД"
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  maxLength={32}
-                  required
-                  onChange={(event) => {
-                    setPromoCode(event.currentTarget.value.toUpperCase());
-                    setPromoMessage("");
-                  }}
-                />
-                {account.isAdmin && (
+                <label>
+                  <span>Промокод</span>
                   <input
-                    className="promo-amount"
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="1000000000"
-                    value={promoAmount}
-                    placeholder="СУММА"
+                    name="promo-code"
+                    type="text"
+                    value={promoCode}
+                    placeholder="Например, KNOPIK100"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={32}
                     required
                     onChange={(event) => {
-                      setPromoAmount(event.currentTarget.value);
+                      setPromoCode(event.currentTarget.value.toUpperCase());
                       setPromoMessage("");
                     }}
                   />
+                </label>
+                {account.isAdmin && (
+                  <label>
+                    <span>Сумма монет</span>
+                    <input
+                      className="promo-amount"
+                      name="promo-amount"
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max="1000000000"
+                      value={promoAmount}
+                      placeholder="100"
+                      required
+                      onChange={(event) => {
+                        setPromoAmount(event.currentTarget.value);
+                        setPromoMessage("");
+                      }}
+                    />
+                  </label>
                 )}
                 <button type="submit" disabled={promoPending}>
-                  {promoPending ? "ПОДОЖДИ…" : account.isAdmin ? "СОЗДАТЬ" : "АКТИВИРОВАТЬ"}
+                  {promoPending ? "Подождите…" : account.isAdmin ? "Создать" : "Активировать"}
                 </button>
               </form>
               {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
@@ -3435,17 +3464,17 @@ function KnopikGame({
                     setCheatMessage("");
                   }}
                 />
-                <button type="submit">ПРИМЕНИТЬ</button>
+                <button type="submit">Применить</button>
               </label>
               {cheatMessage && <small role="status">{cheatMessage}</small>}
             </form>
-            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>ПОВТОРИТЬ ОБУЧЕНИЕ <span>↗</span></button>
+            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>Повторить обучение <span>↗</span></button>
             {!resetConfirmOpen ? (
-              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>СБРОСИТЬ ПРОГРЕСС</button>
+              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>Сбросить прогресс</button>
             ) : (
               <div className="reset-confirm" role="alert">
                 <p>Удалить баланс, сейф, усталость, рекорды и настройки?</p>
-                <div><button type="button" onClick={() => setResetConfirmOpen(false)}>ОТМЕНА</button><button className="confirm-reset" type="button" onClick={resetProgress}>СБРОСИТЬ</button></div>
+                <div><button type="button" onClick={() => setResetConfirmOpen(false)}>Отмена</button><button className="confirm-reset" type="button" onClick={resetProgress}>Сбросить прогресс</button></div>
               </div>
             )}
             <p className="settings-section-title">Статистика</p>

@@ -1,0 +1,1154 @@
+/* KNOPIK interface system — the final cascade layer for every screen. */
+:root {
+  --ui-font: Inter, ui-rounded, "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ui-ink: #102a43;
+  --ui-muted: #63778a;
+  --ui-subtle: #8796a5;
+  --ui-blue: #0a73e8;
+  --ui-blue-strong: #0759ba;
+  --ui-blue-soft: #e8f3ff;
+  --ui-red: #cf3d43;
+  --ui-green: #16845b;
+  --ui-canvas: #f2f5f8;
+  --ui-surface: rgb(255 255 255 / 92%);
+  --ui-surface-solid: #fff;
+  --ui-line: rgb(24 54 78 / 11%);
+  --ui-shadow-sm: 0 8px 22px rgb(22 48 69 / 8%);
+  --ui-shadow-md: 0 18px 48px rgb(15 38 57 / 14%);
+  --ui-focus: #006fd6;
+  --ui-radius-sm: 13px;
+  --ui-radius-md: 19px;
+  --ui-radius-lg: 27px;
+  --ui-ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+html {
+  min-height: 100%;
+  font-family: var(--ui-font);
+  color: var(--ui-ink);
+  background: var(--ui-canvas);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+button,
+input {
+  font-family: var(--ui-font);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, input, [role="tab"], [role="switch"]):focus-visible {
+  outline: 3px solid var(--ui-focus) !important;
+  outline-offset: 3px !important;
+}
+
+:where(button, input):disabled {
+  cursor: not-allowed;
+}
+
+::selection {
+  color: #fff;
+  background: var(--ui-blue);
+}
+
+/* Account entry */
+.auth-screen {
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 20% 0%, rgb(90 178 255 / 20%), transparent 38%),
+    radial-gradient(circle at 92% 92%, rgb(91 211 190 / 13%), transparent 40%),
+    #f3f7fa;
+}
+
+.auth-card {
+  width: min(100%, 420px);
+  gap: 18px;
+  padding: clamp(24px, 7vw, 36px);
+  border: 1px solid rgb(255 255 255 / 90%);
+  border-radius: 32px;
+  color: var(--ui-ink);
+  background: rgb(255 255 255 / 84%);
+  box-shadow: var(--ui-shadow-md), inset 0 1px 0 #fff;
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+.auth-card .auth-kicker {
+  margin: 0;
+  color: var(--ui-blue);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+
+.auth-card h1 {
+  margin: -4px 0 0;
+  color: var(--ui-ink);
+  font-size: clamp(30px, 9vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -.045em;
+}
+
+.auth-card > p:not(.auth-kicker):not(.auth-error) {
+  margin: -7px 0 2px;
+  color: var(--ui-muted);
+  font-size: 15px;
+  line-height: 1.48;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 7px;
+  color: var(--ui-ink);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.auth-card input,
+.settings-sheet input {
+  min-height: 50px;
+  padding: 0 15px;
+  border: 1px solid var(--ui-line);
+  border-radius: 15px;
+  color: var(--ui-ink);
+  background: #f3f6f8;
+  box-shadow: inset 0 1px 2px rgb(17 44 65 / 4%);
+  font-size: 16px;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.auth-card input:focus,
+.settings-sheet input:focus {
+  border-color: rgb(10 115 232 / 42%);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgb(10 115 232 / 9%);
+}
+
+.auth-card > button {
+  min-height: 52px;
+  border: 0;
+  border-radius: 17px;
+  color: #fff;
+  background: var(--ui-blue);
+  box-shadow: 0 10px 24px rgb(10 115 232 / 24%), inset 0 1px 0 rgb(255 255 255 / 28%);
+  font-size: 15px;
+  font-weight: 780;
+}
+
+.auth-error {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 13px;
+  color: #a4212a;
+  background: #fff0f1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Main game */
+.game-shell {
+  --adaptive-ink: #fff;
+  --adaptive-muted: rgb(255 255 255 / 72%);
+  --adaptive-surface: rgb(8 24 38 / 20%);
+  --adaptive-border: rgb(255 255 255 / 24%);
+  min-height: 100dvh;
+  padding-top: calc(env(safe-area-inset-top) + 10px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+  color: var(--adaptive-ink);
+}
+
+.game-shell.state-calm.pale-calm,
+.game-shell.state-tired,
+.game-shell.state-warning,
+.game-shell.state-recovering.has-fatigue {
+  --adaptive-ink: #102a43;
+  --adaptive-muted: rgb(16 42 67 / 66%);
+  --adaptive-surface: rgb(255 255 255 / 58%);
+  --adaptive-border: rgb(20 50 74 / 10%);
+}
+
+.game-motion-layer {
+  width: min(100%, 560px);
+}
+
+.app-header {
+  gap: 8px;
+}
+
+.top-bar {
+  min-height: 34px;
+  padding-inline: 3px;
+}
+
+.brand-lockup strong {
+  color: var(--adaptive-ink) !important;
+  font-size: clamp(25px, 7vw, 31px);
+  font-weight: 900;
+  letter-spacing: .12em;
+  line-height: 1;
+}
+
+.mood-chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 999px;
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
+  font-size: 9px;
+  font-weight: 820;
+  letter-spacing: .06em;
+  backdrop-filter: blur(16px) saturate(130%);
+}
+
+.game-shell .level-strip {
+  min-height: 48px;
+  grid-template-columns: auto minmax(68px, 1fr) auto;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 17px;
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  box-shadow: 0 8px 22px rgb(8 28 44 / 7%), inset 0 1px 0 rgb(255 255 255 / 18%);
+  backdrop-filter: blur(16px) saturate(130%);
+}
+
+.game-shell .level-title,
+.game-shell .level-reward {
+  gap: 1px;
+}
+
+.game-shell .level-title > span,
+.game-shell .level-reward small {
+  color: var(--adaptive-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.game-shell .level-title strong,
+.game-shell .level-reward strong {
+  color: var(--adaptive-ink);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.game-shell .level-title strong small {
+  color: var(--adaptive-muted);
+  font-size: 9px;
+}
+
+.game-shell .level-track {
+  height: 12px;
+  padding: 2px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 999px;
+  background: rgb(8 27 42 / 19%);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 14%);
+}
+
+.game-shell .level-track > span {
+  height: 6px;
+  border-radius: 999px;
+  background: #2ba7f4;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 42%), 0 0 8px rgb(43 167 244 / 30%);
+}
+
+.game-shell .boost-row {
+  gap: 6px;
+}
+
+.game-shell .boost-row .inventory-item,
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  min-height: 68px;
+  grid-template-rows: 38px 14px;
+  gap: 2px;
+  padding: 6px 3px 7px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 18px;
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  box-shadow: 0 8px 18px rgb(8 27 42 / 7%), inset 0 1px 0 rgb(255 255 255 / 18%);
+  backdrop-filter: blur(14px) saturate(125%);
+}
+
+.game-shell .boost-row .inventory-item:disabled {
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  opacity: .55;
+  filter: saturate(.8);
+}
+
+.game-shell .boost-row .buff-icon-image {
+  width: 42px;
+  height: 42px;
+  max-width: 100%;
+  justify-self: center;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 6px rgb(5 21 34 / 16%));
+}
+
+.game-shell .boost-row .inventory-copy {
+  display: block;
+  grid-row: 2;
+  overflow: visible;
+  text-align: center;
+}
+
+.game-shell .boost-row .inventory-copy strong {
+  display: block;
+  overflow: hidden;
+  color: var(--adaptive-ink);
+  font-size: 9px;
+  font-weight: 790;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-shell .boost-row .inventory-copy small {
+  display: none;
+}
+
+.game-shell .boost-row .inventory-count:not(.is-price) {
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+
+.game-shell .boost-row .inventory-count.is-price {
+  position: absolute;
+  inset: auto 50% -7px auto;
+  min-width: 29px;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid rgb(255 228 129 / 78%);
+  border-radius: 999px;
+  color: #5f3c00;
+  background: #ffd35d;
+  box-shadow: 0 4px 11px rgb(66 44 0 / 18%), inset 0 1px 0 #fff2b5;
+  font-size: 9px;
+  transform: translateX(50%);
+}
+
+.game-shell .boost-row .inventory-count.is-price::before {
+  content: none;
+}
+
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  border-color: rgb(255 214 76 / 64%);
+  animation: quick-buy-ready 2.2s ease-in-out infinite;
+}
+
+.dog-button {
+  filter: drop-shadow(0 22px 34px rgb(13 38 59 / 18%));
+}
+
+.dog-button.has-vita-shield .portrait-surface {
+  box-shadow:
+    0 0 0 5px #42b8ff,
+    0 0 0 8px #d9f4ff,
+    0 0 24px 7px rgb(22 148 244 / 58%),
+    inset 0 0 20px rgb(57 179 255 / 18%) !important;
+}
+
+.dog-button.has-vita-shield::before {
+  opacity: 1 !important;
+  border-color: #7ad2ff !important;
+}
+
+.dog-button.has-vita-shield .vita-shield-ring {
+  opacity: 1 !important;
+  filter: saturate(1.25) brightness(1.06);
+}
+
+.game-data {
+  gap: 7px;
+}
+
+.game-shell .wallet-balance,
+.game-shell .wallet-balance strong,
+.game-shell .wallet-balance small {
+  color: var(--adaptive-ink) !important;
+}
+
+.wallet-balance small {
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .1em;
+}
+
+.wallet-balance strong {
+  font-weight: 870;
+}
+
+.vault-row {
+  gap: 8px;
+}
+
+.quick-save-button,
+.saved-balance {
+  min-height: 52px;
+  border-radius: 18px;
+}
+
+.quick-save-button {
+  color: #fff;
+  background: var(--ui-blue);
+  box-shadow: 0 9px 22px rgb(5 92 190 / 22%), inset 0 1px 0 rgb(255 255 255 / 25%);
+  font-size: 10px;
+}
+
+.quick-save-button:not(:active) {
+  transform: none !important;
+  filter: none !important;
+}
+
+.quick-save-button small,
+.saved-balance small {
+  font-size: 9px;
+}
+
+.saved-balance {
+  border: 1px solid var(--adaptive-border);
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  box-shadow: var(--ui-shadow-sm), inset 0 1px 0 rgb(255 255 255 / 24%);
+}
+
+.saved-balance strong {
+  color: var(--adaptive-ink);
+  font-size: clamp(20px, 5.5vw, 25px);
+}
+
+.bottom-bar {
+  min-height: 74px;
+  margin-bottom: 4px;
+  padding: 6px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 38px;
+  background: rgb(248 252 255 / 76%);
+  box-shadow: 0 16px 40px rgb(18 43 62 / 17%), inset 0 1px 0 #fff;
+  backdrop-filter: blur(26px) saturate(155%);
+}
+
+.bottom-bar button {
+  min-height: 60px;
+  border-radius: 31px;
+  color: #5a6e7f;
+  font-size: 10px;
+  font-weight: 730;
+}
+
+.bottom-bar button.active {
+  color: var(--ui-ink);
+  animation: none;
+}
+
+.nav-thumb {
+  top: 6px;
+  bottom: 6px;
+  border-radius: 31px;
+  background: #edf7ff;
+  box-shadow: 0 8px 20px rgb(32 76 108 / 13%), inset 0 1px 0 #fff;
+}
+
+/* Shared overlays */
+.modal-backdrop,
+.mini-game-backdrop {
+  background: rgb(10 25 38 / 38%);
+  backdrop-filter: blur(16px) saturate(115%);
+}
+
+.sheet,
+.tutorial-sheet {
+  color: var(--ui-ink);
+  background: rgb(244 247 250 / 97%);
+  box-shadow: 0 -18px 54px rgb(10 30 46 / 22%), inset 0 1px 0 #fff;
+}
+
+.sheet-heading h2,
+.tutorial-sheet h2 {
+  color: var(--ui-ink);
+  font-weight: 860;
+  letter-spacing: -.04em;
+}
+
+.sheet-kicker {
+  color: var(--ui-blue);
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: .13em;
+}
+
+.tutorial-sheet {
+  gap: 14px;
+  border: 1px solid rgb(255 255 255 / 84%);
+  border-radius: 30px;
+}
+
+.tutorial-sheet > p:not(.sheet-kicker) {
+  color: var(--ui-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.primary-button,
+.mini-primary {
+  min-height: 50px;
+  border: 0;
+  border-radius: 17px;
+  font-size: 14px;
+  font-weight: 780;
+}
+
+/* Shop */
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet {
+  width: 100%;
+  max-width: 720px;
+  gap: 0;
+  padding: calc(env(safe-area-inset-top) + 12px) 14px 0;
+  border-radius: 30px 30px 0 0;
+}
+
+.shop-sheet .sheet-heading {
+  min-height: 58px;
+  padding: 0 4px 10px;
+}
+
+.shop-sheet .sheet-heading h2 {
+  font-size: 28px;
+}
+
+.shop-sheet .shop-wallet {
+  min-height: 62px;
+  margin-bottom: 11px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--ui-blue);
+  box-shadow: 0 12px 27px rgb(10 115 232 / 21%), inset 0 1px 0 rgb(255 255 255 / 27%);
+}
+
+.shop-sheet .shop-wallet small {
+  font-size: 9px;
+}
+
+.shop-sheet .shop-wallet strong {
+  font-size: 22px;
+}
+
+.shop-sheet .shop-categories {
+  min-height: 46px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: 16px;
+  background: #e8edf1;
+}
+
+.shop-sheet .shop-categories button {
+  min-height: 38px;
+  border-radius: 12px;
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.shop-sheet .shop-categories button.active {
+  color: var(--ui-ink);
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(17 43 63 / 10%);
+}
+
+.shop-sheet .shop-section-copy {
+  gap: 3px;
+  padding: 0 3px 12px;
+}
+
+.shop-sheet .shop-section-copy strong {
+  color: var(--ui-ink);
+  font-size: 17px;
+}
+
+.shop-sheet .shop-section-copy span {
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-product-grid {
+  gap: 12px;
+  padding: 2px 1px calc(env(safe-area-inset-bottom) + 118px);
+  scroll-padding-bottom: calc(env(safe-area-inset-bottom) + 118px);
+}
+
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card {
+  height: auto;
+  min-height: 322px;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  grid-template-rows: 102px minmax(102px, auto) 40px 48px;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 22px;
+  background: var(--ui-surface-solid);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.shop-product-card > .food-pack,
+.shop-product-card > .drink-pack,
+.shop-clothes-grid .shop-product-card > .hat-preview,
+.shop-clothes-grid .shop-product-card > .mohawk-preview {
+  height: 102px;
+  border-radius: 16px;
+  background: #f1f5f8;
+}
+
+.shop-product-card .shop-buff-image {
+  width: 94px;
+  height: 94px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgb(18 45 67 / 13%));
+}
+
+.shop-product-card > .food-copy {
+  height: auto;
+  min-height: 102px;
+  overflow: visible;
+}
+
+.shop-product-card .food-copy small {
+  color: var(--ui-blue);
+  font-size: 9px;
+  font-weight: 820;
+  letter-spacing: .06em;
+}
+
+.shop-product-card .food-copy h3 {
+  min-height: 0;
+  margin: 4px 0 5px;
+  color: var(--ui-ink);
+  font-size: 16px;
+  line-height: 1.12;
+  letter-spacing: -.02em;
+}
+
+.shop-product-card .food-copy p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--ui-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.shop-product-card > .food-price,
+.shop-product-card > .quantity-picker {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 13px;
+}
+
+.shop-product-card > .food-price {
+  color: var(--ui-ink);
+  background: #eef3f7;
+}
+
+.shop-product-card > .food-price strong {
+  font-size: 16px;
+}
+
+.shop-product-card > .food-price span {
+  font-size: 9px;
+}
+
+.shop-product-card > .quantity-picker {
+  padding: 3px;
+  background: #eef3f7;
+}
+
+.shop-product-card > .quantity-picker button {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 10px;
+  color: var(--ui-ink);
+  background: #fff;
+  font-size: 18px;
+}
+
+.shop-product-card > .quantity-picker strong {
+  font-size: 13px;
+}
+
+.shop-product-card > .shop-buy-button,
+.shop-product-card > .shop-buy-button[class*="-action"] {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 9px;
+  border: 1px solid var(--ui-line);
+  border-radius: 15px;
+  color: var(--ui-ink);
+  background: #fff;
+  box-shadow: 0 5px 14px rgb(19 46 67 / 8%);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.shop-product-card > .shop-buy-button:disabled {
+  color: var(--ui-subtle);
+  background: #edf1f4;
+  box-shadow: none;
+  opacity: 1;
+}
+
+/* Settings */
+.modal-backdrop:not(.tutorial-backdrop) .settings-sheet {
+  width: 100%;
+  max-width: 720px;
+  padding: calc(env(safe-area-inset-top) + 16px) 14px calc(env(safe-area-inset-bottom) + 104px);
+  border-radius: 30px 30px 0 0;
+}
+
+.settings-sheet > * {
+  max-width: 600px;
+}
+
+.settings-sheet .sheet-heading {
+  min-height: 64px;
+  padding: 0 4px 14px;
+}
+
+.settings-sheet .sheet-heading h2 {
+  font-size: 30px;
+}
+
+.settings-sheet .settings-section-title {
+  margin: 22px 0 8px;
+  padding: 0 6px;
+  color: var(--ui-muted);
+  font-size: 11px;
+  font-weight: 820;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.settings-sheet .account-settings,
+.settings-sheet .setting-row,
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row,
+.settings-sheet .settings-action,
+.settings-sheet .reset-confirm,
+.settings-sheet .stats-line {
+  border: 1px solid var(--ui-line);
+  border-radius: 21px;
+  background: var(--ui-surface-solid);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.settings-sheet .account-settings,
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row {
+  gap: 15px;
+  padding: 16px;
+}
+
+.settings-sheet .account-summary {
+  min-height: 58px;
+}
+
+.settings-sheet .account-avatar {
+  width: 48px;
+  height: 48px;
+  flex-basis: 48px;
+  font-size: 18px;
+}
+
+.settings-sheet .account-summary strong,
+.settings-sheet .difficulty-heading strong,
+.settings-sheet .promo-heading strong,
+.settings-sheet .cheat-row strong {
+  color: var(--ui-ink);
+  font-size: 15px;
+}
+
+.settings-sheet .account-summary > div span,
+.settings-sheet .difficulty-heading span,
+.settings-sheet .promo-heading span,
+.settings-sheet .cheat-row > div span {
+  color: var(--ui-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.settings-sheet .password-form,
+.settings-sheet .promo-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.settings-sheet .password-form label,
+.settings-sheet .promo-form label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--ui-muted);
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.settings-sheet input {
+  height: 48px;
+  min-height: 48px;
+}
+
+.settings-sheet .password-form button,
+.settings-sheet .promo-form button,
+.settings-sheet .cheat-row label button,
+.settings-sheet .difficulty-save,
+.settings-sheet .settings-sign-out {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.settings-sheet .password-form button,
+.settings-sheet .promo-form button,
+.settings-sheet .cheat-row label button,
+.settings-sheet .difficulty-save {
+  color: #fff;
+  background: var(--ui-blue);
+  box-shadow: 0 8px 18px rgb(10 115 232 / 20%);
+}
+
+.settings-sheet .settings-sign-out {
+  color: var(--ui-red);
+  background: #fff0f1;
+}
+
+.settings-sheet .setting-row {
+  min-height: 76px;
+  padding: 14px 16px;
+}
+
+.settings-sheet .setting-row strong {
+  color: var(--ui-ink);
+  font-size: 15px;
+}
+
+.settings-sheet .setting-row > div span {
+  color: var(--ui-muted);
+  font-size: 11px;
+}
+
+.settings-sheet .switch {
+  width: 52px;
+  height: 32px;
+  min-height: 32px;
+  flex-basis: 52px;
+  background: #bac5ce;
+}
+
+.settings-sheet .switch[aria-checked="true"] {
+  background: var(--ui-blue);
+}
+
+.settings-sheet .difficulty-scale {
+  color: var(--ui-muted);
+  font-size: 10px;
+}
+
+.settings-sheet .promo-admin .promo-form {
+  grid-template-columns: minmax(0, 1fr) minmax(100px, .48fr);
+}
+
+.settings-sheet .promo-admin .promo-form button {
+  grid-column: 1 / -1;
+}
+
+.settings-sheet .promo-code-row {
+  padding: 12px;
+  border-radius: 15px;
+  background: #f0f4f7;
+}
+
+.settings-sheet .settings-action {
+  min-height: 56px;
+  padding: 0 16px;
+  color: var(--ui-ink);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.settings-sheet .danger-action {
+  color: var(--ui-red);
+}
+
+.settings-sheet .stats-line {
+  min-height: 76px;
+}
+
+.settings-sheet .stats-line span {
+  color: var(--ui-muted);
+  font-size: 9px;
+}
+
+.settings-sheet .stats-line strong {
+  color: var(--ui-ink);
+  font-size: 18px;
+}
+
+/* Roulette */
+.risk-strip,
+.risk-bet-control {
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 18px;
+  background: rgb(11 24 36 / 36%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 13%);
+  backdrop-filter: blur(14px);
+}
+
+.risk-strip-label,
+.risk-multiplier,
+.risk-bet-control {
+  color: #fff;
+}
+
+.risk-strip-label {
+  font-size: 11px;
+}
+
+.risk-wheel-shell {
+  filter: drop-shadow(0 24px 40px rgb(0 0 0 / 32%));
+}
+
+.risk-center small,
+.risk-center strong,
+.risk-center em {
+  text-shadow: 0 2px 10px rgb(0 0 0 / 38%);
+}
+
+/* Mini-games */
+.mini-game-backdrop {
+  padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px);
+}
+
+.mini-game-panel {
+  width: min(100%, 460px);
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 30px;
+  background: #142231;
+  box-shadow: 0 28px 72px rgb(0 0 0 / 45%), inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+.mini-mines .mini-game-panel {
+  background: #182a27;
+}
+
+.mini-game-topline {
+  grid-template-columns: 42px minmax(0, 1fr) 44px;
+}
+
+.mini-game-topline small,
+.mini-bet-card small,
+.mine-progress small {
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+
+.mini-game-topline h2 {
+  font-size: 25px;
+}
+
+.mini-close {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 24px;
+}
+
+.mini-bet-card > span,
+.mine-progress > span {
+  padding: 12px;
+  border-radius: 16px;
+}
+
+.mini-bet-card strong,
+.mine-progress strong {
+  font-size: 20px;
+}
+
+.mini-bet-control button {
+  min-height: 42px;
+  border-radius: 13px;
+  font-size: 12px;
+}
+
+.slot-machine {
+  gap: 7px;
+  padding: 14px;
+  border-radius: 26px;
+}
+
+.slot-reel-window {
+  height: 138px;
+}
+
+.slot-machine.is-spinning .slot-reel-face span,
+.slot-machine.is-spinning .slot-reel-face small {
+  filter: none;
+}
+
+.slot-reel-face small {
+  font-size: 8px;
+}
+
+.mini-primary {
+  font-size: 14px;
+}
+
+.mine-hint,
+.mini-stats {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.mine-tile {
+  min-height: 88px;
+}
+
+.mine-tile small {
+  font-size: 9px;
+}
+
+.mine-actions button {
+  min-height: 48px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+/* Interaction and adaptability */
+:where(.auth-card > button, .primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled) {
+  transition: transform 120ms var(--ui-ease), filter 150ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+:where(.auth-card > button, .primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled):active {
+  transform: scale(.96);
+}
+
+@keyframes quick-buy-ready {
+  50% { box-shadow: 0 0 0 2px rgb(255 211 71 / 19%), 0 8px 20px rgb(6 27 42 / 10%), inset 0 1px 0 rgb(255 255 255 / 22%); }
+}
+
+@media (min-width: 620px) {
+  .shop-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shop-product-grid .shop-product-card,
+  .shop-product-grid .shop-card + .shop-card {
+    min-height: 340px;
+  }
+}
+
+@media (max-width: 430px) {
+  .settings-sheet .password-form,
+  .settings-sheet .promo-redeem .promo-form,
+  .settings-sheet .cheat-row label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-sheet .password-form button,
+  .settings-sheet .promo-redeem .promo-form button,
+  .settings-sheet .cheat-row label button {
+    width: 100%;
+  }
+
+  .settings-sheet .promo-admin .promo-form {
+    grid-template-columns: minmax(0, 1fr) minmax(92px, .48fr);
+  }
+}
+
+@media (max-width: 370px) {
+  .game-shell .boost-row {
+    gap: 4px;
+  }
+
+  .game-shell .boost-row .inventory-item,
+  .game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+    min-height: 62px;
+    border-radius: 16px;
+  }
+
+  .game-shell .boost-row .buff-icon-image {
+    width: 38px;
+    height: 38px;
+  }
+
+  .game-shell .boost-row .inventory-copy strong {
+    font-size: 8px;
+  }
+
+  .shop-product-grid .shop-product-card,
+  .shop-product-grid .shop-card + .shop-card {
+    grid-template-columns: minmax(0, 1fr) 68px;
+    padding: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(button, input, [role="tab"], [role="switch"]):focus-visible {
+    outline-color: Highlight !important;
+  }
+
+  .nav-thumb,
+  .level-track > span,
+  .switch > span {
+    forced-color-adjust: none;
+  }
+}

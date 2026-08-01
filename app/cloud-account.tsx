@@ -440,7 +440,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         <form className="auth-card" onSubmit={submitLogin}>
           <p className="auth-kicker">KNOPIK TAP</p>
           <h1>Вход в игру</h1>
-          <p>Введи логин и пароль. Прогресс загрузится из облака.</p>
+          <p>Войди в профиль — прогресс загрузится из облака.</p>
           <label>
             <span>Логин</span>
             <input
@@ -464,7 +464,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
           </label>
           {loginError && <p className="auth-error" role="alert">{loginError}</p>}
           <button type="submit" disabled={loginPending}>
-            {loginPending ? "ВХОД..." : "ВОЙТИ"}
+            {loginPending ? "Входим…" : "Войти"}
           </button>
         </form>
       </main>

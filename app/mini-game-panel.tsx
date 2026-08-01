@@ -209,7 +209,7 @@ export function MiniGamePanel({
               aria-label="Размер ставки"
               onChange={(event) => setBet(Number(event.currentTarget.value))}
             />
-            <button type="button" onClick={() => setBet(balance)}>ВСЁ</button>
+            <button type="button" onClick={() => setBet(balance)}>Весь баланс</button>
           </div>
         )}
 
@@ -249,9 +249,9 @@ export function MiniGamePanel({
                 <strong>{slotOutcome.payout > 0 ? `+${slotOutcome.payout.toLocaleString("ru-RU")}` : `−${safeBet.toLocaleString("ru-RU")}`}</strong>
               </div>
             )}
-            {slotPhase === "ready" && <button className="mini-primary" type="button" onClick={spinSlots}>КРУТИТЬ БАРАБАНЫ</button>}
-            {slotPhase === "spinning" && <button className="mini-primary" type="button" disabled>ВРАЩЕНИЕ…</button>}
-            {slotPhase === "result" && <button className="mini-primary" type="button" onClick={onClose}>ВЕРНУТЬСЯ К КНОПИКУ</button>}
+            {slotPhase === "ready" && <button className="mini-primary" type="button" onClick={spinSlots}>Крутить барабаны</button>}
+            {slotPhase === "spinning" && <button className="mini-primary" type="button" disabled>Вращение…</button>}
+            {slotPhase === "result" && <button className="mini-primary" type="button" onClick={onClose}>Вернуться к Кнопику</button>}
             <p className="mini-stats">ИГР {stats.slotPlays} · ПОБЕД {stats.slotWins}</p>
           </>
         ) : (
@@ -284,13 +284,13 @@ export function MiniGamePanel({
             {minePhase === "ready" && <p className="mine-hint">Выбери одну кнопку. Четыре безопасны, под одной спрятана мина.</p>}
             {minePhase === "safe" && (
               <div className="mine-actions">
-                <button type="button" onClick={cashOutMines}>ЗАБРАТЬ {mineCurrentPayout.toLocaleString("ru-RU")}</button>
-                <button type="button" onClick={continueMines}>ИДТИ ДАЛЬШЕ</button>
+                <button type="button" onClick={cashOutMines}>Забрать {mineCurrentPayout.toLocaleString("ru-RU")}</button>
+                <button type="button" onClick={continueMines}>Идти дальше</button>
               </div>
             )}
             {minePhase === "lost" && <div className="mini-result is-loss"><small>МИНА</small><strong>−{safeBet.toLocaleString("ru-RU")}</strong></div>}
             {minePhase === "cashed" && <div className="mini-result is-win"><small>МОНЕТЫ ЗАБРАНЫ</small><strong>+{mineCurrentPayout.toLocaleString("ru-RU")}</strong></div>}
-            {(minePhase === "lost" || minePhase === "cashed") && <button className="mini-primary" type="button" onClick={onClose}>ВЕРНУТЬСЯ К КНОПИКУ</button>}
+            {(minePhase === "lost" || minePhase === "cashed") && <button className="mini-primary" type="button" onClick={onClose}>Вернуться к Кнопику</button>}
             <p className="mini-stats">ИГР {stats.minePlays} · ВЫВОДОВ {stats.mineWins} · МИН {stats.mineLosses}</p>
           </>
         )}
