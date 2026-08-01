@@ -2577,7 +2577,7 @@ function KnopikGame({
             aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
           >
             <div className="level-title">
-              <span>УРОВЕНЬ</span>
+              <span>LVL</span>
               <strong>{levelState.level}<small>из {MAX_LEVEL}</small></strong>
             </div>
             <div className="level-progress-block">

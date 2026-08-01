@@ -8460,3 +8460,91 @@ img,
   .game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled),
   .vita-shield-ring { animation: none; }
 }
+
+/* v76: reachable final shop row and unmistakable active shield. */
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-product-grid {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 118px);
+  scroll-padding-bottom: calc(env(safe-area-inset-bottom) + 118px);
+}
+
+.dog-button.has-vita-shield .portrait-surface {
+  border-color: #8ce8ff;
+  box-shadow:
+    0 22px 46px rgb(20 93 151 / 24%),
+    0 0 0 3px rgb(13 107 196 / 76%),
+    0 0 28px rgb(43 195 255 / 72%),
+    inset 0 0 0 2px rgb(218 250 255 / 80%);
+}
+
+.dog-button.has-vita-shield::before {
+  position: absolute;
+  z-index: 20;
+  inset: -8px;
+  padding: 8px;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 0deg,
+      #f8feff 0 4%,
+      #62dcff 8% 17%,
+      #064c9e 21% 30%,
+      #d8f9ff 35% 42%,
+      #1389d6 47% 58%,
+      #8aeaff 63% 71%,
+      #053d86 76% 86%,
+      #55d3ff 91% 96%,
+      #f8feff 100%
+    );
+  box-shadow:
+    0 0 0 2px rgb(205 247 255 / 88%),
+    0 0 28px rgb(31 181 246 / 86%),
+    inset 0 0 12px rgb(255 255 255 / 84%);
+  content: "";
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: vita-shield-metal 2.8s linear infinite;
+}
+
+.dog-button.has-vita-shield .vita-shield-ring {
+  inset: -0.4%;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dog-button.has-vita-shield::before { animation: none; }
+}
+
+/* v76: compact machined level meter. */
+.game-shell .level-title > span {
+  color: var(--adaptive-muted);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+}
+
+.game-shell .level-track {
+  position: relative;
+  height: 10px;
+  padding: 2px;
+  overflow: hidden;
+  border: 1px solid rgb(76 97 114 / 34%);
+  border-radius: 99px;
+  background: rgb(53 70 84 / 24%);
+  box-shadow:
+    inset 0 2px 3px rgb(6 20 31 / 24%),
+    0 1px 0 rgb(255 255 255 / 48%);
+}
+
+.game-shell .level-track > span {
+  position: relative;
+  height: 100%;
+  border: 1px solid rgb(121 210 255 / 72%);
+  border-radius: 99px;
+  background: #178fe8;
+  box-shadow:
+    inset 0 1px 0 rgb(224 248 255 / 76%),
+    inset 0 -1px 0 rgb(4 75 145 / 46%),
+    0 0 7px rgb(23 143 232 / 36%);
+}
