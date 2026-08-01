@@ -6340,15 +6340,28 @@ img,
 
 .risk-dial-rotor {
   position: absolute;
-  inset: 0;
+  inset: 3px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 36% 26%, rgb(255 255 255 / 19%), transparent 25%),
     radial-gradient(circle, transparent 0 59%, rgb(0 0 0 / 15%) 60% 100%),
     conic-gradient(from 0deg, #b5f84c 0deg, #69cf24 var(--risk-chance), #3a424a var(--risk-chance), #171d24 360deg);
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 9%), inset 0 -16px 30px rgb(0 0 0 / 27%);
+  -webkit-clip-path: circle(49.4% at 50% 50%);
+  clip-path: circle(49.4% at 50% 50%);
   transform: rotate(var(--risk-wheel-rotation));
   will-change: transform;
+}
+
+.risk-dial::after {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  border: 5px solid #202830;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / 16%), inset 0 -2px 3px rgb(0 0 0 / 45%);
+  content: "";
+  pointer-events: none;
 }
 
 .risk-dial-rotor::before {
