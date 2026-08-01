@@ -71,6 +71,7 @@ export function MiniGamePanel({
   onClose,
   onTick,
 }: MiniGamePanelProps) {
+  const [sessionDifficulty] = useState(difficulty);
   const [bet, setBet] = useState(Math.max(1, balance));
   const [lockedBet, setLockedBet] = useState<number | null>(null);
   const [slotPhase, setSlotPhase] = useState<"ready" | "spinning" | "result">("ready");
@@ -79,6 +80,7 @@ export function MiniGamePanel({
   const [slotOutcome, setSlotOutcome] = useState<SlotOutcome | null>(null);
   const [minePhase, setMinePhase] = useState<"ready" | "playing" | "safe" | "lost" | "cashed">("ready");
   const [mineRound, setMineRound] = useState(0);
+  const [previousMineIndex, setPreviousMineIndex] = useState<number | null>(null);
   const [mineTiles, setMineTiles] = useState<MineTile[]>(
     () => Array.from({ length: 5 }, () => "hidden"),
   );
@@ -113,7 +115,7 @@ export function MiniGamePanel({
 
   const spinSlots = () => {
     if (slotPhase !== "ready" || !commit()) return;
-    const outcome = createSlotOutcome(safeBet, difficulty);
+    const outcome = createSlotOutcome(safeBet, sessionDifficulty);
     setSlotOutcome(null);
     setSlotPhase("spinning");
     setReelAngles(outcome.reels.map((symbol, index) => (
@@ -135,9 +137,15 @@ export function MiniGamePanel({
   const chooseMineTile = (selectedIndex: number) => {
     if (minePhase !== "ready" && minePhase !== "playing") return;
     if (!commit()) return;
-    const outcome = createMinePickOutcome(selectedIndex, difficulty);
+    const outcome = createMinePickOutcome(
+      selectedIndex,
+      sessionDifficulty,
+      Math.random,
+      previousMineIndex,
+    );
     const tiles: MineTile[] = Array.from({ length: 5 }, () => "hidden");
     tiles[outcome.mineIndex] = "mine";
+    setPreviousMineIndex(outcome.mineIndex);
     if (outcome.safe) tiles[selectedIndex] = "safe";
     setMineTiles(tiles);
     onTick();

@@ -131,12 +131,15 @@ export function createMinePickOutcome(
   selectedIndex: number,
   difficulty: number = DEFAULT_DIFFICULTY,
   random: () => number = Math.random,
+  previousMineIndex: number | null = null,
 ): MinePickOutcome {
   const selected = Math.min(4, Math.max(0, Math.floor(selectedIndex)));
   const safe = unit(random) < mineSafeChance(difficulty);
   if (!safe) return { safe: false, mineIndex: selected };
 
-  const safeMineIndexes = [0, 1, 2, 3, 4].filter((index) => index !== selected);
+  const safeMineIndexes = [0, 1, 2, 3, 4].filter(
+    (index) => index !== selected && index !== previousMineIndex,
+  );
   const mineIndex = safeMineIndexes[Math.floor(unit(random) * safeMineIndexes.length)] ?? 0;
   return { safe: true, mineIndex };
 }

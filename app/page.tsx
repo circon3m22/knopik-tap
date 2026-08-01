@@ -61,7 +61,9 @@ import {
   difficultyRewardMultiplier,
   difficultyTiredChanceMultiplier,
   difficultyTiredSnapMultiplier,
+  difficultyUltraFailureChance,
   difficultyUltraDeadlineMultiplier,
+  difficultyWithBalancePenalty,
 } from "./difficulty-engine";
 import {
   CloudAccountGate,
@@ -332,7 +334,10 @@ function KnopikGame({
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
   const settingsRef = useRef(settings);
-  const difficultyRef = useRef(clampDifficulty(difficulty));
+  const configuredDifficultyRef = useRef(clampDifficulty(difficulty));
+  const difficultyRef = useRef(
+    difficultyWithBalancePenalty(difficulty, coins.walletCoins),
+  );
   const hasbulaRedeemedRef = useRef(false);
   const statsRef = useRef(stats);
   const levelStateRef = useRef(levelState);
@@ -354,6 +359,7 @@ function KnopikGame({
   const overheatTriggeredRef = useRef(false);
   const ultraDeadlineRef = useRef(3_000);
   const ultraTwoSecondRewardRef = useRef(400);
+  const ultraDoomedRef = useRef(false);
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -436,6 +442,10 @@ function KnopikGame({
       setCoins((current) => {
         const next = updater(current);
         coinsRef.current = next;
+        difficultyRef.current = difficultyWithBalancePenalty(
+          configuredDifficultyRef.current,
+          next.walletCoins,
+        );
         return next;
       });
     },
@@ -551,6 +561,10 @@ function KnopikGame({
           );
 
       coinsRef.current = loadedCoins;
+      difficultyRef.current = difficultyWithBalancePenalty(
+        configuredDifficultyRef.current,
+        loadedCoins.walletCoins,
+      );
       settingsRef.current = saved.settings;
       statsRef.current = loadedStats;
       levelStateRef.current = loadedLevel;
@@ -619,7 +633,11 @@ function KnopikGame({
 
   useEffect(() => {
     const normalized = clampDifficulty(difficulty);
-    difficultyRef.current = normalized;
+    configuredDifficultyRef.current = normalized;
+    difficultyRef.current = difficultyWithBalancePenalty(
+      normalized,
+      coinsRef.current.walletCoins,
+    );
     setDifficultyDraft(normalized);
   }, [difficulty]);
 
@@ -1182,6 +1200,8 @@ function KnopikGame({
               )
           : Math.random,
       );
+      ultraDoomedRef.current =
+        Math.random() < difficultyUltraFailureChance(difficultyRef.current);
       ultraAllowedRef.current = currentState !== "tired";
       holdingRef.current = true;
       ultraActiveRef.current = false;
@@ -1284,6 +1304,12 @@ function KnopikGame({
           return;
         }
         registerTap(point.x, point.y);
+        return;
+      }
+
+      if (ultraDoomedRef.current) {
+        overheatTriggeredRef.current = true;
+        triggerBite(true);
         return;
       }
 
@@ -2840,7 +2866,7 @@ function KnopikGame({
           key={`${miniGame}-${miniGameSession}`}
           kind={miniGame}
           balance={coins.walletCoins}
-          difficulty={difficulty}
+          difficulty={difficultyWithBalancePenalty(difficulty, coins.walletCoins)}
           canChooseBet={mohawkEquipped}
           stats={miniGameStats}
           onCommitBet={commitMiniGameBet}

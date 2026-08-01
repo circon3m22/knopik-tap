@@ -26,7 +26,9 @@ import {
   difficultyRiskChance,
   difficultyTiredChanceMultiplier,
   difficultyTiredSnapMultiplier,
+  difficultyUltraFailureChance,
   difficultyUltraDeadlineMultiplier,
+  difficultyWithBalancePenalty,
 } from "../app/difficulty-engine.ts";
 import {
   createMinePickOutcome,
@@ -248,8 +250,16 @@ test("difficulty 50 preserves every current gameplay coefficient exactly", () =>
   assert.equal(difficultyLuckMultiplier(50), 1);
   assert.equal(difficultyFatigueMultiplier(50), 1);
   assert.equal(difficultyUltraDeadlineMultiplier(50), 1);
+  assert.equal(difficultyUltraFailureChance(50), 0.2);
   assert.equal(difficultyDuration(90_000, 50), 90_000);
   assert.equal(difficultyRiskChance(50, 50), 58);
+});
+
+test("active balance above 20,000 secretly raises effective difficulty", () => {
+  assert.equal(difficultyWithBalancePenalty(50, 20_000), 50);
+  assert.equal(difficultyWithBalancePenalty(50, 20_001), 55);
+  assert.equal(difficultyWithBalancePenalty(50, 100_000), 80);
+  assert.equal(difficultyWithBalancePenalty(80, 100_000), 100);
 });
 
 test("hidden difficulty consistently shifts farming, patience, fatigue, and luck", () => {
@@ -267,6 +277,8 @@ test("hidden difficulty consistently shifts farming, patience, fatigue, and luck
   assert.ok(difficultyDuration(90_000, 100) > 90_000);
   assert.ok(difficultyUltraDeadlineMultiplier(0) > 1);
   assert.ok(difficultyUltraDeadlineMultiplier(100) < 1);
+  assert.equal(difficultyUltraFailureChance(0), 0);
+  assert.equal(difficultyUltraFailureChance(100), 0.4);
 });
 
 test("real wheel chance changes while difficulty 50 keeps the existing +8 bonus", () => {
@@ -326,6 +338,9 @@ test("five-button game supports hidden difficulty and progressive cashout", () =
   assert.deepEqual(hard, { safe: false, mineIndex: 2 });
   assert.equal(createMinePickOutcome(1, 0, () => 0.999).safe, true);
   assert.equal(createMinePickOutcome(1, 100, () => 0).safe, false);
+  const movedMine = createMinePickOutcome(2, 50, () => 0, standard.mineIndex);
+  assert.equal(movedMine.safe, true);
+  assert.notEqual(movedMine.mineIndex, standard.mineIndex);
   assert.equal(minePayout(1_000, 1), 1_180);
   assert.equal(minePayout(1_000, 3), 1_840);
 });

@@ -1,6 +1,7 @@
 export const DEFAULT_DIFFICULTY = 50;
 export const MIN_DIFFICULTY = 0;
 export const MAX_DIFFICULTY = 100;
+export const BALANCE_DIFFICULTY_THRESHOLD = 20_000;
 
 function finiteOr(value: number, fallback: number) {
   return Number.isFinite(value) ? value : fallback;
@@ -13,6 +14,26 @@ export function clampDifficulty(value: number): number {
       Math.max(MIN_DIFFICULTY, finiteOr(value, DEFAULT_DIFFICULTY)),
     ),
   );
+}
+
+/**
+ * Active balances above 20,000 secretly make every difficulty-driven system
+ * harsher. Crossing the threshold adds five points immediately, then the
+ * penalty grows smoothly to +30 points at 100,000 active coins.
+ */
+export function difficultyWithBalancePenalty(
+  configuredDifficulty: number,
+  activeBalance: number,
+): number {
+  const balance = Math.max(0, finiteOr(activeBalance, 0));
+  if (balance <= BALANCE_DIFFICULTY_THRESHOLD) {
+    return clampDifficulty(configuredDifficulty);
+  }
+  const growth = Math.min(
+    25,
+    ((balance - BALANCE_DIFFICULTY_THRESHOLD) / 80_000) * 25,
+  );
+  return clampDifficulty(configuredDifficulty + 5 + growth);
 }
 
 function difficultyCurve(
@@ -64,6 +85,11 @@ export function difficultyFatigueMultiplier(difficulty: number): number {
 /** Scales the hidden safe window of ultra tap. */
 export function difficultyUltraDeadlineMultiplier(difficulty: number): number {
   return difficultyCurve(difficulty, 1.4, 1, 0.82);
+}
+
+/** Hidden chance that a valid ultra run is doomed: 0% / 20% / 40%. */
+export function difficultyUltraFailureChance(difficulty: number): number {
+  return difficultyCurve(difficulty, 0, 0.2, 0.4);
 }
 
 export function difficultyDuration(baseMs: number, difficulty: number): number {
