@@ -113,7 +113,7 @@ const TIRED_SNAP_CHANCE = 0.04;
 const LAST_TAP_CHANCE = 0.0025;
 const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
-const DOG_FOOD_PRICE = 500;
+const DOG_FOOD_PRICE = 150;
 const HASBIK_HAT_PRICE = 1_500;
 const MOHAWK_PRICE = 3_000;
 const MOHAWK_RISK_BONUS = 1.08;
@@ -1781,7 +1781,7 @@ function KnopikGame({
     }));
     setVitaPowerCount((current) => Math.min(10, current + quantity));
     setVitaPowerQuantity(1);
-    setShopMessage(`VitaPower ×${quantity} добавлен в запас`);
+    setShopMessage(`Пепси ×${quantity} добавлена в запас`);
     getSound().purchase();
     vibrate([18, 22, 42], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
@@ -2324,13 +2324,6 @@ function KnopikGame({
     });
     setShopSlide(nearest);
   };
-  const moveShopCarousel = (direction: -1 | 1) => {
-    const next = Math.min(shopSlideCount - 1, Math.max(0, shopSlide + direction));
-    const target = shopCarouselRef.current?.children[next] as HTMLElement | undefined;
-    target?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-    setShopSlide(next);
-    getSound().uiPress();
-  };
   const remainingDrinkSlots = Math.max(0, 10 - drinkCount);
   const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
   const canBuyDrink =
@@ -2681,7 +2674,7 @@ function KnopikGame({
           </button>
           <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
             <span className="drink-icon drink-vita" aria-hidden="true"><i /></span>
-            <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Vita"}</strong><small>Защита баланса</small></span>
+            <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
             <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : vitaPowerCount || (canQuickBuyVitaPower ? VITA_POWER_PRICE : 0)}</b>
           </button>
         </div>
@@ -3072,7 +3065,7 @@ function KnopikGame({
         >
           <section className="sheet shop-sheet" aria-labelledby="shop-title">
             <div className="sheet-heading">
-              <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Всё для Кнопика</h2></div>
+              <div><p className="sheet-kicker">KNOPIK STORE</p><h2 id="shop-title">Витрина Кнопика</h2></div>
             </div>
 
             <div className="shop-wallet">
@@ -3224,11 +3217,11 @@ function KnopikGame({
               <span className="drink-pack vita-pack" aria-hidden="true"><span className="drink-icon drink-vita"><i /></span><b>SHIELD</b></span>
               <div className="food-copy">
                 <small>ЗАПАС {vitaPowerCount}/10 {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
-                <h3>Напиток «VitaPower»</h3>
+                <h3>Напиток «Пепси»</h3>
                 <p>Создаёт металлический синий щит. Следующий укус или провал ультра разрушит щит, но активный баланс и уровень останутся целы.</p>
               </div>
               <div className="food-price"><strong>{VITA_POWER_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество напитков VitaPower">
+              <div className="quantity-picker" aria-label="Количество напитков Пепси">
                 <button type="button" aria-label="Уменьшить количество" disabled={vitaPowerQuantity <= 1} onClick={() => setVitaPowerQuantity((current) => Math.max(1, current - 1))}>−</button>
                 <strong>{vitaPowerQuantity}</strong>
                 <button type="button" aria-label="Увеличить количество" disabled={vitaPowerQuantity >= remainingVitaPowerSlots} onClick={() => setVitaPowerQuantity((current) => Math.min(remainingVitaPowerSlots, current + 1))}>+</button>
@@ -3278,10 +3271,8 @@ function KnopikGame({
             </article>
             </div>)}
 
-            <div className="shop-showcase-controls" aria-label="Переключение витрин">
-              <button type="button" aria-label="Предыдущая витрина" disabled={shopSlide === 0} onClick={() => moveShopCarousel(-1)}>‹</button>
-              <div>{Array.from({ length: shopSlideCount }, (_, index) => <i className={index === shopSlide ? "active" : ""} key={index} />)}</div>
-              <button type="button" aria-label="Следующая витрина" disabled={shopSlide === shopSlideCount - 1} onClick={() => moveShopCarousel(1)}>›</button>
+            <div className="shop-showcase-dots" aria-label={`Витрина ${shopSlide + 1} из ${shopSlideCount}`}>
+              {Array.from({ length: shopSlideCount }, (_, index) => <i className={index === shopSlide ? "active" : ""} key={index} />)}
             </div>
           </section>
         </div>
