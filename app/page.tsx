@@ -126,6 +126,14 @@ const HAT_REWARD_ROLL_FLOOR = 0.18;
 const MAX_CHEAT_COIN_GRANT = 1_000_000_000;
 const RISK_SPIN_MS = 5_400;
 const RISK_RESULT_MS = 1_650;
+
+function riskSectorPath(chance: number) {
+  const angle = Math.min(359.999, Math.max(0, chance * 3.6));
+  const radians = ((angle - 90) * Math.PI) / 180;
+  const endX = 50 + 48 * Math.cos(radians);
+  const endY = 50 + 48 * Math.sin(radians);
+  return `M 50 50 L 50 2 A 48 48 0 ${angle > 180 ? 1 : 0} 1 ${endX} ${endY} Z`;
+}
 const RISK_RECOVERY_MIN_MS = 30_000;
 const RISK_RECOVERY_SPREAD_MS = 30_000;
 const SAVE_RECOVERY_MIN_MS = 20_000;
@@ -2702,7 +2710,24 @@ function KnopikGame({
               <span className={`risk-wheel-shell ${riskResult ? `is-${riskResult}` : ""}`}>
                 <span className="risk-wheel">
                   <span className="risk-dial">
-                    <span className="risk-dial-rotor" key={`risk-rotor-${riskSpinNonce}`} />
+                    <span className="risk-dial-rotor" key={`risk-rotor-${riskSpinNonce}`}>
+                      <svg className="risk-sector-svg" viewBox="0 0 100 100" aria-hidden="true">
+                        <defs>
+                          <linearGradient id="risk-sector-green" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0" stopColor="#c5ff64" />
+                            <stop offset="0.58" stopColor="#80df32" />
+                            <stop offset="1" stopColor="#54b620" />
+                          </linearGradient>
+                          <radialGradient id="risk-sector-dark" cx="36%" cy="26%" r="82%">
+                            <stop offset="0" stopColor="#4a545d" />
+                            <stop offset="0.56" stopColor="#303841" />
+                            <stop offset="1" stopColor="#151b21" />
+                          </radialGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="48" fill="url(#risk-sector-dark)" />
+                        <path d={riskSectorPath(riskChance)} fill="url(#risk-sector-green)" />
+                      </svg>
+                    </span>
                     <span className="risk-wheel-glass" />
                   </span>
                   <span className="risk-pointer" key={`risk-pointer-${riskSpinNonce}`}><i /></span>
