@@ -53,6 +53,17 @@ import {
   type RiskChance,
 } from "./risk-engine";
 import {
+  DEFAULT_DIFFICULTY,
+  clampDifficulty,
+  difficultyDuration,
+  difficultyLuckMultiplier,
+  difficultyPatienceMultiplier,
+  difficultyRewardMultiplier,
+  difficultyTiredChanceMultiplier,
+  difficultyTiredSnapMultiplier,
+  difficultyUltraDeadlineMultiplier,
+} from "./difficulty-engine";
+import {
   CloudAccountGate,
   type CloudAccount,
   type CloudSyncState,
@@ -169,9 +180,11 @@ type KnopikGameProps = {
   account: CloudAccount;
   initialSave: SaveData;
   syncState: CloudSyncState;
+  difficulty: number;
   promoCodes: PromoCode[];
   onSave: (save: SaveData) => void;
   onRefreshPromoCodes: () => Promise<void>;
+  onUpdateDifficulty: (difficulty: number) => Promise<string>;
   onCreatePromoCode: (code: string, amount: number) => Promise<string>;
   onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
   onChangePassword: (password: string) => Promise<string>;
@@ -182,9 +195,11 @@ function KnopikGame({
   account,
   initialSave,
   syncState,
+  difficulty,
   promoCodes,
   onSave,
   onRefreshPromoCodes,
+  onUpdateDifficulty,
   onCreatePromoCode,
   onRedeemPromoCode,
   onChangePassword,
@@ -238,6 +253,9 @@ function KnopikGame({
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [promoPending, setPromoPending] = useState(false);
+  const [difficultyDraft, setDifficultyDraft] = useState(() => clampDifficulty(difficulty));
+  const [difficultyMessage, setDifficultyMessage] = useState("");
+  const [difficultyPending, setDifficultyPending] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [seriesTaps, setSeriesTaps] = useState(0);
@@ -285,6 +303,7 @@ function KnopikGame({
   const dogStateRef = useRef<DogState>("calm");
   const coinsRef = useRef(coins);
   const settingsRef = useRef(settings);
+  const difficultyRef = useRef(clampDifficulty(difficulty));
   const hasbulaRedeemedRef = useRef(false);
   const statsRef = useRef(stats);
   const levelStateRef = useRef(levelState);
@@ -431,7 +450,9 @@ function KnopikGame({
         applyTapBoost && boostUntilRef.current > Date.now()
           ? ZHIVCHIK_MULTIPLIER
           : 1;
-      const precise = base * multiplier * tapBoost + bonusCarryRef.current;
+      const hiddenDifficulty = difficultyRewardMultiplier(difficultyRef.current);
+      const precise =
+        base * multiplier * tapBoost * hiddenDifficulty + bonusCarryRef.current;
       const earned = Math.min(maximum, Math.max(0, Math.floor(precise)));
       bonusCarryRef.current =
         earned >= maximum ? 0 : Math.max(0, precise - earned);
@@ -559,6 +580,12 @@ function KnopikGame({
   }, [settings]);
 
   useEffect(() => {
+    const normalized = clampDifficulty(difficulty);
+    difficultyRef.current = normalized;
+    setDifficultyDraft(normalized);
+  }, [difficulty]);
+
+  useEffect(() => {
     if (settingsOpen && account.isAdmin) void onRefreshPromoCodes();
   }, [account.isAdmin, onRefreshPromoCodes, settingsOpen]);
 
@@ -684,6 +711,14 @@ function KnopikGame({
     setPromoPending(false);
   }, [account.isAdmin, getSound, onCreatePromoCode, onRedeemPromoCode, promoAmount, promoCode, updateCoins]);
 
+  const submitDifficulty = useCallback(async () => {
+    setDifficultyPending(true);
+    setDifficultyMessage("");
+    const message = await onUpdateDifficulty(difficultyDraft);
+    setDifficultyMessage(message);
+    setDifficultyPending(false);
+  }, [difficultyDraft, onUpdateDifficulty]);
+
   useEffect(() => {
     if (!fatigueUntil) return;
     const timer = setInterval(() => {
@@ -731,8 +766,9 @@ function KnopikGame({
   const fatigueRatio = useMemo(() => {
     const remaining = Math.max(0, fatigueUntil - clock);
     if (remaining === 0) return 0;
-    return calculateFatigueRatio(FATIGUE_DURATION_MS - remaining);
-  }, [clock, fatigueUntil]);
+    const duration = difficultyDuration(FATIGUE_DURATION_MS, difficulty);
+    return calculateFatigueRatio(duration - remaining, duration);
+  }, [clock, difficulty, fatigueUntil]);
 
   const stopHoldVisual = useCallback(
     (result: UltraStopResult) => {
@@ -765,8 +801,10 @@ function KnopikGame({
       tiredTimerRef.current = null;
 
       if (persistent) return;
-      const duration =
-        TIRED_MOOD_MIN_MS + Math.random() * TIRED_MOOD_SPREAD_MS;
+      const duration = difficultyDuration(
+        TIRED_MOOD_MIN_MS + Math.random() * TIRED_MOOD_SPREAD_MS,
+        difficultyRef.current,
+      );
       tiredTimerRef.current = setTimeout(() => {
         tiredTimerRef.current = null;
         if (
@@ -863,6 +901,7 @@ function KnopikGame({
   const armIdleTimer = useCallback(
     (state: "calm" | "tired" | "warning") => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      const baseDelay = state === "warning" ? WARNING_REST_MS : CALM_SERIES_RESET_MS;
       idleTimerRef.current = setTimeout(
         () => {
           if (state === "warning" && dogStateRef.current === "warning") {
@@ -873,7 +912,7 @@ function KnopikGame({
             resetSeries();
           }
         },
-        state === "warning" ? WARNING_REST_MS : CALM_SERIES_RESET_MS,
+        difficultyDuration(baseDelay, difficultyRef.current),
       );
     },
     [beginRecovery, resetSeries],
@@ -900,11 +939,15 @@ function KnopikGame({
       const now = performance.now();
       const previous = earTapStateRef.current[ear];
       const nextCount = now - previous.lastAt <= 2_500 ? previous.count + 1 : 1;
+      const biteThreshold = Math.max(
+        2,
+        Math.round(3 * difficultyPatienceMultiplier(difficultyRef.current)),
+      );
       earTapStateRef.current[ear] = { count: nextCount, lastAt: now };
       getSound().warning(0.38 + nextCount * 0.18);
-      vibrate(nextCount >= 3 ? [34, 28, 58] : 16, settingsRef.current.vibration);
+      vibrate(nextCount >= biteThreshold ? [34, 28, 58] : 16, settingsRef.current.vibration);
 
-      if (nextCount >= 3) {
+      if (nextCount >= biteThreshold) {
         earTapStateRef.current.left = { count: 0, lastAt: 0 };
         earTapStateRef.current.right = { count: 0, lastAt: 0 };
         triggerBite();
@@ -959,19 +1002,28 @@ function KnopikGame({
 
       const average = rollingAverageTapInterval(tapIntervalsRef.current, 5);
       const remaining = Math.max(0, fatigueUntilRef.current - Date.now());
+      const fatigueDuration = difficultyDuration(
+        FATIGUE_DURATION_MS,
+        difficultyRef.current,
+      );
       const currentFatigue =
         remaining > 0
-          ? calculateFatigueRatio(FATIGUE_DURATION_MS - remaining)
+          ? calculateFatigueRatio(fatigueDuration - remaining, fatigueDuration)
           : 0;
       const nextSeries = seriesTapsRef.current + 1;
       const effectiveFatigue =
         currentState === "tired"
           ? Math.max(currentFatigue, 0.72)
           : currentFatigue;
-      const dynamicLimit = calculateTapLimit(
-        average,
-        effectiveFatigue,
-        () => patienceRollRef.current,
+      const dynamicLimit = Math.max(
+        1,
+        Math.round(
+          calculateTapLimit(
+            average,
+            effectiveFatigue,
+            () => patienceRollRef.current,
+          ) * difficultyPatienceMultiplier(difficultyRef.current),
+        ),
       );
       const nextLimit = Math.max(nextSeries, dynamicLimit);
       const tempoRatio = calculateTempoRatio(average);
@@ -981,7 +1033,9 @@ function KnopikGame({
       setSeriesTaps(nextSeries);
       setAverageInterval(average);
       setTapPulse((current) => current + 1);
-      const jackpot = Math.random() < LAST_TAP_CHANCE;
+      const jackpot =
+        Math.random() <
+        LAST_TAP_CHANCE * difficultyLuckMultiplier(difficultyRef.current);
       const earned = awardCoins(jackpot ? 5 : 1, Number.MAX_SAFE_INTEGER, true);
       addParticle(x, y, earned, jackpot);
       updateStats((current) => ({
@@ -998,7 +1052,11 @@ function KnopikGame({
         return;
       }
 
-      if (currentState === "tired" && Math.random() < TIRED_SNAP_CHANCE) {
+      if (
+        currentState === "tired" &&
+        Math.random() <
+          TIRED_SNAP_CHANCE * difficultyTiredSnapMultiplier(difficultyRef.current)
+      ) {
         triggerBite();
         return;
       }
@@ -1012,7 +1070,8 @@ function KnopikGame({
         !settingsRef.current.yellow &&
         currentState === "calm" &&
         nextSeries >= 4 &&
-        Math.random() < RANDOM_TIRED_CHANCE
+        Math.random() <
+          RANDOM_TIRED_CHANCE * difficultyTiredChanceMultiplier(difficultyRef.current)
       ) {
         enterTiredMood(false);
         getSound().warning(0.46);
@@ -1052,10 +1111,18 @@ function KnopikGame({
       getSound().unlock();
       holdPointRef.current = { x, y };
       holdStartRef.current = performance.now();
+      const standardDeadline =
+        chooseUltraTapOverheatDeadline() +
+        (hatEquipped ? HAT_ULTRA_BONUS_MS : 0);
       ultraDeadlineRef.current = Math.min(
         10_000,
-        chooseUltraTapOverheatDeadline() +
-          (hatEquipped ? HAT_ULTRA_BONUS_MS : 0),
+        Math.max(
+          ULTRA_TAP_MIN_HOLD_MS + 100,
+          Math.round(
+            standardDeadline *
+              difficultyUltraDeadlineMultiplier(difficultyRef.current),
+          ),
+        ),
       );
       ultraTwoSecondRewardRef.current = chooseUltraTapTwoSecondReward(
         hatEquipped
@@ -1169,7 +1236,9 @@ function KnopikGame({
         vibrate([35, 35, 70, 35, 110], settingsRef.current.vibration);
         return;
       }
-      const nextFatigueUntil = Date.now() + FATIGUE_DURATION_MS;
+      const nextFatigueUntil =
+        Date.now() +
+        difficultyDuration(FATIGUE_DURATION_MS, difficultyRef.current);
       fatigueUntilRef.current = nextFatigueUntil;
       setFatigueUntil(nextFatigueUntil);
       setClock(Date.now());
@@ -1223,7 +1292,12 @@ function KnopikGame({
     riskCommittedRef.current = true;
     clearRoundTimers();
     resetSeries();
-    const outcome = createRiskOutcome(riskChance, bet);
+    const outcome = createRiskOutcome(
+      riskChance,
+      bet,
+      Math.random,
+      difficultyRef.current,
+    );
     const payout = outcome.won
       ? Math.round(
           bet * riskMultiplier(riskChance) *
@@ -1303,8 +1377,11 @@ function KnopikGame({
           } else {
             const tiredUntil =
               Date.now() +
-              RISK_RECOVERY_MIN_MS +
-              Math.random() * RISK_RECOVERY_SPREAD_MS;
+              difficultyDuration(
+                RISK_RECOVERY_MIN_MS +
+                  Math.random() * RISK_RECOVERY_SPREAD_MS,
+                difficultyRef.current,
+              );
             fatigueUntilRef.current = tiredUntil;
             setFatigueUntil(tiredUntil);
             setRiskFatigueUntil(tiredUntil);
@@ -1431,7 +1508,11 @@ function KnopikGame({
       transitionTo("calm");
     } else {
       const tiredUntil =
-        Date.now() + SAVE_RECOVERY_MIN_MS + Math.random() * SAVE_RECOVERY_SPREAD_MS;
+        Date.now() +
+        difficultyDuration(
+          SAVE_RECOVERY_MIN_MS + Math.random() * SAVE_RECOVERY_SPREAD_MS,
+          difficultyRef.current,
+        );
       fatigueUntilRef.current = tiredUntil;
       setFatigueUntil(tiredUntil);
       setRiskFatigueUntil(tiredUntil);
@@ -2702,6 +2783,44 @@ function KnopikGame({
               <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
               <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
             </div>
+            {account.isAdmin && (
+              <section className="difficulty-panel">
+                <div className="difficulty-heading">
+                  <div>
+                    <strong>Скрытая сложность</strong>
+                    <span>Общая для всех игроков · текущая игра = {DEFAULT_DIFFICULTY}</span>
+                  </div>
+                  <output htmlFor="difficulty-range">{difficultyDraft}</output>
+                </div>
+                <input
+                  id="difficulty-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={difficultyDraft}
+                  aria-label="Скрытая сложность игры"
+                  onChange={(event) => {
+                    setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
+                    setDifficultyMessage("");
+                  }}
+                />
+                <div className="difficulty-scale" aria-hidden="true">
+                  <span><b>0</b> очень легко</span>
+                  <span><b>50</b> стандарт</span>
+                  <span><b>100</b> сложно</span>
+                </div>
+                <button
+                  className="difficulty-save"
+                  type="button"
+                  disabled={difficultyPending || difficultyDraft === difficulty}
+                  onClick={() => void submitDifficulty()}
+                >
+                  {difficultyPending ? "СОХРАНЕНИЕ…" : "СОХРАНИТЬ СЛОЖНОСТЬ"}
+                </button>
+                {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
+              </section>
+            )}
             <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
               <div className="promo-heading">
                 <span className="promo-symbol" aria-hidden="true">%</span>
@@ -2817,15 +2936,17 @@ function KnopikGame({
 export default function Home() {
   return (
     <CloudAccountGate>
-      {({ account, initialSave, gameKey, syncState, promoCodes, saveProgress, refreshPromoCodes, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
+      {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
         <KnopikGame
           key={gameKey}
           account={account}
           initialSave={initialSave}
           syncState={syncState}
+          difficulty={difficulty}
           promoCodes={promoCodes}
           onSave={saveProgress}
           onRefreshPromoCodes={refreshPromoCodes}
+          onUpdateDifficulty={updateDifficulty}
           onCreatePromoCode={createPromoCode}
           onRedeemPromoCode={redeemPromoCode}
           onChangePassword={changePassword}

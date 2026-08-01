@@ -15,6 +15,19 @@ import {
   levelMultiplier,
 } from "../app/level-engine.ts";
 import { createRiskOutcome, riskMultiplier } from "../app/risk-engine.ts";
+import {
+  DEFAULT_DIFFICULTY,
+  clampDifficulty,
+  difficultyDuration,
+  difficultyFatigueMultiplier,
+  difficultyLuckMultiplier,
+  difficultyPatienceMultiplier,
+  difficultyRewardMultiplier,
+  difficultyRiskChance,
+  difficultyTiredChanceMultiplier,
+  difficultyTiredSnapMultiplier,
+  difficultyUltraDeadlineMultiplier,
+} from "../app/difficulty-engine.ts";
 
 test("tap limit rewards speed and keeps requested ranges", () => {
   assert.equal(calculateTapLimit(1_000, 0, () => 0), 4);
@@ -190,4 +203,51 @@ test("risk wheel resolves payout and final angle from the configured chance", ()
   assert.equal(boostedWin.chance, 50);
   assert.equal(boostedWin.won, true);
   assert.equal(boostedWin.payout, 175);
+});
+
+test("difficulty 50 preserves every current gameplay coefficient exactly", () => {
+  assert.equal(DEFAULT_DIFFICULTY, 50);
+  assert.equal(clampDifficulty(50), 50);
+  assert.equal(difficultyRewardMultiplier(50), 1);
+  assert.equal(difficultyPatienceMultiplier(50), 1);
+  assert.equal(difficultyTiredChanceMultiplier(50), 1);
+  assert.equal(difficultyTiredSnapMultiplier(50), 1);
+  assert.equal(difficultyLuckMultiplier(50), 1);
+  assert.equal(difficultyFatigueMultiplier(50), 1);
+  assert.equal(difficultyUltraDeadlineMultiplier(50), 1);
+  assert.equal(difficultyDuration(90_000, 50), 90_000);
+  assert.equal(difficultyRiskChance(50, 50), 58);
+});
+
+test("hidden difficulty consistently shifts farming, patience, fatigue, and luck", () => {
+  assert.ok(difficultyRewardMultiplier(0) > 1);
+  assert.ok(difficultyRewardMultiplier(100) < 1);
+  assert.ok(difficultyPatienceMultiplier(0) > 1);
+  assert.ok(difficultyPatienceMultiplier(100) < 1);
+  assert.ok(difficultyTiredChanceMultiplier(0) < 1);
+  assert.ok(difficultyTiredChanceMultiplier(100) > 1);
+  assert.ok(difficultyTiredSnapMultiplier(0) < 1);
+  assert.ok(difficultyTiredSnapMultiplier(100) > 1);
+  assert.ok(difficultyLuckMultiplier(0) > 1);
+  assert.ok(difficultyLuckMultiplier(100) < 1);
+  assert.ok(difficultyDuration(90_000, 0) < 90_000);
+  assert.ok(difficultyDuration(90_000, 100) > 90_000);
+  assert.ok(difficultyUltraDeadlineMultiplier(0) > 1);
+  assert.ok(difficultyUltraDeadlineMultiplier(100) < 1);
+});
+
+test("real wheel chance changes while difficulty 50 keeps the existing +8 bonus", () => {
+  const rolls = () => {
+    const values = [0.7, 0.5];
+    return () => values.shift() ?? 0;
+  };
+  const standard = createRiskOutcome(50, 100, rolls(), 50);
+  const easy = createRiskOutcome(50, 100, rolls(), 0);
+  const hard = createRiskOutcome(50, 100, rolls(), 100);
+
+  assert.equal(standard.won, false);
+  assert.equal(easy.won, true);
+  assert.equal(hard.won, false);
+  assert.equal(easy.chance, 50);
+  assert.equal(easy.multiplier, 1.75);
 });

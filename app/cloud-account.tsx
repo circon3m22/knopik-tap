@@ -16,6 +16,10 @@ import {
   type SaveData,
 } from "./game-logic";
 import { getSupabaseClient, usernameToEmail } from "./supabase-client";
+import {
+  DEFAULT_DIFFICULTY,
+  clampDifficulty,
+} from "./difficulty-engine";
 
 type ProfileRow = {
   id: string;
@@ -35,6 +39,10 @@ type PromoCodeRow = {
   created_at: string;
   redeemed_by: string | null;
   redeemed_at: string | null;
+};
+
+type GameConfigRow = {
+  difficulty: number;
 };
 
 export type CloudAccount = {
@@ -64,9 +72,11 @@ type CloudGameSession = {
   initialSave: SaveData;
   gameKey: string;
   syncState: CloudSyncState;
+  difficulty: number;
   promoCodes: PromoCode[];
   saveProgress: (save: SaveData) => void;
   refreshPromoCodes: () => Promise<void>;
+  updateDifficulty: (difficulty: number) => Promise<string>;
   createPromoCode: (code: string, amount: number) => Promise<string>;
   redeemPromoCode: (code: string) => Promise<PromoResult>;
   changePassword: (password: string) => Promise<string>;
@@ -127,6 +137,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const [loginError, setLoginError] = useState("");
   const [loginPending, setLoginPending] = useState(false);
   const [syncState, setSyncState] = useState<CloudSyncState>("saved");
+  const [difficulty, setDifficulty] = useState(DEFAULT_DIFFICULTY);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const accountRef = useRef<CloudAccount | null>(null);
   const latestSaveRef = useRef<SaveData | null>(null);
@@ -162,6 +173,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         setAccount(null);
         setInitialSave(null);
         setPromoCodes([]);
+        setDifficulty(DEFAULT_DIFFICULTY);
       }
     });
 
@@ -179,7 +191,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     async function loadCloudAccount() {
       setAuthLoading(true);
       setLoginError("");
-      const [{ data: profile, error: profileError }, { data: cloudSave, error: saveError }] =
+      const [
+        { data: profile, error: profileError },
+        { data: cloudSave, error: saveError },
+        { data: gameConfig },
+      ] =
         await Promise.all([
           supabase
             .from("profiles")
@@ -191,6 +207,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
             .select("user_id, save")
             .eq("user_id", user!.id)
             .maybeSingle<GameSaveRow>(),
+          supabase
+            .from("game_config")
+            .select("difficulty")
+            .eq("id", true)
+            .maybeSingle<GameConfigRow>(),
         ]);
 
       if (!active) return;
@@ -235,6 +256,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       setInitialSave(loadedSave);
       setGameRevision((current) => current + 1);
       setSyncState("saved");
+      setDifficulty(clampDifficulty(gameConfig?.difficulty ?? DEFAULT_DIFFICULTY));
       if (nextAccount.isAdmin) {
         const { data: codes } = await supabase
           .from("promo_codes")
@@ -312,6 +334,25 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     }
     setPromoCodes((current) => [mapPromoCode(data), ...current]);
     return "Промокод создан.";
+  }, []);
+
+  const updateDifficulty = useCallback(async (nextDifficulty: number) => {
+    const currentAccount = accountRef.current;
+    if (!currentAccount?.isAdmin) return "Менять сложность может только Kamrad.";
+    const normalized = clampDifficulty(nextDifficulty);
+    const { data, error } = await getSupabaseClient()
+      .from("game_config")
+      .update({
+        difficulty: normalized,
+        updated_by: currentAccount.userId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", true)
+      .select("difficulty")
+      .single<GameConfigRow>();
+    if (error || !data) return "Не удалось сохранить сложность.";
+    setDifficulty(clampDifficulty(data.difficulty));
+    return "Сложность сохранена.";
   }, []);
 
   const redeemPromoCode = useCallback(async (code: string): Promise<PromoResult> => {
@@ -435,9 +476,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     initialSave,
     gameKey: `${account.userId}:${gameRevision}`,
     syncState,
+    difficulty,
     promoCodes,
     saveProgress,
     refreshPromoCodes,
+    updateDifficulty,
     createPromoCode,
     redeemPromoCode,
     changePassword,
