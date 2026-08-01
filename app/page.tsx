@@ -19,9 +19,7 @@ import {
   type DogState,
   type GameSettings,
   type GameStats,
-  type SaveData,
 } from "./game-logic";
-import { CloudAccountGate } from "./cloud-account";
 import {
   FATIGUE_DURATION_MS,
   ULTRA_TAP_MIN_HOLD_MS,
@@ -160,12 +158,7 @@ function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
   return `rgb(${channels.join(" ")})`;
 }
 
-type KnopikGameProps = {
-  initialSave: SaveData;
-  onSave: (save: SaveData) => void;
-};
-
-function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
+export default function Home() {
   const [dogState, setDogState] = useState<DogState>("calm");
   const [recoveryReason, setRecoveryReason] =
     useState<RecoveryReason>("rest");
@@ -449,7 +442,7 @@ function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SAVE_KEY);
-      const parsed = stored ? JSON.parse(stored) : initialSave;
+      const parsed = stored ? JSON.parse(stored) : createDefaultSave();
       const saved = sanitizeSave(parsed);
       const loadedCoins = {
         walletCoins: saved.walletCoins,
@@ -522,7 +515,7 @@ function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
     ) {
       navigator.serviceWorker.register(publicAsset("/sw.js")).catch(() => undefined);
     }
-  }, [initialSave]);
+  }, []);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -551,36 +544,37 @@ function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
     if (!hydrated) return;
     const saveTimer = setTimeout(() => {
       try {
-        const nextSave: SaveData = {
-          version: SAVE_VERSION,
-          vaultCoins,
-          walletCoins: coins.walletCoins,
-          foodCount,
-          drinkCount,
-          pitbullCount,
-          hatOwned,
-          hatEquipped,
-          mohawkOwned,
-          mohawkEquipped,
-          hasbulaRedeemed,
-          riskFatigueUntil,
-          riskSpins: riskStats.spins,
-          riskWins: riskStats.wins,
-          riskLosses: riskStats.losses,
-          lastRiskBet: riskStats.lastBet,
-          lastRiskChance: riskChance,
-          boostUntil,
-          settings,
-          tutorialSeen,
-          bestStreak: stats.bestStreak,
-          totalTaps: stats.totalTaps,
-          totalBites: stats.totalBites,
-          ultraFatigueUntil: fatigueUntil,
-          level: levelState.level,
-          levelCoins: levelState.progressCoins,
-        };
-        localStorage.setItem(SAVE_KEY, JSON.stringify(nextSave));
-        onSave(nextSave);
+        localStorage.setItem(
+          SAVE_KEY,
+          JSON.stringify({
+            version: SAVE_VERSION,
+            vaultCoins,
+            walletCoins: coins.walletCoins,
+            foodCount,
+            drinkCount,
+            pitbullCount,
+            hatOwned,
+            hatEquipped,
+            mohawkOwned,
+            mohawkEquipped,
+            hasbulaRedeemed,
+            riskFatigueUntil,
+            riskSpins: riskStats.spins,
+            riskWins: riskStats.wins,
+            riskLosses: riskStats.losses,
+            lastRiskBet: riskStats.lastBet,
+            lastRiskChance: riskChance,
+            boostUntil,
+            settings,
+            tutorialSeen,
+            bestStreak: stats.bestStreak,
+            totalTaps: stats.totalTaps,
+            totalBites: stats.totalBites,
+            ultraFatigueUntil: fatigueUntil,
+            level: levelState.level,
+            levelCoins: levelState.progressCoins,
+          }),
+        );
       } catch {
         // The game remains playable when local storage is unavailable.
       }
@@ -599,7 +593,6 @@ function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
     hasbulaRedeemed,
     mohawkEquipped,
     mohawkOwned,
-    onSave,
     hydrated,
     levelState,
     riskChance,
@@ -2620,19 +2613,5 @@ function KnopikGame({ initialSave, onSave }: KnopikGameProps) {
 
       <div className="red-flash" aria-hidden="true" />
     </main>
-  );
-}
-
-export default function Home() {
-  return (
-    <CloudAccountGate>
-      {({ initialSave, gameKey, saveProgress }) => (
-        <KnopikGame
-          key={gameKey}
-          initialSave={initialSave}
-          onSave={saveProgress}
-        />
-      )}
-    </CloudAccountGate>
   );
 }

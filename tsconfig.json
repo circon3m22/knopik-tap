@@ -35,7 +35,6 @@
     "build",
     "db",
     "examples",
-    "supabase/functions",
     "worker",
     "vite.config.ts",
     "drizzle.config.ts"

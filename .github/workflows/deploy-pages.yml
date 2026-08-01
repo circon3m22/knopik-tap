@@ -29,8 +29,6 @@ jobs:
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-          NEXT_PUBLIC_SUPABASE_URL: https://uxxzvjwsexdoqcevzipu.supabase.co
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_udSUp7QJMnvfAC6YFlWdlQ_vBaIRmdi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

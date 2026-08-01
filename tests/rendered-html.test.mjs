@@ -14,7 +14,7 @@ async function render() {
   );
 }
 
-test("server-renders the protected Knopik Tap entry", async () => {
+test("server-renders the complete Knopik Tap game", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -25,27 +25,24 @@ test("server-renders the protected Knopik Tap entry", async () => {
   assert.match(html, /apple-touch-icon-v2\.png/);
   assert.match(html, /icon-192-v2\.png/);
   assert.match(html, /og\.png/);
-  assert.match(html, /class="auth-screen"/);
-  assert.match(html, /aria-label="Загрузка профиля"/);
+  assert.match(html, /data-testid="knopik"/);
   assert.match(html, /knopik-joy-sprite-earless\.png/);
   assert.match(html, /knopik-rage-sprite-earless\.png/);
+  assert.match(html, /knopik-ear-left\.png/);
+  assert.match(html, /knopik-ear-right\.png/);
+  assert.match(html, /knopik-warning-earless\.png/);
+  assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
+  assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
+  assert.match(html, /class="saved-balance(?:\s|\")/);
+  assert.match(html, /class="bottom-bar"/);
+  assert.match(html, /class="quick-save-button"/);
+  assert.match(html, /class="boost-row"/);
+  assert.match(html, /drink-pitbull/);
+  assert.match(html, /class="nav-thumb"/);
   assert.doesNotMatch(html, /НЕЗАЩИЩЁННЫЕ МОНЕТЫ/);
   assert.doesNotMatch(html, /state-copy|moment-message/);
   assert.doesNotMatch(html, /series-track/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
-});
-
-test("keeps the game behind the cloud account gate", async () => {
-  const [pageSource, accountSource] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/cloud-account.tsx", import.meta.url), "utf8"),
-  ]);
-  assert.match(pageSource, /<CloudAccountGate>/);
-  assert.match(pageSource, /data-testid="knopik"/);
-  assert.match(pageSource, /saveProgress/);
-  assert.match(accountSource, /signInWithPassword/);
-  assert.match(accountSource, /admin_grant_coins/);
-  assert.match(accountSource, /postgres_changes/);
 });
 
 test("ships PWA assets and removes the temporary starter", async () => {
