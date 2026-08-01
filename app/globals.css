@@ -5782,3 +5782,319 @@ img,
 .game-shell .bottom-bar {
   margin-bottom: 9px;
 }
+
+/* New arcade drinks and mini games — v55 */
+.drink-cola {
+  background: linear-gradient(160deg, #ff6f5b, #b7192b 68%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 48%), 0 5px 12px rgb(133 20 35 / 24%);
+}
+
+.drink-cola::after {
+  background: linear-gradient(160deg, #4b211c, #21100f);
+  box-shadow: inset 0 1px 0 rgb(255 240 211 / 22%);
+}
+
+.drink-cola i {
+  width: 12px;
+  height: 7px;
+  border: 2px solid #fff3dc;
+  border-top-color: transparent;
+  border-radius: 50%;
+  transform: translateX(-50%) rotate(-12deg) !important;
+}
+
+.drink-cola i::before {
+  position: absolute;
+  top: -3px;
+  left: 2px;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid #fff3dc;
+  border-radius: 50%;
+  content: "";
+}
+
+.drink-tea {
+  background: linear-gradient(160deg, #f6d469, #c78c25 68%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%), 0 5px 12px rgb(121 83 20 / 22%);
+}
+
+.drink-tea::after {
+  background: linear-gradient(160deg, #e9f3d9, #b7d59a);
+}
+
+.drink-tea i {
+  width: 10px;
+  height: 7px;
+  border-radius: 100% 8% 100% 8%;
+  background: #4d9a57;
+  box-shadow: inset -2px -1px 0 rgb(26 101 48 / 24%);
+  transform: translateX(-50%) rotate(-24deg) !important;
+}
+
+.drink-tea i::before {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 8px;
+  height: 1px;
+  background: #2e7742;
+  content: "";
+  transform: rotate(35deg);
+  transform-origin: left center;
+}
+
+.cola-pack { background: linear-gradient(145deg, #fff0ed, #efb4ae); }
+.tea-pack { background: linear-gradient(145deg, #fff7d7, #ddc77c); }
+.cola-action { background: #c72c3f !important; box-shadow: 0 10px 22px rgb(151 28 47 / 20%) !important; }
+.tea-action { color: #fff !important; background: #6d8f3d !important; box-shadow: 0 10px 22px rgb(76 111 36 / 20%) !important; }
+
+.game-shell .boost-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.game-shell .boost-row .inventory-item {
+  min-height: 66px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 37px auto;
+  justify-items: center;
+  gap: 2px;
+  padding: 5px 2px 6px;
+  border-radius: 18px;
+}
+
+.game-shell .boost-row .inventory-copy {
+  width: 100%;
+  justify-items: center;
+  text-align: center;
+}
+
+.game-shell .boost-row .inventory-copy strong {
+  padding-inline: 1px;
+  font-size: clamp(6px, 1.8vw, 7.5px);
+  letter-spacing: -0.025em;
+}
+
+.game-shell .boost-row .inventory-copy small {
+  display: none;
+}
+
+.game-shell .boost-row .inventory-count {
+  top: 3px;
+  right: 3px;
+  min-width: 17px;
+  height: 17px;
+  padding-inline: 4px;
+  font-size: 6.5px;
+}
+
+.mini-game-backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding:
+    calc(env(safe-area-inset-top) + 14px)
+    14px
+    calc(env(safe-area-inset-bottom) + 14px);
+  color: #eef6ff;
+  background:
+    radial-gradient(circle at 50% 28%, rgb(41 106 171 / 32%), transparent 42%),
+    rgb(9 18 29 / 88%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
+
+.mini-mines {
+  background:
+    radial-gradient(circle at 50% 26%, rgb(105 139 63 / 31%), transparent 42%),
+    rgb(12 23 22 / 90%);
+}
+
+.mini-game-panel {
+  display: grid;
+  width: min(100%, 420px);
+  max-height: 100%;
+  gap: 14px;
+  padding: 18px;
+  overflow: auto;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 32px;
+  background: linear-gradient(155deg, rgb(31 44 60 / 98%), rgb(14 22 33 / 98%));
+  box-shadow: 0 28px 70px rgb(0 0 0 / 44%), inset 0 1px 0 rgb(255 255 255 / 14%);
+}
+
+.mini-mines .mini-game-panel {
+  background: linear-gradient(155deg, rgb(35 51 45 / 98%), rgb(15 27 27 / 98%));
+}
+
+.mini-game-topline {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-game-topline .drink-icon {
+  width: 31px;
+  height: 43px;
+  transform: scale(0.85);
+}
+
+.mini-game-topline > div { display: grid; gap: 2px; }
+.mini-game-topline small { color: rgb(221 233 245 / 58%); font-size: 7px; font-weight: 900; letter-spacing: 0.15em; }
+.mini-game-topline h2 { margin: 0; color: #fff; font-size: 22px; letter-spacing: -0.04em; }
+
+.mini-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 50%;
+  color: #e7eff7;
+  background: rgb(255 255 255 / 8%);
+  font-size: 20px;
+}
+
+.mini-bet-card,
+.mine-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.mini-bet-card > span,
+.mine-progress > span {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.mini-bet-card small,
+.mine-progress small { color: rgb(223 235 246 / 52%); font-size: 6px; font-weight: 900; letter-spacing: 0.12em; }
+.mini-bet-card strong,
+.mine-progress strong { overflow: hidden; color: #fff; font-size: 18px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
+
+.mini-bet-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-bet-control input { width: 100%; accent-color: #54a8ff; }
+.mini-bet-control button { min-height: 36px; padding-inline: 13px; border: 0; border-radius: 12px; color: #fff; background: #277ed8; font-size: 8px; font-weight: 900; }
+
+.slot-machine {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 25px;
+  background: rgb(4 9 15 / 42%);
+  box-shadow: inset 0 12px 28px rgb(0 0 0 / 28%);
+}
+
+.slot-reel {
+  display: grid;
+  min-width: 0;
+  min-height: 112px;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  border: 1px solid rgb(255 255 255 / 64%);
+  border-radius: 18px;
+  color: #17293a;
+  background: linear-gradient(180deg, #fff, #e9eef3 58%, #bac5cf);
+  box-shadow: inset 0 4px 10px rgb(255 255 255 / 76%), 0 8px 18px rgb(0 0 0 / 18%);
+}
+
+.slot-reel span { font-size: 39px; font-weight: 950; line-height: 1; }
+.slot-reel small { color: #607184; font-size: 6px; font-weight: 950; letter-spacing: 0.09em; }
+.symbol-cherry span { color: #d52f46; letter-spacing: -0.3em; padding-right: 0.3em; }
+.symbol-lemon span { color: #e7bd1e; }
+.symbol-seven span { color: #e33f37; text-shadow: 2px 2px 0 #f5c848; }
+.symbol-star span { color: #efb91c; }
+.symbol-diamond span { color: #3eb8ed; text-shadow: 0 0 14px rgb(62 184 237 / 42%); }
+.slot-machine.is-spinning .slot-reel span { filter: blur(1.6px); transform: scaleY(1.18); }
+
+.mini-result {
+  display: grid;
+  gap: 3px;
+  padding: 13px;
+  border-radius: 18px;
+  text-align: center;
+}
+
+.mini-result small { font-size: 7px; font-weight: 950; letter-spacing: 0.14em; }
+.mini-result strong { font-size: 30px; font-variant-numeric: tabular-nums; }
+.mini-result.is-win { color: #d9ff9e; background: rgb(101 177 65 / 17%); box-shadow: inset 0 0 0 1px rgb(171 238 103 / 18%); }
+.mini-result.is-loss { color: #ffafa7; background: rgb(204 64 55 / 15%); box-shadow: inset 0 0 0 1px rgb(255 112 101 / 17%); }
+
+.mini-primary,
+.mine-actions button {
+  min-height: 50px;
+  border: 0;
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(145deg, #238ef2, #0757c5);
+  box-shadow: 0 12px 25px rgb(0 90 198 / 28%), inset 0 1px 0 rgb(255 255 255 / 24%);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+}
+
+.mini-primary:disabled { opacity: 0.58; }
+.mini-stats { margin: 0; color: rgb(221 232 242 / 42%); font-size: 7px; font-weight: 850; text-align: center; letter-spacing: 0.08em; }
+
+.mine-progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mine-progress > span { padding-inline: 8px; text-align: center; }
+.mine-progress strong { font-size: 16px; }
+
+.mine-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.mine-tile {
+  aspect-ratio: 0.82;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 17px;
+  color: #eef8f1;
+  background: linear-gradient(150deg, #69854a, #344d35);
+  box-shadow: 0 10px 20px rgb(0 0 0 / 24%), inset 0 1px 0 rgb(255 255 255 / 18%);
+  font-size: 19px;
+  font-weight: 950;
+}
+
+.mine-tile:disabled { opacity: 1; }
+.mine-tile.is-safe { color: #eaffbd; background: linear-gradient(150deg, #75bb51, #367743); }
+.mine-tile.is-mine { color: #fff; background: linear-gradient(150deg, #ef6a58, #992d34); }
+.mine-hint { margin: 0; color: rgb(225 237 230 / 62%); font-size: 9px; line-height: 1.45; text-align: center; }
+.mine-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mine-actions button:first-child { background: linear-gradient(145deg, #65ad48, #387432); box-shadow: 0 12px 25px rgb(36 101 45 / 25%); }
+
+@media (max-height: 700px) {
+  .game-shell .boost-row .inventory-item {
+    min-height: 56px;
+    padding-block: 5px;
+  }
+
+  .game-shell .boost-row .drink-icon,
+  .game-shell .boost-row .food-icon {
+    transform: scale(0.84);
+  }
+
+  .mini-game-panel { gap: 10px; padding: 14px; border-radius: 26px; }
+  .slot-reel { min-height: 82px; }
+  .slot-reel span { font-size: 30px; }
+  .mini-primary,
+  .mine-actions button { min-height: 44px; }
+}

@@ -69,6 +69,12 @@ import {
   type CloudSyncState,
   type PromoCode,
 } from "./cloud-account";
+import {
+  MiniGamePanel,
+  type MiniGameKind,
+  type MiniGameStats,
+} from "./mini-game-panel";
+import { resolveMiniGameBet } from "./mini-game-engine";
 
 type TapParticle = {
   id: number;
@@ -110,7 +116,9 @@ const HASBIK_HAT_PRICE = 1_500;
 const MOHAWK_PRICE = 3_000;
 const MOHAWK_RISK_BONUS = 1.08;
 const ZHIVCHIK_PRICE = 100;
-const PITBULL_PRICE = 50;
+const PITBULL_PRICE = 100;
+const COCOA_COLA_PRICE = 200;
+const BERGAMOT_TEA_PRICE = 300;
 const ZHIVCHIK_DURATION_MS = 60_000;
 const ZHIVCHIK_MULTIPLIER = 4;
 const HAT_ULTRA_BONUS_MS = 350;
@@ -219,6 +227,10 @@ function KnopikGame({
   const [drinkQuantity, setDrinkQuantity] = useState(1);
   const [pitbullCount, setPitbullCount] = useState(0);
   const [pitbullQuantity, setPitbullQuantity] = useState(1);
+  const [colaCount, setColaCount] = useState(0);
+  const [colaQuantity, setColaQuantity] = useState(1);
+  const [teaCount, setTeaCount] = useState(0);
+  const [teaQuantity, setTeaQuantity] = useState(1);
   const [hatOwned, setHatOwned] = useState(false);
   const [hatEquipped, setHatEquipped] = useState(false);
   const [mohawkOwned, setMohawkOwned] = useState(false);
@@ -292,6 +304,15 @@ function KnopikGame({
     wins: 0,
     losses: 0,
     lastBet: 0,
+  });
+  const [miniGame, setMiniGame] = useState<MiniGameKind | null>(null);
+  const [miniGameSession, setMiniGameSession] = useState(0);
+  const [miniGameStats, setMiniGameStats] = useState<MiniGameStats>({
+    slotPlays: 0,
+    slotWins: 0,
+    minePlays: 0,
+    mineWins: 0,
+    mineLosses: 0,
   });
   const [levelBurstKey, setLevelBurstKey] = useState(0);
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
@@ -533,6 +554,8 @@ function KnopikGame({
       setFoodCount(saved.foodCount);
       setDrinkCount(saved.drinkCount);
       setPitbullCount(saved.pitbullCount);
+      setColaCount(saved.colaCount);
+      setTeaCount(saved.teaCount);
       setHatOwned(saved.hatOwned);
       setHatEquipped(saved.hatEquipped);
       setMohawkOwned(saved.mohawkOwned);
@@ -551,6 +574,13 @@ function KnopikGame({
         wins: saved.riskWins,
         losses: saved.riskLosses,
         lastBet: saved.lastRiskBet,
+      });
+      setMiniGameStats({
+        slotPlays: saved.slotPlays,
+        slotWins: saved.slotWins,
+        minePlays: saved.minePlays,
+        mineWins: saved.mineWins,
+        mineLosses: saved.mineLosses,
       });
       setSettings(saved.settings);
       setStats(loadedStats);
@@ -618,6 +648,8 @@ function KnopikGame({
             foodCount,
             drinkCount,
             pitbullCount,
+            colaCount,
+            teaCount,
             hatOwned,
             hatEquipped,
             mohawkOwned,
@@ -627,6 +659,11 @@ function KnopikGame({
             riskSpins: riskStats.spins,
             riskWins: riskStats.wins,
             riskLosses: riskStats.losses,
+            slotPlays: miniGameStats.slotPlays,
+            slotWins: miniGameStats.slotWins,
+            minePlays: miniGameStats.minePlays,
+            mineWins: miniGameStats.mineWins,
+            mineLosses: miniGameStats.mineLosses,
             lastRiskBet: riskStats.lastBet,
             lastRiskChance: riskChance,
             boostUntil,
@@ -654,6 +691,8 @@ function KnopikGame({
     foodCount,
     drinkCount,
     pitbullCount,
+    colaCount,
+    teaCount,
     hatEquipped,
     hatOwned,
     hasbulaRedeemed,
@@ -665,6 +704,7 @@ function KnopikGame({
     riskChance,
     riskFatigueUntil,
     riskStats,
+    miniGameStats,
     settings,
     stats,
     tutorialSeen,
@@ -1619,6 +1659,107 @@ function KnopikGame({
     vibrate([16, 24, 34], settingsRef.current.vibration);
   }, [getSound, pitbullCount, showRiskNotice, transitionRisk]);
 
+  const buyCola = useCallback(() => {
+    const availableSlots = Math.max(0, 10 - colaCount);
+    const quantity = Math.min(availableSlots, Math.max(1, Math.floor(colaQuantity)));
+    const totalPrice = quantity * COCOA_COLA_PRICE;
+    if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
+    updateCoins((current) => ({
+      ...current,
+      walletCoins: current.walletCoins - totalPrice,
+    }));
+    setColaCount((current) => Math.min(10, current + quantity));
+    setColaQuantity(1);
+    setShopMessage(`Какао-Кола ×${quantity} добавлена в запас`);
+    getSound().purchase();
+    vibrate([16, 22, 34], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [colaCount, colaQuantity, getSound, updateCoins]);
+
+  const buyTea = useCallback(() => {
+    const availableSlots = Math.max(0, 10 - teaCount);
+    const quantity = Math.min(availableSlots, Math.max(1, Math.floor(teaQuantity)));
+    const totalPrice = quantity * BERGAMOT_TEA_PRICE;
+    if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
+    updateCoins((current) => ({
+      ...current,
+      walletCoins: current.walletCoins - totalPrice,
+    }));
+    setTeaCount((current) => Math.min(10, current + quantity));
+    setTeaQuantity(1);
+    setShopMessage(`Чай с бергамотом ×${quantity} добавлен в запас`);
+    getSound().purchase();
+    vibrate([16, 22, 34], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [getSound, teaCount, teaQuantity, updateCoins]);
+
+  const openMiniGame = useCallback((kind: MiniGameKind) => {
+    const itemCount = kind === "slots" ? colaCount : teaCount;
+    if (
+      itemCount < 1 ||
+      miniGame !== null ||
+      riskPhaseRef.current !== "normal" ||
+      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
+      dogStateRef.current !== "calm"
+    ) return;
+    if (coinsRef.current.walletCoins < 1) {
+      showRiskNotice("Сначала заработай монеты");
+      return;
+    }
+    setShopOpen(false);
+    setSettingsOpen(false);
+    setMiniGameSession((current) => current + 1);
+    setMiniGame(kind);
+    getSound().itemUse("drink");
+    vibrate([16, 24, 34], settingsRef.current.vibration);
+  }, [colaCount, getSound, miniGame, showRiskNotice, teaCount]);
+
+  const commitMiniGameBet = useCallback((kind: MiniGameKind, requestedBet: number) => {
+    const availableCoins = coinsRef.current.walletCoins;
+    const bet = resolveMiniGameBet(availableCoins, requestedBet, mohawkEquipped);
+    const hasItem = kind === "slots" ? colaCount > 0 : teaCount > 0;
+    if (!hasItem || bet < 1 || bet > availableCoins) return false;
+
+    if (kind === "slots") setColaCount((current) => Math.max(0, current - 1));
+    else setTeaCount((current) => Math.max(0, current - 1));
+    updateCoins((current) => ({
+      walletCoins: Math.max(0, current.walletCoins - bet),
+      streakCoins: Math.max(0, current.streakCoins - bet),
+    }));
+    setMiniGameStats((current) => ({
+      ...current,
+      slotPlays: current.slotPlays + (kind === "slots" ? 1 : 0),
+      minePlays: current.minePlays + (kind === "mines" ? 1 : 0),
+    }));
+    resetSeries();
+    return true;
+  }, [colaCount, mohawkEquipped, resetSeries, teaCount, updateCoins]);
+
+  const resolveMiniGame = useCallback((kind: MiniGameKind, payout: number, won: boolean) => {
+    if (payout > 0) {
+      updateCoins((current) => ({
+        ...current,
+        walletCoins: current.walletCoins + payout,
+      }));
+      setBalancePulse((current) => current + 1);
+    }
+    setMiniGameStats((current) => ({
+      ...current,
+      slotWins: current.slotWins + (kind === "slots" && won ? 1 : 0),
+      mineWins: current.mineWins + (kind === "mines" && won ? 1 : 0),
+      mineLosses: current.mineLosses + (kind === "mines" && !won ? 1 : 0),
+    }));
+    if (won) {
+      getSound().riskWin();
+      vibrate([24, 28, 48, 28, 72], settingsRef.current.vibration);
+    } else {
+      getSound().riskLose();
+      vibrate([40, 32, 22], settingsRef.current.vibration);
+    }
+  }, [getSound, updateCoins]);
+
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
     const [secretWord, amountToken, ...extraTokens] = normalizedCode.split(/\s+/);
@@ -1873,6 +2014,10 @@ function KnopikGame({
     setDrinkQuantity(1);
     setPitbullCount(0);
     setPitbullQuantity(1);
+    setColaCount(0);
+    setColaQuantity(1);
+    setTeaCount(0);
+    setTeaQuantity(1);
     boostUntilRef.current = 0;
     setBoostUntil(0);
     setHatOwned(false);
@@ -1889,6 +2034,8 @@ function KnopikGame({
     setRiskPayout(0);
     setRiskMessage("");
     setRiskStats({ spins: 0, wins: 0, losses: 0, lastBet: 0 });
+    setMiniGame(null);
+    setMiniGameStats({ slotPlays: 0, slotWins: 0, minePlays: 0, mineWins: 0, mineLosses: 0 });
     riskCommittedRef.current = false;
     transitionRisk("normal");
     setStats(resetStats);
@@ -1917,7 +2064,7 @@ function KnopikGame({
     transitionTo,
   ]);
 
-  const vaultLocked = dogState !== "calm" || holding || riskPhase !== "normal";
+  const vaultLocked = dogState !== "calm" || holding || riskPhase !== "normal" || miniGame !== null;
   const isDogTired =
     !settings.yellow &&
     (dogState === "tired" ||
@@ -1945,6 +2092,18 @@ function KnopikGame({
     remainingPitbullSlots > 0 &&
     pitbullQuantity <= remainingPitbullSlots &&
     coins.walletCoins >= pitbullTotalPrice;
+  const remainingColaSlots = Math.max(0, 10 - colaCount);
+  const colaTotalPrice = colaQuantity * COCOA_COLA_PRICE;
+  const canBuyCola =
+    remainingColaSlots > 0 &&
+    colaQuantity <= remainingColaSlots &&
+    coins.walletCoins >= colaTotalPrice;
+  const remainingTeaSlots = Math.max(0, 10 - teaCount);
+  const teaTotalPrice = teaQuantity * BERGAMOT_TEA_PRICE;
+  const canBuyTea =
+    remainingTeaSlots > 0 &&
+    teaQuantity <= remainingTeaSlots &&
+    coins.walletCoins >= teaTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
   const selectedRiskMultiplier = Math.round(
     riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS : 1) * 100,
@@ -2036,6 +2195,7 @@ function KnopikGame({
   const dogDisabled =
     dogState === "angry" ||
     dogState === "recovering" ||
+    miniGame !== null ||
     riskPhase === "transition" ||
     riskPhase === "spinning" ||
     riskPhase === "result";
@@ -2241,6 +2401,16 @@ function KnopikGame({
             <span className="drink-icon drink-pitbull" aria-hidden="true"><i /></span>
             <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
             <b className="inventory-count">{pitbullCount}</b>
+          </button>
+          <button className="inventory-item inventory-cola" type="button" disabled={colaCount < 1 || riskMode || isDogTired || miniGame !== null} onClick={() => openMiniGame("slots")}>
+            <span className="drink-icon drink-cola" aria-hidden="true"><i /></span>
+            <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
+            <b className="inventory-count">{colaCount}</b>
+          </button>
+          <button className="inventory-item inventory-tea" type="button" disabled={teaCount < 1 || riskMode || isDogTired || miniGame !== null} onClick={() => openMiniGame("mines")}>
+            <span className="drink-icon drink-tea" aria-hidden="true"><i /></span>
+            <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
+            <b className="inventory-count">{teaCount}</b>
           </button>
         </div>
       </header>
@@ -2507,6 +2677,24 @@ function KnopikGame({
       </footer>
       </div>
 
+      {miniGame && (
+        <MiniGamePanel
+          key={`${miniGame}-${miniGameSession}`}
+          kind={miniGame}
+          balance={coins.walletCoins}
+          difficulty={difficulty}
+          canChooseBet={mohawkEquipped}
+          stats={miniGameStats}
+          onCommitBet={commitMiniGameBet}
+          onResolve={resolveMiniGame}
+          onClose={() => setMiniGame(null)}
+          onTick={() => {
+            getSound().riskTick();
+            vibrate(5, settingsRef.current.vibration);
+          }}
+        />
+      )}
+
       {saveFlight && (
         <div
           className="save-flight"
@@ -2696,6 +2884,50 @@ function KnopikGame({
                     : `НУЖНО ${pitbullTotalPrice}`}
               </button>
             </article>
+
+            <article className="shop-card cola-card">
+              <span className="drink-pack cola-pack" aria-hidden="true"><span className="drink-icon drink-cola"><i /></span><b>SLOTS</b></span>
+              <div className="food-copy">
+                <small>ЗАПАС {colaCount}/10</small>
+                <h3>Напиток «Какао-Кола»</h3>
+                <p>Открывает три барабана. Пары, тройки и три алмаза дают всё более крупный выигрыш.</p>
+              </div>
+              <div className="food-price"><strong>{COCOA_COLA_PRICE}</strong><span>монет</span></div>
+              <div className="quantity-picker" aria-label="Количество напитков Какао-Кола">
+                <button type="button" aria-label="Уменьшить количество" disabled={colaQuantity <= 1} onClick={() => setColaQuantity((current) => Math.max(1, current - 1))}>−</button>
+                <strong>{colaQuantity}</strong>
+                <button type="button" aria-label="Увеличить количество" disabled={colaQuantity >= remainingColaSlots} onClick={() => setColaQuantity((current) => Math.min(remainingColaSlots, current + 1))}>+</button>
+              </div>
+              <button className="shop-buy-button cola-action" type="button" disabled={!canBuyCola} onClick={buyCola}>
+                {remainingColaSlots === 0
+                  ? "ЗАПАС ПОЛОН"
+                  : canBuyCola
+                    ? `КУПИТЬ ×${colaQuantity} · ${colaTotalPrice}`
+                    : `НУЖНО ${colaTotalPrice}`}
+              </button>
+            </article>
+
+            <article className="shop-card tea-card">
+              <span className="drink-pack tea-pack" aria-hidden="true"><span className="drink-icon drink-tea"><i /></span><b>5 × 1</b></span>
+              <div className="food-copy">
+                <small>ЗАПАС {teaCount}/10</small>
+                <h3>Чай с бергамотом</h3>
+                <p>Открывает пять закрытых кнопок. Иди дальше ради множителя или забери накопленный выигрыш.</p>
+              </div>
+              <div className="food-price"><strong>{BERGAMOT_TEA_PRICE}</strong><span>монет</span></div>
+              <div className="quantity-picker" aria-label="Количество чая с бергамотом">
+                <button type="button" aria-label="Уменьшить количество" disabled={teaQuantity <= 1} onClick={() => setTeaQuantity((current) => Math.max(1, current - 1))}>−</button>
+                <strong>{teaQuantity}</strong>
+                <button type="button" aria-label="Увеличить количество" disabled={teaQuantity >= remainingTeaSlots} onClick={() => setTeaQuantity((current) => Math.min(remainingTeaSlots, current + 1))}>+</button>
+              </div>
+              <button className="shop-buy-button tea-action" type="button" disabled={!canBuyTea} onClick={buyTea}>
+                {remainingTeaSlots === 0
+                  ? "ЗАПАС ПОЛОН"
+                  : canBuyTea
+                    ? `КУПИТЬ ×${teaQuantity} · ${teaTotalPrice}`
+                    : `НУЖНО ${teaTotalPrice}`}
+              </button>
+            </article>
             </>}
 
             {shopCategory === "clothes" && (<>
@@ -2722,7 +2954,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>{mohawkOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
                 <h3>Эрокез</h3>
-                <p>Слегка повышает коэффициенты рулетки и открывает выбор размера ставки активными монетами.</p>
+                <p>Слегка повышает коэффициенты рулетки и открывает выбор ставки в рулетке, слотах и игре с минами.</p>
               </div>
               <div className="food-price"><strong>{mohawkOwned ? "✓" : MOHAWK_PRICE}</strong><span>{mohawkOwned ? "твой" : "монет"}</span></div>
               <button className="shop-buy-button mohawk-action" type="button" disabled={!canBuyMohawk} onClick={buyOrToggleMohawk}>

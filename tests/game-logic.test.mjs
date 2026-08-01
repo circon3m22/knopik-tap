@@ -28,6 +28,13 @@ import {
   difficultyTiredSnapMultiplier,
   difficultyUltraDeadlineMultiplier,
 } from "../app/difficulty-engine.ts";
+import {
+  createMinePickOutcome,
+  createSlotOutcome,
+  minePayout,
+  mineSafeChance,
+  resolveMiniGameBet,
+} from "../app/mini-game-engine.ts";
 
 test("tap limit rewards speed and keeps requested ranges", () => {
   assert.equal(calculateTapLimit(1_000, 0, () => 0), 4);
@@ -178,6 +185,32 @@ test("one-time promo redemption persists in version eleven", () => {
   assert.equal(saved.hasbulaRedeemed, true);
 });
 
+test("new drink inventories and mini-game stats persist in version twelve", () => {
+  const saved = sanitizeSave({
+    version: 12,
+    walletCoins: 900,
+    colaCount: 14,
+    teaCount: 3,
+    slotPlays: 8,
+    slotWins: 4,
+    minePlays: 7,
+    mineWins: 5,
+    mineLosses: 2,
+  });
+  assert.equal(saved.version, 12);
+  assert.equal(saved.colaCount, 10);
+  assert.equal(saved.teaCount, 3);
+  assert.equal(saved.slotPlays, 8);
+  assert.equal(saved.slotWins, 4);
+  assert.equal(saved.minePlays, 7);
+  assert.equal(saved.mineWins, 5);
+  assert.equal(saved.mineLosses, 2);
+
+  const legacy = sanitizeSave({ version: 11, colaCount: 9, teaCount: 9 });
+  assert.equal(legacy.colaCount, 0);
+  assert.equal(legacy.teaCount, 0);
+});
+
 test("risk wheel resolves payout and final angle from the configured chance", () => {
   const win = createRiskOutcome(20, 1_000, (() => {
     const rolls = [0.1, 0.5];
@@ -250,4 +283,42 @@ test("real wheel chance changes while difficulty 50 keeps the existing +8 bonus"
   assert.equal(hard.won, false);
   assert.equal(easy.chance, 50);
   assert.equal(easy.multiplier, 1.75);
+});
+
+test("slots resolve three reels and hide difficulty inside real odds", () => {
+  const jackpot = createSlotOutcome(100, 50, () => 0);
+  assert.deepEqual(jackpot.reels, ["diamond", "diamond", "diamond"]);
+  assert.equal(jackpot.multiplier, 6);
+  assert.equal(jackpot.payout, 600);
+
+  const standard = createSlotOutcome(100, 50, () => 0.7);
+  const easy = createSlotOutcome(100, 0, () => 0.7);
+  const hard = createSlotOutcome(100, 100, () => 0.7);
+  assert.equal(standard.tier, "loss");
+  assert.equal(easy.tier, "pair");
+  assert.equal(hard.tier, "loss");
+});
+
+test("mini-games are all-in unless the mohawk unlocks bet choice", () => {
+  assert.equal(resolveMiniGameBet(875, 100, false), 875);
+  assert.equal(resolveMiniGameBet(875, 100, true), 100);
+  assert.equal(resolveMiniGameBet(875, 9_999, true), 875);
+  assert.equal(resolveMiniGameBet(0, 100, true), 0);
+});
+
+test("five-button game supports hidden difficulty and progressive cashout", () => {
+  assert.equal(mineSafeChance(50), 0.8);
+  assert.equal(mineSafeChance(0), 0.95);
+  assert.equal(mineSafeChance(100), 0.65);
+
+  const standard = createMinePickOutcome(2, 50, (() => {
+    const rolls = [0.79, 0];
+    return () => rolls.shift() ?? 0;
+  })());
+  const hard = createMinePickOutcome(2, 100, () => 0.79);
+  assert.equal(standard.safe, true);
+  assert.notEqual(standard.mineIndex, 2);
+  assert.deepEqual(hard, { safe: false, mineIndex: 2 });
+  assert.equal(minePayout(1_000, 1), 1_180);
+  assert.equal(minePayout(1_000, 3), 1_840);
 });
