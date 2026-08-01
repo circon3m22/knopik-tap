@@ -114,6 +114,12 @@ button {
   font-weight: 760;
 }
 
+.auth-card label span {
+  color: var(--ui-ink);
+  font-size: 13px;
+  font-weight: 760;
+}
+
 .auth-card input,
 .settings-sheet input {
   min-height: 50px;
