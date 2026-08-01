@@ -1525,8 +1525,8 @@ function KnopikGame({
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
-    const sectorOffset = 180 - (riskChance * 3.6) / 2;
-    setRiskRotation(1_800 + sectorOffset + outcome.finalAngle);
+  const winningDegrees = riskChance * 3.6;
+setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins((current) => ({
