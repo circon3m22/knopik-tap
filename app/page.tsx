@@ -137,6 +137,8 @@ const MAX_CHEAT_COIN_GRANT = 1_000_000_000;
 const RISK_SPIN_MS = 5_400;
 const RISK_RESULT_MS = 1_650;
 const INVENTORY_LIMIT = 25;
+const BULK_BUY_HOLD_MS = 900;
+type ShopBuffKind = "food" | "drink" | "pitbull" | "cola" | "tea" | "vita";
 const CASE_HOLD_MS = 1_050;
 const COMMON_CASE_PRICE = 2_500;
 const BIG_CASE_PRICE = 25_000;
@@ -282,6 +284,7 @@ function KnopikGame({
   const [teaQuantity, setTeaQuantity] = useState(1);
   const [vitaPowerCount, setVitaPowerCount] = useState(0);
   const [vitaPowerQuantity, setVitaPowerQuantity] = useState(1);
+  const [bulkBuyHolding, setBulkBuyHolding] = useState<ShopBuffKind | null>(null);
   const [vitaPowerShield, setVitaPowerShield] = useState(false);
   const [shieldBreakVisible, setShieldBreakVisible] = useState(false);
   const [hatOwned, setHatOwned] = useState(false);
@@ -427,6 +430,8 @@ function KnopikGame({
   const shieldBreakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const caseHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bulkBuyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bulkBuyTriggeredRef = useRef(false);
   const caseBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveFlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -921,6 +926,7 @@ function KnopikGame({
         clearTimeout(saveFlightTimerRef.current);
       }
       if (caseHoldTimerRef.current) clearTimeout(caseHoldTimerRef.current);
+      if (bulkBuyTimerRef.current) clearTimeout(bulkBuyTimerRef.current);
       if (caseBurstTimerRef.current) clearTimeout(caseBurstTimerRef.current);
       if (shieldBreakTimerRef.current) clearTimeout(shieldBreakTimerRef.current);
       [
@@ -1875,6 +1881,70 @@ function KnopikGame({
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
   }, [getSound, updateCoins, vitaPowerCount, vitaPowerQuantity]);
+
+  const buyMaximumBuff = useCallback((kind: ShopBuffKind) => {
+    const config = kind === "food"
+      ? { count: foodCount, price: DOG_FOOD_PRICE, label: "Корм" }
+      : kind === "drink"
+        ? { count: drinkCount, price: ZHIVCHIK_PRICE, label: "Живчик" }
+        : kind === "pitbull"
+          ? { count: pitbullCount, price: PITBULL_PRICE, label: "Питбуль" }
+          : kind === "cola"
+            ? { count: colaCount, price: COCOA_COLA_PRICE, label: "Какао-Кола" }
+            : kind === "tea"
+              ? { count: teaCount, price: BERGAMOT_TEA_PRICE, label: "Чай с бергамотом" }
+              : { count: vitaPowerCount, price: VITA_POWER_PRICE, label: "Пепси" };
+    const freeSlots = Math.max(0, INVENTORY_LIMIT - config.count);
+    const affordable = Math.floor(coinsRef.current.walletCoins / config.price);
+    const quantity = Math.min(freeSlots, affordable);
+    if (quantity < 1) return;
+
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - quantity * config.price }));
+    if (kind === "food") setFoodCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
+    else if (kind === "drink") setDrinkCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
+    else if (kind === "pitbull") setPitbullCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
+    else if (kind === "cola") setColaCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
+    else if (kind === "tea") setTeaCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
+    else setVitaPowerCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
+
+    setFoodQuantity(1);
+    setDrinkQuantity(1);
+    setPitbullQuantity(1);
+    setColaQuantity(1);
+    setTeaQuantity(1);
+    setVitaPowerQuantity(1);
+    setShopMessage(`${config.label} ×${quantity} — куплен максимальный запас`);
+    getSound().purchase();
+    vibrate([22, 18, 36, 18, 52], settingsRef.current.vibration);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
+  }, [colaCount, drinkCount, foodCount, getSound, pitbullCount, teaCount, updateCoins, vitaPowerCount]);
+
+  const beginBulkBuy = useCallback((kind: ShopBuffKind) => {
+    if (bulkBuyTimerRef.current) clearTimeout(bulkBuyTimerRef.current);
+    bulkBuyTriggeredRef.current = false;
+    setBulkBuyHolding(kind);
+    bulkBuyTimerRef.current = setTimeout(() => {
+      bulkBuyTriggeredRef.current = true;
+      buyMaximumBuff(kind);
+      setBulkBuyHolding(null);
+      bulkBuyTimerRef.current = null;
+    }, BULK_BUY_HOLD_MS);
+  }, [buyMaximumBuff]);
+
+  const cancelBulkBuy = useCallback(() => {
+    if (bulkBuyTimerRef.current) clearTimeout(bulkBuyTimerRef.current);
+    bulkBuyTimerRef.current = null;
+    setBulkBuyHolding(null);
+  }, []);
+
+  const handleBuffBuyClick = useCallback((purchase: () => void) => {
+    if (bulkBuyTriggeredRef.current) {
+      bulkBuyTriggeredRef.current = false;
+      return;
+    }
+    purchase();
+  }, []);
 
   const activateVitaPower = useCallback(() => {
     if (vitaPowerShield || vitaPowerCount < 1 || riskPhaseRef.current !== "normal") return;
@@ -3489,10 +3559,10 @@ function KnopikGame({
                 <h3>Корм для Кнопика</h3>
                 <p>Полностью снимает усталость.</p>
               </div>
-              <button className="shop-buy-button" type="button" disabled={!canBuyFood} onClick={buyFood}>
-                {remainingFoodSlots === 0
+              <button className={`shop-buy-button ${bulkBuyHolding === "food" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyFood} onPointerDown={() => beginBulkBuy("food")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyFood)}>
+                <span>{remainingFoodSlots === 0
                   ? "Запас заполнен"
-                  : `Купить · ${DOG_FOOD_PRICE}`}
+                  : `Купить · ${DOG_FOOD_PRICE}`}</span>
               </button>
             </article>
 
@@ -3503,10 +3573,10 @@ function KnopikGame({
                 <h3>Напиток «Живчик»</h3>
                 <p>Умножает обычные тапы на 4 на одну минуту.</p>
               </div>
-              <button className="shop-buy-button drink-action" type="button" disabled={!canBuyDrink} onClick={buyDrink}>
-                {remainingDrinkSlots === 0
+              <button className={`shop-buy-button drink-action ${bulkBuyHolding === "drink" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyDrink} onPointerDown={() => beginBulkBuy("drink")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyDrink)}>
+                <span>{remainingDrinkSlots === 0
                   ? "Запас заполнен"
-                  : `Купить · ${ZHIVCHIK_PRICE}`}
+                  : `Купить · ${ZHIVCHIK_PRICE}`}</span>
               </button>
             </article>
 
@@ -3517,10 +3587,10 @@ function KnopikGame({
                 <h3>Напиток «Питбуль»</h3>
                 <p>Открывает одну игру в рулетку.</p>
               </div>
-              <button className="shop-buy-button pitbull-action" type="button" disabled={!canBuyPitbull} onClick={buyPitbull}>
-                {remainingPitbullSlots === 0
+              <button className={`shop-buy-button pitbull-action ${bulkBuyHolding === "pitbull" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyPitbull} onPointerDown={() => beginBulkBuy("pitbull")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyPitbull)}>
+                <span>{remainingPitbullSlots === 0
                   ? "Запас заполнен"
-                  : `Купить · ${PITBULL_PRICE}`}
+                  : `Купить · ${PITBULL_PRICE}`}</span>
               </button>
             </article>
 
@@ -3531,10 +3601,10 @@ function KnopikGame({
                 <h3>Напиток «Какао-Кола»</h3>
                 <p>Открывает слот-машину с тремя барабанами.</p>
               </div>
-              <button className="shop-buy-button cola-action" type="button" disabled={!canBuyCola} onClick={buyCola}>
-                {remainingColaSlots === 0
+              <button className={`shop-buy-button cola-action ${bulkBuyHolding === "cola" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyCola} onPointerDown={() => beginBulkBuy("cola")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyCola)}>
+                <span>{remainingColaSlots === 0
                   ? "Запас заполнен"
-                  : `Купить · ${COCOA_COLA_PRICE}`}
+                  : `Купить · ${COCOA_COLA_PRICE}`}</span>
               </button>
             </article>
 
@@ -3545,10 +3615,10 @@ function KnopikGame({
                 <h3>Чай с бергамотом</h3>
                 <p>Открывает игру с пятью кнопками и миной.</p>
               </div>
-              <button className="shop-buy-button tea-action" type="button" disabled={!canBuyTea} onClick={buyTea}>
-                {remainingTeaSlots === 0
+              <button className={`shop-buy-button tea-action ${bulkBuyHolding === "tea" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyTea} onPointerDown={() => beginBulkBuy("tea")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyTea)}>
+                <span>{remainingTeaSlots === 0
                   ? "Запас заполнен"
-                  : `Купить · ${BERGAMOT_TEA_PRICE}`}
+                  : `Купить · ${BERGAMOT_TEA_PRICE}`}</span>
               </button>
             </article>
             <article className="shop-card shop-product-card vita-card">
@@ -3558,10 +3628,10 @@ function KnopikGame({
                 <h3>Напиток «Пепси»</h3>
                 <p>Защищает активный баланс от одной неудачи.</p>
               </div>
-              <button className="shop-buy-button vita-action" type="button" disabled={!canBuyVitaPower} onClick={buyVitaPower}>
-                {remainingVitaPowerSlots === 0
+              <button className={`shop-buy-button vita-action ${bulkBuyHolding === "vita" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyVitaPower} onPointerDown={() => beginBulkBuy("vita")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyVitaPower)}>
+                <span>{remainingVitaPowerSlots === 0
                   ? "Запас заполнен"
-                  : `Купить · ${VITA_POWER_PRICE}`}
+                  : `Купить · ${VITA_POWER_PRICE}`}</span>
               </button>
             </article>
             </div>}

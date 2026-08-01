@@ -707,6 +707,8 @@ button {
 
 .shop-product-card > .shop-buy-button,
 .shop-product-card > .shop-buy-button[class*="-action"] {
+  position: relative;
+  overflow: hidden;
   height: 48px;
   min-height: 48px;
   padding: 0 9px;
@@ -719,6 +721,22 @@ button {
   font-weight: 800;
   letter-spacing: 0;
 }
+.shop-product-card > .shop-buy-button.is-bulk-holding {
+  color: #fff !important;
+  touch-action: none;
+}
+.shop-product-card > .shop-buy-button.is-bulk-holding::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: var(--ui-blue);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: bulk-buy-fill 900ms linear forwards;
+}
+.shop-product-card > .shop-buy-button > span { position: relative; z-index: 1; }
+@keyframes bulk-buy-fill { to { transform: scaleX(1); } }
 
 .shop-product-card > .shop-buy-button:disabled {
   color: var(--ui-subtle);
