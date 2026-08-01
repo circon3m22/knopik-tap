@@ -2372,6 +2372,14 @@ function KnopikGame({
             ? "РАДУЕТСЯ"
             : "СПОКОЕН";
 
+  const handleInterfacePress = useCallback((event: PointerEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement;
+    const button = target.closest("button") as HTMLButtonElement | null;
+    if (!button || button.disabled || button.classList.contains("dog-button")) return;
+    getSound().uiPress();
+    vibrate(3, settingsRef.current.vibration);
+  }, [getSound]);
+
   useEffect(() => {
     const themeMeta = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]',
@@ -2408,6 +2416,7 @@ function KnopikGame({
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}
+      onPointerDownCapture={handleInterfacePress}
     >
       <div
         className={`ultra-fire ${ultraFarming ? "is-farming" : ""}`}

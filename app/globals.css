@@ -6727,3 +6727,190 @@ img,
   grid-template-rows: 31px auto 18px;
   padding-bottom: 5px;
 }
+
+/* Tactile motion, reward feedback and cleaner quick-buy pricing — v65 */
+.game-shell button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game-shell button:not(:disabled):not(.dog-button) {
+  transform-origin: 50% 60%;
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 140ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.game-shell button:not(:disabled):not(.dog-button):active {
+  filter: brightness(1.08) saturate(1.06);
+  transform: translateY(1px) scale(0.965);
+}
+
+.game-shell .bottom-bar button.active {
+  animation: nav-active-breathe 2.6s ease-in-out infinite;
+}
+
+.game-shell .inventory-item:not(:disabled),
+.game-shell .quick-save-button:not(:disabled),
+.game-shell .mini-primary:not(:disabled),
+.game-shell .mine-actions button:not(:disabled) {
+  position: relative;
+  overflow: hidden;
+}
+
+.game-shell .inventory-item:not(:disabled)::before,
+.game-shell .quick-save-button:not(:disabled)::after,
+.game-shell .mini-primary:not(:disabled)::after,
+.game-shell .mine-actions button:not(:disabled)::after {
+  position: absolute;
+  top: -60%;
+  left: -38%;
+  width: 22%;
+  height: 220%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 24%), transparent);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: rotate(24deg);
+}
+
+.game-shell .inventory-item:not(:disabled):active::before,
+.game-shell .quick-save-button:not(:disabled):active::after,
+.game-shell .mini-primary:not(:disabled):active::after,
+.game-shell .mine-actions button:not(:disabled):active::after {
+  opacity: 1;
+  animation: ui-button-sheen 420ms ease-out both;
+}
+
+.game-shell .boost-row .inventory-count.is-price {
+  display: flex;
+  min-width: 0;
+  height: 15px;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--adaptive-ink);
+  background: transparent;
+  box-shadow: none;
+  font-size: 8px;
+  letter-spacing: -0.02em;
+}
+
+.game-shell .boost-row .inventory-count.is-price::before {
+  display: grid;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  place-items: center;
+  margin: 0;
+  border: 1px solid #ffe773;
+  border-radius: 50%;
+  color: #714800;
+  background: radial-gradient(circle at 36% 28%, #fff8ad, #f5bd23 62%, #c98608);
+  box-shadow: 0 2px 5px rgb(80 48 0 / 18%), inset 0 1px 0 #fffbc9;
+  content: "К";
+  font-size: 5.5px;
+  line-height: 1;
+  opacity: 1;
+}
+
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  min-height: 69px;
+  grid-template-rows: 29px auto 15px;
+  border-color: rgb(255 214 81 / 28%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%), 0 7px 16px rgb(12 28 39 / 8%);
+}
+
+.tap-impact::before {
+  width: 43px;
+  height: 43px;
+  background: radial-gradient(circle, #fff 0 4%, currentColor 5% 12%, transparent 48%);
+  box-shadow: 0 0 18px currentColor;
+}
+
+.tap-impact::after {
+  border-width: 2px;
+  box-shadow: 0 0 11px currentColor;
+}
+
+.tap-sparks i:nth-child(2n) { filter: brightness(1.35); }
+.tap-sparks i:nth-child(3n) { height: 8px; opacity: 0.82; }
+
+.tap-particle {
+  animation: coin-float-live 720ms cubic-bezier(0.16, 0.82, 0.2, 1) forwards;
+}
+
+.ultra-active .wordmark strong {
+  color: #fff7d0 !important;
+  text-shadow: 0 0 12px #ffb11f, 0 0 28px rgb(255 76 0 / 58%);
+  animation: ultra-brand-live 620ms ease-in-out infinite alternate;
+}
+
+.ultra-active .level-track > span {
+  background: linear-gradient(90deg, #fff075, #ff9c19, #ff3d18);
+  box-shadow: 0 0 13px rgb(255 104 18 / 62%);
+}
+
+.mini-result {
+  position: relative;
+  overflow: hidden;
+}
+
+.mini-result.is-win {
+  animation: reward-card-pop 520ms cubic-bezier(0.16, 0.9, 0.2, 1.2) both;
+}
+
+.mini-result.is-win::before {
+  position: absolute;
+  inset: -70% -25%;
+  background: conic-gradient(from 0deg, transparent, rgb(215 255 151 / 24%), transparent 22%, transparent 52%, rgb(255 230 101 / 18%), transparent 72%);
+  content: "";
+  animation: reward-rays-spin 3s linear infinite;
+  pointer-events: none;
+}
+
+.mini-result > * { position: relative; z-index: 1; }
+
+.risk-wheel-shell.is-win::after {
+  position: absolute;
+  z-index: -1;
+  inset: -9%;
+  border: 2px solid rgb(143 255 178 / 42%);
+  border-radius: 50%;
+  box-shadow: 0 0 42px rgb(70 255 160 / 36%);
+  content: "";
+  animation: reward-halo 900ms ease-out both;
+}
+
+@keyframes ui-button-sheen {
+  from { left: -38%; }
+  to { left: 122%; }
+}
+
+@keyframes nav-active-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.06); }
+}
+
+@keyframes coin-float-live {
+  0% { opacity: 0; transform: translate(-50%, -35%) scale(0.65); }
+  20% { opacity: 1; transform: translate(-50%, -70%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -160%) scale(0.94); }
+}
+
+@keyframes ultra-brand-live {
+  from { filter: brightness(1); transform: scale(1); }
+  to { filter: brightness(1.2); transform: scale(1.025); }
+}
+
+@keyframes reward-card-pop {
+  from { opacity: 0; transform: scale(0.78); }
+  68% { opacity: 1; transform: scale(1.035); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes reward-rays-spin { to { transform: rotate(360deg); } }
+
+@keyframes reward-halo {
+  from { opacity: 0.9; transform: scale(0.72); }
+  to { opacity: 0; transform: scale(1.18); }
+}

@@ -72,6 +72,30 @@ export class KnopikSoundEngine {
       gain: 0.018 + force * 0.012,
     });
     this.noiseHit(now, 0.055, 950 + force * 850, 2.4, 0.028 + force * 0.014);
+    this.tonalHit(now + 0.012, {
+      type: "sine",
+      from: 1_150 + force * 420,
+      to: 760 + force * 180,
+      duration: 0.032,
+      gain: 0.01 + force * 0.008,
+      attack: 0.002,
+    });
+  }
+
+  /** Quiet tactile click shared by ordinary interface controls. */
+  uiPress() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.tonalHit(now, {
+      type: "sine",
+      from: 520,
+      to: 390,
+      duration: 0.045,
+      gain: 0.018,
+      attack: 0.002,
+    });
+    this.noiseHit(now, 0.026, 2_300, 4.2, 0.011);
   }
 
   nav(direction = 0) {
@@ -351,6 +375,17 @@ export class KnopikSoundEngine {
         attack: 0.009,
       });
     });
+    [1_318.5, 1_568, 1_975.5, 2_093].forEach((frequency, index) => {
+      this.tonalHit(now + 0.17 + index * 0.038, {
+        type: "sine",
+        from: frequency,
+        to: frequency * 1.08,
+        duration: 0.2,
+        gain: 0.018 - index * 0.002,
+        attack: 0.004,
+      });
+    });
+    this.noiseHit(now + 0.12, 0.32, 3_800, 5.2, 0.027);
   }
 
   riskLose() {
@@ -384,6 +419,14 @@ export class KnopikSoundEngine {
       gain: 0.055,
       attack: 0.025,
       lowpass: 720,
+    });
+    this.tonalHit(now + 0.055, {
+      type: "sine",
+      from: 196,
+      to: 392,
+      duration: 0.52,
+      gain: 0.032,
+      attack: 0.035,
     });
 
     const output = ctx.createGain();
