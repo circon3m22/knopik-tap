@@ -2631,32 +2631,32 @@ function KnopikGame({
           <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
             <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
-            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{foodCount || (canQuickBuyFood ? DOG_FOOD_PRICE : 0)}</b>
+            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{canQuickBuyFood ? null : foodCount}</b>
           </button>
           <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
             <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
-            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{drinkCount || (canQuickBuyDrink ? ZHIVCHIK_PRICE : 0)}</b>
+            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{canQuickBuyDrink ? null : drinkCount}</b>
           </button>
           <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
             <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
-            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{pitbullCount || (canQuickBuyPitbull ? PITBULL_PRICE : 0)}</b>
+            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{canQuickBuyPitbull ? null : pitbullCount}</b>
           </button>
           <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
             <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
-            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{colaCount || (canQuickBuyCola ? COCOA_COLA_PRICE : 0)}</b>
+            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{canQuickBuyCola ? null : colaCount}</b>
           </button>
           <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
             <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
-            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{teaCount || (canQuickBuyTea ? BERGAMOT_TEA_PRICE : 0)}</b>
+            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{canQuickBuyTea ? null : teaCount}</b>
           </button>
           <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
             <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
             <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
-            <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : vitaPowerCount || (canQuickBuyVitaPower ? VITA_POWER_PRICE : 0)}</b>
+            <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? null : vitaPowerCount}</b>
           </button>
         </div>
       </header>

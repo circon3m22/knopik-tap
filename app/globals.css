@@ -8266,3 +8266,197 @@ img,
 .shop-product-card > .drink-pack:has(.shop-buff-image) {
   padding: 2px;
 }
+
+/* v75: compact, collision-free shop cards and calmer game controls. */
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card {
+  height: 298px;
+  min-height: 298px;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-rows: 90px 88px 36px 44px;
+  gap: 6px;
+  padding: 11px;
+}
+
+.shop-product-card > .food-pack,
+.shop-product-card > .drink-pack {
+  height: 90px;
+}
+
+.shop-product-card .shop-buff-image {
+  width: 84px;
+  height: 84px;
+}
+
+.shop-product-card .food-copy small {
+  font-size: 6.5px;
+}
+
+.shop-product-card .food-copy h3 {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.08;
+}
+
+.shop-product-card .food-copy p {
+  margin-top: 5px;
+  font-size: 8.5px;
+  line-height: 1.35;
+  -webkit-line-clamp: 3;
+}
+
+.shop-product-card > .food-price {
+  min-height: 36px;
+  padding: 8px;
+}
+
+.shop-product-card > .food-price strong { font-size: 13px; }
+.shop-product-card > .food-price span { font-size: 6.5px; }
+
+.shop-product-card > .quantity-picker {
+  width: 72px;
+  min-width: 72px;
+  min-height: 36px;
+  grid-template-columns: 23px 26px 23px;
+}
+
+.shop-product-card > .shop-buy-button,
+.shop-product-card > .shop-buy-button.drink-action,
+.shop-product-card > .shop-buy-button.pitbull-action,
+.shop-product-card > .shop-buy-button.cola-action,
+.shop-product-card > .shop-buy-button.tea-action,
+.shop-product-card > .shop-buy-button.vita-action,
+.shop-product-card > .shop-buy-button.hat-action,
+.shop-product-card > .shop-buy-button.mohawk-action {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 1;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  align-self: stretch;
+  border: 1px solid rgb(218 226 233 / 92%) !important;
+  border-radius: 13px;
+  color: #123047 !important;
+  background: #fff !important;
+  box-shadow: 0 7px 16px rgb(21 46 65 / 10%), inset 0 1px 0 #fff !important;
+  font-size: 8.5px;
+  letter-spacing: 0.025em;
+  transform: none;
+}
+
+.shop-product-card > .shop-buy-button:disabled {
+  color: #8a98a3 !important;
+  background: #f1f4f6 !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 85%) !important;
+  opacity: 1;
+}
+
+.shop-clothes-grid .shop-product-card {
+  height: 306px;
+  min-height: 306px;
+  grid-template-rows: 102px 88px 36px 44px;
+}
+
+.game-shell .boost-row .inventory-item,
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  min-height: 70px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 50px 14px;
+  gap: 0;
+  padding: 3px 1px 4px;
+}
+
+.game-shell .boost-row .buff-icon-image {
+  width: 48px;
+  height: 48px;
+  grid-row: 1;
+}
+
+.game-shell .boost-row .inventory-copy {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  grid-row: 2;
+  text-align: center;
+}
+
+.game-shell .boost-row .inventory-copy strong {
+  display: block;
+  overflow: hidden;
+  font-size: 7.8px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-shell .boost-row .inventory-count.is-price {
+  display: none;
+}
+
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  border-color: rgb(76 173 255 / 62%);
+  background: color-mix(in srgb, var(--adaptive-surface) 84%, #75c9ff 16%);
+  animation: quick-buy-ready 1.8s ease-in-out infinite;
+}
+
+.game-shell .level-strip {
+  min-height: 38px;
+  grid-template-columns: auto minmax(70px, 1fr) auto;
+  gap: 10px;
+  padding: 5px 9px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 14px;
+  background: var(--adaptive-surface);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.game-shell .level-progress-copy { display: none; }
+.game-shell .level-progress-block { gap: 0; }
+
+.game-shell .level-track {
+  height: 5px;
+  border-radius: 99px;
+  background: rgb(93 111 126 / 24%);
+  box-shadow: none;
+}
+
+.game-shell .level-track > span {
+  border-radius: inherit;
+  background: #1689e8;
+  box-shadow: none;
+}
+
+.vita-shield-ring {
+  z-index: 10;
+  inset: -1.2%;
+  border: 1px solid #e8fbff;
+  background: conic-gradient(from 0deg, #f8feff 0 5%, #4dd9ff 8% 16%, #0756a9 20% 31%, #d4f8ff 35% 42%, #168fd9 47% 58%, #75e6ff 63% 72%, #064a99 77% 87%, #9eefff 92% 97%, #f8feff 100%);
+  box-shadow: 0 0 0 3px rgb(8 83 166 / 84%), 0 0 26px rgb(31 184 246 / 78%), inset 0 0 13px rgb(218 250 255 / 92%);
+  -webkit-mask: radial-gradient(circle, transparent 0 82%, #000 83% 100%);
+  mask: radial-gradient(circle, transparent 0 82%, #000 83% 100%);
+  animation: vita-shield-metal 3.1s linear infinite;
+}
+
+.vita-shield-ring::after {
+  inset: 5%;
+  border: 2px solid rgb(226 251 255 / 82%);
+  box-shadow: inset 0 0 14px rgb(37 170 236 / 48%), 0 0 9px rgb(138 232 255 / 72%);
+}
+
+@keyframes quick-buy-ready {
+  0%, 100% { filter: brightness(1); box-shadow: inset 0 1px 0 rgb(255 255 255 / 22%), 0 0 0 0 rgb(58 169 250 / 0%); }
+  50% { filter: brightness(1.06); box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 0 0 2px rgb(58 169 250 / 20%), 0 7px 17px rgb(22 119 196 / 14%); }
+}
+
+@keyframes vita-shield-metal {
+  0% { filter: brightness(1) saturate(1.08); transform: rotate(0deg) scale(1); }
+  50% { filter: brightness(1.18) saturate(1.2); transform: rotate(180deg) scale(1.008); }
+  100% { filter: brightness(1) saturate(1.08); transform: rotate(360deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled),
+  .vita-shield-ring { animation: none; }
+}
