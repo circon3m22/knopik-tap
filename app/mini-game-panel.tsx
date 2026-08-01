@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   MINE_MULTIPLIERS,
   SLOT_SYMBOL_LABELS,
@@ -48,6 +48,18 @@ const INITIAL_REELS: [SlotSymbol, SlotSymbol, SlotSymbol] = [
   "seven",
 ];
 
+const SLOT_FACE_ORDER: readonly SlotSymbol[] = [
+  "cherry",
+  "lemon",
+  "seven",
+  "star",
+  "diamond",
+];
+
+const INITIAL_REEL_ANGLES = INITIAL_REELS.map(
+  (symbol) => -SLOT_FACE_ORDER.indexOf(symbol) * 72,
+) as [number, number, number];
+
 export function MiniGamePanel({
   kind,
   balance,
@@ -63,6 +75,7 @@ export function MiniGamePanel({
   const [lockedBet, setLockedBet] = useState<number | null>(null);
   const [slotPhase, setSlotPhase] = useState<"ready" | "spinning" | "result">("ready");
   const [slotReels, setSlotReels] = useState(INITIAL_REELS);
+  const [reelAngles, setReelAngles] = useState(INITIAL_REEL_ANGLES);
   const [slotOutcome, setSlotOutcome] = useState<SlotOutcome | null>(null);
   const [minePhase, setMinePhase] = useState<"ready" | "playing" | "safe" | "lost" | "cashed">("ready");
   const [mineRound, setMineRound] = useState(0);
@@ -103,16 +116,12 @@ export function MiniGamePanel({
     const outcome = createSlotOutcome(safeBet, difficulty);
     setSlotOutcome(null);
     setSlotPhase("spinning");
-    let ticks = 0;
+    setReelAngles(outcome.reels.map((symbol, index) => (
+      -SLOT_FACE_ORDER.indexOf(symbol) * 72 - (7 + index * 2) * 360
+    )) as [number, number, number]);
     intervalRef.current = setInterval(() => {
-      ticks += 1;
-      setSlotReels([
-        ["cherry", "lemon", "seven", "star", "diamond"][ticks % 5] as SlotSymbol,
-        ["lemon", "star", "cherry", "diamond", "seven"][(ticks + 1) % 5] as SlotSymbol,
-        ["seven", "diamond", "lemon", "star", "cherry"][(ticks + 2) % 5] as SlotSymbol,
-      ]);
       onTick();
-    }, 85);
+    }, 120);
     timerRef.current = setTimeout(() => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -120,7 +129,7 @@ export function MiniGamePanel({
       setSlotOutcome(outcome);
       setSlotPhase("result");
       resolve(outcome.payout, outcome.payout > 0);
-    }, 1_150);
+    }, 2_650);
   };
 
   const chooseMineTile = (selectedIndex: number) => {
@@ -198,11 +207,29 @@ export function MiniGamePanel({
 
         {kind === "slots" ? (
           <>
-            <div className={`slot-machine ${slotPhase === "spinning" ? "is-spinning" : ""}`}>
-              {slotReels.map((symbol, index) => (
-                <div className={`slot-reel symbol-${symbol}`} key={index}>
-                  <span>{SLOT_GLYPHS[symbol]}</span>
-                  <small>{SLOT_SYMBOL_LABELS[symbol]}</small>
+            <div className={`slot-machine ${slotPhase === "spinning" ? "is-spinning" : ""} ${slotPhase === "result" && slotOutcome?.payout ? "is-winner" : ""}`} aria-label={`Барабаны: ${slotReels.map((symbol) => SLOT_SYMBOL_LABELS[symbol]).join(", ")}`}>
+              <div className="slot-payline" aria-hidden="true" />
+              {reelAngles.map((angle, reelIndex) => (
+                <div className="slot-reel-window" key={reelIndex}>
+                  <div
+                    className="slot-reel-rotor"
+                    style={{
+                      "--reel-angle": `${angle}deg`,
+                      "--reel-duration": `${1.7 + reelIndex * 0.42}s`,
+                    } as CSSProperties}
+                  >
+                    {SLOT_FACE_ORDER.map((symbol, faceIndex) => (
+                      <div
+                        className={`slot-reel-face symbol-${symbol}`}
+                        style={{ "--face-angle": `${faceIndex * 72}deg` } as CSSProperties}
+                        key={symbol}
+                      >
+                        <span>{SLOT_GLYPHS[symbol]}</span>
+                        <small>{SLOT_SYMBOL_LABELS[symbol]}</small>
+                      </div>
+                    ))}
+                  </div>
+                  <span className="slot-reel-glass" aria-hidden="true" />
                 </div>
               ))}
             </div>

@@ -5991,38 +5991,125 @@ img,
 .mini-bet-control button { min-height: 36px; padding-inline: 13px; border: 0; border-radius: 12px; color: #fff; background: #277ed8; font-size: 8px; font-weight: 900; }
 
 .slot-machine {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-  padding: 10px;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 25px;
-  background: rgb(4 9 15 / 42%);
-  box-shadow: inset 0 12px 28px rgb(0 0 0 / 28%);
+  gap: 6px;
+  padding: 13px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 27px;
+  background: linear-gradient(145deg, #283746, #071018 52%, #1a2835);
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / 14%), inset 0 -18px 30px rgb(0 0 0 / 32%), 0 17px 32px rgb(0 0 0 / 25%);
+  isolation: isolate;
 }
 
-.slot-reel {
-  display: grid;
+.slot-machine::before,
+.slot-machine::after {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffdb68;
+  box-shadow: 0 0 11px #ffb52f, 0 0 22px rgb(255 172 42 / 45%);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.slot-machine::before { left: 4px; }
+.slot-machine::after { right: 4px; }
+
+.slot-payline {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  right: 8px;
+  left: 8px;
+  height: 64px;
+  border-block: 1px solid rgb(255 210 100 / 44%);
+  background: linear-gradient(90deg, transparent, rgb(255 225 141 / 8%) 20%, rgb(255 225 141 / 12%) 50%, transparent);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.slot-reel-window {
+  position: relative;
+  height: 126px;
   min-width: 0;
-  min-height: 112px;
-  place-items: center;
-  align-content: center;
-  gap: 9px;
-  border: 1px solid rgb(255 255 255 / 64%);
-  border-radius: 18px;
-  color: #17293a;
-  background: linear-gradient(180deg, #fff, #e9eef3 58%, #bac5cf);
-  box-shadow: inset 0 4px 10px rgb(255 255 255 / 76%), 0 8px 18px rgb(0 0 0 / 18%);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 33%);
+  border-radius: 19px;
+  background: #cdd5da;
+  box-shadow: inset 0 13px 18px rgb(2 10 17 / 34%), inset 0 -13px 18px rgb(2 10 17 / 38%), 0 8px 17px rgb(0 0 0 / 28%);
+  perspective: 390px;
+  perspective-origin: 50% 50%;
 }
 
-.slot-reel span { font-size: 39px; font-weight: 950; line-height: 1; }
-.slot-reel small { color: #607184; font-size: 6px; font-weight: 950; letter-spacing: 0.09em; }
-.symbol-cherry span { color: #d52f46; letter-spacing: -0.3em; padding-right: 0.3em; }
-.symbol-lemon span { color: #e7bd1e; }
-.symbol-seven span { color: #e33f37; text-shadow: 2px 2px 0 #f5c848; }
-.symbol-star span { color: #efb91c; }
-.symbol-diamond span { color: #3eb8ed; text-shadow: 0 0 14px rgb(62 184 237 / 42%); }
-.slot-machine.is-spinning .slot-reel span { filter: blur(1.6px); transform: scaleY(1.18); }
+.slot-reel-rotor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 68px;
+  transform: translate(-50%, -50%) rotateX(var(--reel-angle));
+  transform-style: preserve-3d;
+  transition: transform var(--reel-duration) cubic-bezier(0.12, 0.74, 0.16, 1);
+  will-change: transform;
+}
+
+.slot-reel-face {
+  position: absolute;
+  inset: 0 4px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  border-block: 1px solid rgb(70 88 104 / 15%);
+  color: #17293a;
+  background: linear-gradient(180deg, #f9fbfc, #e9edf0 55%, #cbd3d8);
+  box-shadow: inset 0 1px 0 #fff;
+  text-align: center;
+  transform: rotateX(var(--face-angle)) translateZ(47px);
+  backface-visibility: hidden;
+}
+
+.slot-reel-face span { font-size: 34px; font-weight: 950; line-height: 0.9; }
+.slot-reel-face small { color: #607184; font-size: 5.5px; font-weight: 950; letter-spacing: 0.09em; }
+.slot-reel-face.symbol-cherry span { color: #d52f46; letter-spacing: -0.3em; padding-right: 0.3em; }
+.slot-reel-face.symbol-lemon span { color: #e7bd1e; }
+.slot-reel-face.symbol-seven span { color: #e33f37; text-shadow: 2px 2px 0 #f5c848; }
+.slot-reel-face.symbol-star span { color: #efb91c; }
+.slot-reel-face.symbol-diamond span { color: #3eb8ed; text-shadow: 0 0 14px rgb(62 184 237 / 42%); }
+
+.slot-reel-glass {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, rgb(255 255 255 / 34%), transparent 28%, transparent 67%, rgb(255 255 255 / 13%)), linear-gradient(180deg, rgb(5 13 21 / 36%), transparent 28%, transparent 71%, rgb(5 13 21 / 42%));
+  box-shadow: inset 0 0 18px rgb(255 255 255 / 18%);
+  pointer-events: none;
+}
+
+.slot-machine.is-spinning .slot-reel-face span,
+.slot-machine.is-spinning .slot-reel-face small {
+  filter: blur(0.8px);
+}
+
+.slot-machine.is-spinning .slot-reel-window {
+  box-shadow: inset 0 18px 22px rgb(2 10 17 / 42%), inset 0 -18px 22px rgb(2 10 17 / 46%), 0 8px 17px rgb(0 0 0 / 28%);
+}
+
+.slot-machine.is-winner {
+  border-color: rgb(255 216 108 / 62%);
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / 16%), inset 0 -18px 30px rgb(0 0 0 / 32%), 0 0 28px rgb(255 190 48 / 24%);
+  animation: slot-win-glow 0.72s ease-in-out infinite alternate;
+}
+
+@keyframes slot-win-glow {
+  to { filter: brightness(1.14); transform: translateY(-1px); }
+}
 
 .mini-result {
   display: grid;
@@ -6093,8 +6180,8 @@ img,
   }
 
   .mini-game-panel { gap: 10px; padding: 14px; border-radius: 26px; }
-  .slot-reel { min-height: 82px; }
-  .slot-reel span { font-size: 30px; }
+  .slot-reel-window { height: 102px; }
+  .slot-reel-face span { font-size: 29px; }
   .mini-primary,
   .mine-actions button { min-height: 44px; }
 }
