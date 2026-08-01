@@ -19,7 +19,7 @@ export type GameStats = {
 };
 
 export type SaveData = {
-  version: 13;
+  version: 14;
   vaultCoins: number;
   walletCoins: number;
   foodCount: number;
@@ -33,6 +33,13 @@ export type SaveData = {
   hatEquipped: boolean;
   mohawkOwned: boolean;
   mohawkEquipped: boolean;
+  hatLevel: number;
+  mohawkLevel: number;
+  hatUpgradeTokens: number;
+  mohawkUpgradeTokens: number;
+  commonCases: number;
+  bigCases: number;
+  questIndex: number;
   hasbulaRedeemed: boolean;
   riskFatigueUntil: number;
   riskSpins: number;
@@ -57,7 +64,7 @@ export type SaveData = {
 };
 
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 13 as const;
+export const SAVE_VERSION = 14 as const;
 
 export function createDefaultSave(): SaveData {
   return {
@@ -75,6 +82,13 @@ export function createDefaultSave(): SaveData {
     hatEquipped: false,
     mohawkOwned: false,
     mohawkEquipped: false,
+    hatLevel: 1,
+    mohawkLevel: 1,
+    hatUpgradeTokens: 0,
+    mohawkUpgradeTokens: 0,
+    commonCases: 0,
+    bigCases: 0,
+    questIndex: 0,
     hasbulaRedeemed: false,
     riskFatigueUntil: 0,
     riskSpins: 0,
@@ -159,18 +173,18 @@ export function sanitizeSave(value: unknown): SaveData {
         : 0,
     foodCount:
       isVersion(6)
-        ? Math.min(10, safeInteger(candidate.foodCount))
+        ? Math.min(25, safeInteger(candidate.foodCount))
         : 0,
     drinkCount:
-      isVersion(8) ? Math.min(10, safeInteger(candidate.drinkCount)) : 0,
+      isVersion(8) ? Math.min(25, safeInteger(candidate.drinkCount)) : 0,
     pitbullCount:
-      isVersion(9) ? Math.min(10, safeInteger(candidate.pitbullCount)) : 0,
+      isVersion(9) ? Math.min(25, safeInteger(candidate.pitbullCount)) : 0,
     colaCount:
-      isVersion(12) ? Math.min(10, safeInteger(candidate.colaCount)) : 0,
+      isVersion(12) ? Math.min(25, safeInteger(candidate.colaCount)) : 0,
     teaCount:
-      isVersion(12) ? Math.min(10, safeInteger(candidate.teaCount)) : 0,
+      isVersion(12) ? Math.min(25, safeInteger(candidate.teaCount)) : 0,
     vitaPowerCount:
-      isVersion(13) ? Math.min(10, safeInteger(candidate.vitaPowerCount)) : 0,
+      isVersion(13) ? Math.min(25, safeInteger(candidate.vitaPowerCount)) : 0,
     vitaPowerShield:
       isVersion(13) && candidate.vitaPowerShield === true,
     hatOwned:
@@ -192,6 +206,24 @@ export function sanitizeSave(value: unknown): SaveData {
       isVersion(10) && candidate.mohawkOwned === true
         ? candidate.mohawkEquipped !== false
         : false,
+    hatLevel:
+      isVersion(14) && candidate.hatOwned === true
+        ? Math.min(5, Math.max(1, safeInteger(candidate.hatLevel)))
+        : 1,
+    mohawkLevel:
+      isVersion(14) && candidate.mohawkOwned === true
+        ? Math.min(5, Math.max(1, safeInteger(candidate.mohawkLevel)))
+        : 1,
+    hatUpgradeTokens:
+      isVersion(14) ? Math.min(99, safeInteger(candidate.hatUpgradeTokens)) : 0,
+    mohawkUpgradeTokens:
+      isVersion(14) ? Math.min(99, safeInteger(candidate.mohawkUpgradeTokens)) : 0,
+    commonCases:
+      isVersion(14) ? Math.min(99, safeInteger(candidate.commonCases)) : 0,
+    bigCases:
+      isVersion(14) ? Math.min(99, safeInteger(candidate.bigCases)) : 0,
+    questIndex:
+      isVersion(14) ? Math.min(5, safeInteger(candidate.questIndex)) : 0,
     hasbulaRedeemed:
       isVersion(11) && candidate.hasbulaRedeemed === true,
     riskFatigueUntil:
@@ -242,7 +274,7 @@ export function sanitizeSave(value: unknown): SaveData {
         : 1,
     levelCoins:
       isVersion(4)
-        ? Math.min(100, safeInteger(candidate.levelCoins))
+        ? safeInteger(candidate.levelCoins)
         : 0,
   };
 }

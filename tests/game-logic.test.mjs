@@ -15,6 +15,7 @@ import {
   levelMultiplier,
 } from "../app/level-engine.ts";
 import { createRiskOutcome, riskMultiplier } from "../app/risk-engine.ts";
+import { createCaseRewards } from "../app/case-engine.ts";
 import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
@@ -72,14 +73,14 @@ test("ultra tap averages 300, caps at 500, and burns after the deadline", () => 
   assert.equal(chooseUltraTapTwoSecondReward(() => 0.999), 400);
 });
 
-test("levels advance every 100 earned coins and cap at ten", () => {
+test("levels follow the extended progression and cap at ten", () => {
   const first = addLevelCoins(
-    { level: 1, progressCoins: 95, lifetimeCoins: 95 },
+    { level: 1, progressCoins: 995, lifetimeCoins: 995 },
     10,
   );
   assert.equal(first.state.level, 2);
   assert.equal(first.state.progressCoins, 5);
-  const maximum = addLevelCoins(first.state, 10_000);
+  const maximum = addLevelCoins(first.state, 200_000);
   assert.equal(maximum.state.level, 10);
   assert.equal(maximum.progressRatio, 1);
   assert.equal(levelMultiplier(1), 1);
@@ -199,8 +200,8 @@ test("new drink inventories and mini-game stats migrate into the current save", 
     mineWins: 5,
     mineLosses: 2,
   });
-  assert.equal(saved.version, 13);
-  assert.equal(saved.colaCount, 10);
+  assert.equal(saved.version, 14);
+  assert.equal(saved.colaCount, 14);
   assert.equal(saved.teaCount, 3);
   assert.equal(saved.slotPlays, 8);
   assert.equal(saved.slotWins, 4);
@@ -219,7 +220,7 @@ test("VitaPower inventory and active shield persist in version thirteen", () => 
     vitaPowerCount: 14,
     vitaPowerShield: true,
   });
-  assert.equal(saved.vitaPowerCount, 10);
+  assert.equal(saved.vitaPowerCount, 14);
   assert.equal(saved.vitaPowerShield, true);
   const legacy = sanitizeSave({ version: 12, vitaPowerCount: 4, vitaPowerShield: true });
   assert.equal(legacy.vitaPowerCount, 0);
@@ -268,10 +269,11 @@ test("difficulty 50 preserves every current gameplay coefficient exactly", () =>
   assert.equal(difficultyRiskChance(50, 50), 58);
 });
 
-test("active balance above 20,000 secretly raises effective difficulty", () => {
-  assert.equal(difficultyWithBalancePenalty(50, 20_000), 50);
-  assert.equal(difficultyWithBalancePenalty(50, 20_001), 55);
-  assert.equal(difficultyWithBalancePenalty(50, 100_000), 80);
+test("active balance above 10,000 rapidly raises effective difficulty", () => {
+  assert.equal(difficultyWithBalancePenalty(50, 10_000), 50);
+  assert.equal(difficultyWithBalancePenalty(50, 10_001), 70);
+  assert.equal(difficultyWithBalancePenalty(50, 20_000), 100);
+  assert.equal(difficultyWithBalancePenalty(50, 100_000), 100);
   assert.equal(difficultyWithBalancePenalty(80, 100_000), 100);
 });
 
@@ -291,7 +293,18 @@ test("hidden difficulty consistently shifts farming, patience, fatigue, and luck
   assert.ok(difficultyUltraDeadlineMultiplier(0) > 1);
   assert.ok(difficultyUltraDeadlineMultiplier(100) < 1);
   assert.equal(difficultyUltraFailureChance(0), 0);
-  assert.equal(difficultyUltraFailureChance(100), 0.4);
+  assert.ok(difficultyUltraFailureChance(100) > 0.9);
+});
+
+test("cases contain three or five valid rewards", () => {
+  const rolls = [0, 0, .6, .2, .9, .1, .1, .3, .55, .8, .9, .4, .7, .2];
+  const random = () => rolls.shift() ?? .5;
+  const common = createCaseRewards("common", random);
+  const big = createCaseRewards("big", random);
+  assert.equal(common.length, 3);
+  assert.equal(big.length, 5);
+  assert.ok(common.every((reward) => reward.amount > 0));
+  assert.ok(big.every((reward) => reward.amount > 0));
 });
 
 test("real wheel chance changes while difficulty 50 keeps the existing +8 bonus", () => {

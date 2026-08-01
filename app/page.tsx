@@ -40,13 +40,19 @@ import {
   type UltraStopResult,
 } from "./sound-engine";
 import {
-  COINS_PER_LEVEL,
   MAX_LEVEL,
   addLevelCoins,
   levelMultiplier,
+  levelProgressDetails,
   sanitizeLevelState,
   type LevelState,
 } from "./level-engine";
+import {
+  QUESTS,
+  createCaseRewards,
+  type CaseKind,
+  type CaseReward,
+} from "./case-engine";
 import {
   createRiskOutcome,
   riskMultiplier,
@@ -114,8 +120,8 @@ const LAST_TAP_CHANCE = 0.0025;
 const TIRED_MOOD_MIN_MS = 7_000;
 const TIRED_MOOD_SPREAD_MS = 6_000;
 const DOG_FOOD_PRICE = 150;
-const HASBIK_HAT_PRICE = 1_500;
-const MOHAWK_PRICE = 3_000;
+const HASBIK_HAT_PRICE = 5_000;
+const MOHAWK_PRICE = 10_000;
 const MOHAWK_RISK_BONUS = 1.08;
 const ZHIVCHIK_PRICE = 300;
 const PITBULL_PRICE = 200;
@@ -129,6 +135,15 @@ const HAT_REWARD_ROLL_FLOOR = 0.18;
 const MAX_CHEAT_COIN_GRANT = 1_000_000_000;
 const RISK_SPIN_MS = 5_400;
 const RISK_RESULT_MS = 1_650;
+const INVENTORY_LIMIT = 25;
+const CASE_HOLD_MS = 1_050;
+
+type CaseSequence = {
+  kind: CaseKind;
+  rewards: CaseReward[];
+  phase: "ready" | "charging" | "burst" | "reward";
+  rewardIndex: number;
+};
 
 function riskSectorPath(chance: number) {
   const angle = Math.min(359.999, Math.max(0, chance * 3.6));
@@ -250,6 +265,13 @@ function KnopikGame({
   const [hatEquipped, setHatEquipped] = useState(false);
   const [mohawkOwned, setMohawkOwned] = useState(false);
   const [mohawkEquipped, setMohawkEquipped] = useState(false);
+  const [hatLevel, setHatLevel] = useState(1);
+  const [mohawkLevel, setMohawkLevel] = useState(1);
+  const [hatUpgradeTokens, setHatUpgradeTokens] = useState(0);
+  const [mohawkUpgradeTokens, setMohawkUpgradeTokens] = useState(0);
+  const [commonCases, setCommonCases] = useState(0);
+  const [bigCases, setBigCases] = useState(0);
+  const [questIndex, setQuestIndex] = useState(0);
   const [boostUntil, setBoostUntil] = useState(0);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
@@ -273,6 +295,8 @@ function KnopikGame({
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [casesOpen, setCasesOpen] = useState(false);
+  const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
   const [accountPending, setAccountPending] = useState(false);
@@ -374,6 +398,8 @@ function KnopikGame({
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shieldBreakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const levelBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const caseHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const caseBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveFlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskSpinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -511,7 +537,10 @@ function KnopikGame({
       const result = addLevelCoins(levelStateRef.current, earned);
       levelStateRef.current = result.state;
       setLevelState(result.state);
-      if (result.levelsGained > 0) triggerLevelBurst();
+      if (result.levelsGained > 0) {
+        setCommonCases((current) => Math.min(99, current + result.levelsGained));
+        triggerLevelBurst();
+      }
       return earned;
     },
     [triggerLevelBurst, updateCoins],
@@ -590,6 +619,13 @@ function KnopikGame({
       setHatEquipped(saved.hatEquipped);
       setMohawkOwned(saved.mohawkOwned);
       setMohawkEquipped(saved.mohawkEquipped);
+      setHatLevel(saved.hatLevel);
+      setMohawkLevel(saved.mohawkLevel);
+      setHatUpgradeTokens(saved.hatUpgradeTokens);
+      setMohawkUpgradeTokens(saved.mohawkUpgradeTokens);
+      setCommonCases(saved.commonCases);
+      setBigCases(saved.bigCases);
+      setQuestIndex(saved.questIndex);
       setHasbulaRedeemed(saved.hasbulaRedeemed);
       hasbulaRedeemedRef.current = saved.hasbulaRedeemed;
       setBoostUntil(saved.boostUntil > Date.now() ? saved.boostUntil : 0);
@@ -690,6 +726,13 @@ function KnopikGame({
             hatEquipped,
             mohawkOwned,
             mohawkEquipped,
+            hatLevel,
+            mohawkLevel,
+            hatUpgradeTokens,
+            mohawkUpgradeTokens,
+            commonCases,
+            bigCases,
+            questIndex,
             hasbulaRedeemed,
             riskFatigueUntil,
             riskSpins: riskStats.spins,
@@ -736,6 +779,13 @@ function KnopikGame({
     hasbulaRedeemed,
     mohawkEquipped,
     mohawkOwned,
+    hatLevel,
+    mohawkLevel,
+    hatUpgradeTokens,
+    mohawkUpgradeTokens,
+    commonCases,
+    bigCases,
+    questIndex,
     onSave,
     hydrated,
     levelState,
@@ -826,6 +876,9 @@ function KnopikGame({
       if (saveFlightTimerRef.current) {
         clearTimeout(saveFlightTimerRef.current);
       }
+      if (caseHoldTimerRef.current) clearTimeout(caseHoldTimerRef.current);
+      if (caseBurstTimerRef.current) clearTimeout(caseBurstTimerRef.current);
+      if (shieldBreakTimerRef.current) clearTimeout(shieldBreakTimerRef.current);
       [
         riskTransitionTimerRef,
         riskSpinTimerRef,
@@ -952,17 +1005,7 @@ function KnopikGame({
         ...current,
         totalBites: current.totalBites + 1,
       }));
-      if (!shieldAbsorbed) {
-        const resetLevel = {
-          level: 1,
-          progressCoins: 0,
-          lifetimeCoins: levelStateRef.current.lifetimeCoins,
-        };
-        levelStateRef.current = resetLevel;
-        bonusCarryRef.current = 0;
-        setLevelState(resetLevel);
-        setLevelBurstVisible(false);
-      }
+      if (!shieldAbsorbed) bonusCarryRef.current = 0;
       seriesTapsRef.current = 0;
       tapLimitRef.current = 0;
       tapIntervalsRef.current = [];
@@ -1203,7 +1246,7 @@ function KnopikGame({
       holdStartRef.current = performance.now();
       const standardDeadline =
         chooseUltraTapOverheatDeadline() +
-        (hatEquipped ? HAT_ULTRA_BONUS_MS : 0);
+        (hatEquipped ? HAT_ULTRA_BONUS_MS * (1 + (hatLevel - 1) * .22) : 0);
       ultraDeadlineRef.current = Math.min(
         10_000,
         Math.max(
@@ -1219,8 +1262,8 @@ function KnopikGame({
           ? () =>
               Math.min(
                 0.999999999,
-                HAT_REWARD_ROLL_FLOOR +
-                  Math.random() * (1 - HAT_REWARD_ROLL_FLOOR),
+                Math.min(.42, HAT_REWARD_ROLL_FLOOR + (hatLevel - 1) * .05) +
+                  Math.random() * (1 - Math.min(.42, HAT_REWARD_ROLL_FLOOR + (hatLevel - 1) * .05)),
               )
           : Math.random,
       );
@@ -1282,7 +1325,7 @@ function KnopikGame({
         }
       }, 120);
     },
-    [getSound, hatEquipped, triggerBite],
+    [getSound, hatEquipped, hatLevel, triggerBite],
   );
 
   const finishHold = useCallback(
@@ -1417,14 +1460,15 @@ function KnopikGame({
     const payout = outcome.won
       ? Math.round(
           bet * riskMultiplier(riskChance) *
-            (mohawkEquipped ? MOHAWK_RISK_BONUS : 1),
+            (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1),
         )
       : 0;
     const spinDuration = RISK_SPIN_MS;
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
-    setRiskRotation(1_800 + outcome.finalAngle);
+    const sectorOffset = 180 - (riskChance * 3.6) / 2;
+    setRiskRotation(1_800 + sectorOffset + outcome.finalAngle);
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins((current) => ({
@@ -1517,6 +1561,7 @@ function KnopikGame({
     clearRoundTimers,
     getSound,
     mohawkEquipped,
+    mohawkLevel,
     resetSeries,
     riskBetAmount,
     riskChance,
@@ -1638,7 +1683,7 @@ function KnopikGame({
   }, [clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
 
   const buyFood = useCallback(() => {
-    const availableSlots = Math.max(0, 10 - foodCount);
+    const availableSlots = Math.max(0, INVENTORY_LIMIT - foodCount);
     const quantity = Math.min(availableSlots, Math.max(1, Math.floor(foodQuantity)));
     const totalPrice = quantity * DOG_FOOD_PRICE;
     if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
@@ -1647,7 +1692,7 @@ function KnopikGame({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setFoodCount((current) => Math.min(10, current + quantity));
+    setFoodCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
     setFoodQuantity(1);
     setShopMessage(`Корм ×${quantity} добавлен в запас`);
     getSound().purchase();
@@ -1657,7 +1702,7 @@ function KnopikGame({
   }, [foodCount, foodQuantity, getSound, updateCoins]);
 
   const buyDrink = useCallback(() => {
-    const availableSlots = Math.max(0, 10 - drinkCount);
+    const availableSlots = Math.max(0, INVENTORY_LIMIT - drinkCount);
     const quantity = Math.min(
       availableSlots,
       Math.max(1, Math.floor(drinkQuantity)),
@@ -1668,7 +1713,7 @@ function KnopikGame({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setDrinkCount((current) => Math.min(10, current + quantity));
+    setDrinkCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
     setDrinkQuantity(1);
     setShopMessage(`Живчик ×${quantity} добавлен в запас`);
     getSound().purchase();
@@ -1688,7 +1733,7 @@ function KnopikGame({
   }, [drinkCount, getSound]);
 
   const buyPitbull = useCallback(() => {
-    const availableSlots = Math.max(0, 10 - pitbullCount);
+    const availableSlots = Math.max(0, INVENTORY_LIMIT - pitbullCount);
     const quantity = Math.min(
       availableSlots,
       Math.max(1, Math.floor(pitbullQuantity)),
@@ -1699,7 +1744,7 @@ function KnopikGame({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setPitbullCount((current) => Math.min(10, current + quantity));
+    setPitbullCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
     setPitbullQuantity(1);
     setShopMessage(`Питбуль ×${quantity} добавлен в запас`);
     getSound().purchase();
@@ -1721,6 +1766,7 @@ function KnopikGame({
     }
     setPitbullCount((current) => Math.max(0, current - 1));
     setShopOpen(false);
+    setCasesOpen(false);
     setSettingsOpen(false);
     riskCommittedRef.current = false;
     setRiskBetAmount(coinsRef.current.walletCoins);
@@ -1733,7 +1779,7 @@ function KnopikGame({
   }, [getSound, pitbullCount, showRiskNotice, transitionRisk]);
 
   const buyCola = useCallback(() => {
-    const availableSlots = Math.max(0, 10 - colaCount);
+    const availableSlots = Math.max(0, INVENTORY_LIMIT - colaCount);
     const quantity = Math.min(availableSlots, Math.max(1, Math.floor(colaQuantity)));
     const totalPrice = quantity * COCOA_COLA_PRICE;
     if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
@@ -1741,7 +1787,7 @@ function KnopikGame({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setColaCount((current) => Math.min(10, current + quantity));
+    setColaCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
     setColaQuantity(1);
     setShopMessage(`Какао-Кола ×${quantity} добавлена в запас`);
     getSound().purchase();
@@ -1751,7 +1797,7 @@ function KnopikGame({
   }, [colaCount, colaQuantity, getSound, updateCoins]);
 
   const buyTea = useCallback(() => {
-    const availableSlots = Math.max(0, 10 - teaCount);
+    const availableSlots = Math.max(0, INVENTORY_LIMIT - teaCount);
     const quantity = Math.min(availableSlots, Math.max(1, Math.floor(teaQuantity)));
     const totalPrice = quantity * BERGAMOT_TEA_PRICE;
     if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
@@ -1759,7 +1805,7 @@ function KnopikGame({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setTeaCount((current) => Math.min(10, current + quantity));
+    setTeaCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
     setTeaQuantity(1);
     setShopMessage(`Чай с бергамотом ×${quantity} добавлен в запас`);
     getSound().purchase();
@@ -1769,7 +1815,7 @@ function KnopikGame({
   }, [getSound, teaCount, teaQuantity, updateCoins]);
 
   const buyVitaPower = useCallback(() => {
-    const availableSlots = Math.max(0, 10 - vitaPowerCount);
+    const availableSlots = Math.max(0, INVENTORY_LIMIT - vitaPowerCount);
     const quantity = Math.min(availableSlots, Math.max(1, Math.floor(vitaPowerQuantity)));
     const totalPrice = quantity * VITA_POWER_PRICE;
     if (quantity < 1 || coinsRef.current.walletCoins < totalPrice) return;
@@ -1777,7 +1823,7 @@ function KnopikGame({
       ...current,
       walletCoins: current.walletCoins - totalPrice,
     }));
-    setVitaPowerCount((current) => Math.min(10, current + quantity));
+    setVitaPowerCount((current) => Math.min(INVENTORY_LIMIT, current + quantity));
     setVitaPowerQuantity(1);
     setShopMessage(`Пепси ×${quantity} добавлена в запас`);
     getSound().purchase();
@@ -1808,6 +1854,7 @@ function KnopikGame({
       return;
     }
     setShopOpen(false);
+    setCasesOpen(false);
     setSettingsOpen(false);
     setMiniGameSession((current) => current + 1);
     setMiniGame(kind);
@@ -1980,10 +2027,117 @@ function KnopikGame({
     registerTap(50, 14);
   }, [registerTap]);
 
+  const applyCaseRewards = useCallback((rewards: CaseReward[]) => {
+    const coinReward = rewards
+      .filter((reward): reward is Extract<CaseReward, { type: "coins" }> => reward.type === "coins")
+      .reduce((total, reward) => total + reward.amount, 0);
+    if (coinReward > 0) {
+      updateCoins((current) => ({
+        ...current,
+        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + coinReward),
+      }));
+      setBalancePulse((current) => current + 1);
+    }
+
+    const buffAmount = (kind: string) => rewards
+      .filter((reward): reward is Extract<CaseReward, { type: "buff" }> => reward.type === "buff" && reward.kind === kind)
+      .reduce((total, reward) => total + reward.amount, 0);
+    setFoodCount((current) => Math.min(INVENTORY_LIMIT, current + buffAmount("food")));
+    setDrinkCount((current) => Math.min(INVENTORY_LIMIT, current + buffAmount("drink")));
+    setPitbullCount((current) => Math.min(INVENTORY_LIMIT, current + buffAmount("pitbull")));
+    setColaCount((current) => Math.min(INVENTORY_LIMIT, current + buffAmount("cola")));
+    setTeaCount((current) => Math.min(INVENTORY_LIMIT, current + buffAmount("tea")));
+    setVitaPowerCount((current) => Math.min(INVENTORY_LIMIT, current + buffAmount("shield")));
+
+    const hatUpgrades = rewards.filter((reward) => reward.type === "upgrade" && reward.kind === "hat").length;
+    const mohawkUpgrades = rewards.filter((reward) => reward.type === "upgrade" && reward.kind === "mohawk").length;
+    const hatItems = rewards.filter((reward) => reward.type === "item" && reward.kind === "hat").length;
+    const mohawkItems = rewards.filter((reward) => reward.type === "item" && reward.kind === "mohawk").length;
+    if (hatItems > 0) {
+      setHatOwned(true);
+      setHatUpgradeTokens((current) => Math.min(99, current + hatUpgrades + Math.max(0, hatItems - (hatOwned ? 0 : 1))));
+    } else if (hatUpgrades > 0) {
+      setHatUpgradeTokens((current) => Math.min(99, current + hatUpgrades));
+    }
+    if (mohawkItems > 0) {
+      setMohawkOwned(true);
+      setMohawkUpgradeTokens((current) => Math.min(99, current + mohawkUpgrades + Math.max(0, mohawkItems - (mohawkOwned ? 0 : 1))));
+    } else if (mohawkUpgrades > 0) {
+      setMohawkUpgradeTokens((current) => Math.min(99, current + mohawkUpgrades));
+    }
+  }, [hatOwned, mohawkOwned, updateCoins]);
+
+  const beginCaseHold = useCallback(() => {
+    if (!caseSequence || caseSequence.phase !== "ready") return;
+    getSound().unlock();
+    setCaseSequence((current) => current ? { ...current, phase: "charging" } : current);
+    vibrate(18, settingsRef.current.vibration);
+    caseHoldTimerRef.current = setTimeout(() => {
+      const rewards = createCaseRewards(caseSequence.kind);
+      if (caseSequence.kind === "common") {
+        setCommonCases((current) => Math.max(0, current - 1));
+      } else {
+        setBigCases((current) => Math.max(0, current - 1));
+      }
+      applyCaseRewards(rewards);
+      setCaseSequence({
+        kind: caseSequence.kind,
+        rewards,
+        phase: "burst",
+        rewardIndex: 0,
+      });
+      getSound().levelUp();
+      vibrate([30, 36, 70, 32, 100], settingsRef.current.vibration);
+      caseBurstTimerRef.current = setTimeout(() => {
+        setCaseSequence((current) => current ? { ...current, phase: "reward" } : current);
+      }, 620);
+    }, CASE_HOLD_MS);
+  }, [applyCaseRewards, caseSequence, getSound]);
+
+  const cancelCaseHold = useCallback(() => {
+    if (caseHoldTimerRef.current) clearTimeout(caseHoldTimerRef.current);
+    caseHoldTimerRef.current = null;
+    setCaseSequence((current) =>
+      current?.phase === "charging" ? { ...current, phase: "ready" } : current,
+    );
+  }, []);
+
+  const openCase = useCallback((kind: CaseKind) => {
+    const available = kind === "common" ? commonCases : bigCases;
+    if (available < 1) return;
+    setCaseSequence({ kind, rewards: [], phase: "ready", rewardIndex: 0 });
+  }, [bigCases, commonCases]);
+
+  const advanceCaseReward = useCallback(() => {
+    setCaseSequence((current) => {
+      if (!current || current.phase !== "reward") return current;
+      if (current.rewardIndex >= current.rewards.length - 1) return null;
+      getSound().purchase();
+      vibrate(16, settingsRef.current.vibration);
+      return { ...current, rewardIndex: current.rewardIndex + 1 };
+    });
+  }, [getSound]);
+
+  const upgradeClothing = useCallback((kind: "hat" | "mohawk") => {
+    if (kind === "hat") {
+      if (!hatOwned || hatLevel >= 5 || hatUpgradeTokens < 1) return;
+      setHatLevel((current) => Math.min(5, current + 1));
+      setHatUpgradeTokens((current) => Math.max(0, current - 1));
+    } else {
+      if (!mohawkOwned || mohawkLevel >= 5 || mohawkUpgradeTokens < 1) return;
+      setMohawkLevel((current) => Math.min(5, current + 1));
+      setMohawkUpgradeTokens((current) => Math.max(0, current - 1));
+    }
+    setShopMessage("Предмет улучшен");
+    getSound().levelUp();
+    vibrate([20, 24, 44], settingsRef.current.vibration);
+  }, [getSound, hatLevel, hatOwned, hatUpgradeTokens, mohawkLevel, mohawkOwned, mohawkUpgradeTokens]);
+
   const selectNavigation = useCallback((index: number) => {
     setShopOpen(index === 0);
-    setSettingsOpen(index === 2);
-    if (index !== 2) setResetConfirmOpen(false);
+    setCasesOpen(index === 2);
+    setSettingsOpen(false);
+    setResetConfirmOpen(false);
   }, []);
 
   const moveNavigationThumb = useCallback(
@@ -2147,6 +2301,7 @@ function KnopikGame({
     ) return;
     updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
     setShopOpen(false);
+    setCasesOpen(false);
     setSettingsOpen(false);
     riskCommittedRef.current = false;
     setRiskBetAmount(remainingCoins);
@@ -2176,6 +2331,7 @@ function KnopikGame({
     if (kind === "slots") setColaCount(1);
     else setTeaCount(1);
     setShopOpen(false);
+    setCasesOpen(false);
     setSettingsOpen(false);
     setMiniGameSession((current) => current + 1);
     setMiniGame(kind);
@@ -2241,6 +2397,15 @@ function KnopikGame({
     setHatEquipped(false);
     setMohawkOwned(false);
     setMohawkEquipped(false);
+    setHatLevel(1);
+    setMohawkLevel(1);
+    setHatUpgradeTokens(0);
+    setMohawkUpgradeTokens(0);
+    setCommonCases(0);
+    setBigCases(0);
+    setQuestIndex(0);
+    setCasesOpen(false);
+    setCaseSequence(null);
     setHasbulaRedeemed(false);
     hasbulaRedeemedRef.current = false;
     setRiskFatigueUntil(0);
@@ -2297,7 +2462,7 @@ function KnopikGame({
   const canSave = !vaultLocked && coins.walletCoins >= 2;
   const saveAmount = Math.floor(coins.walletCoins / 2);
   const foodTotalPrice = foodQuantity * DOG_FOOD_PRICE;
-  const remainingFoodSlots = Math.max(0, 10 - foodCount);
+  const remainingFoodSlots = Math.max(0, INVENTORY_LIMIT - foodCount);
   const canBuyFood =
     remainingFoodSlots > 0 &&
     foodQuantity <= remainingFoodSlots &&
@@ -2305,31 +2470,31 @@ function KnopikGame({
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
   const canBuyMohawk = mohawkOwned || coins.walletCoins >= MOHAWK_PRICE;
 
-  const remainingDrinkSlots = Math.max(0, 10 - drinkCount);
+  const remainingDrinkSlots = Math.max(0, INVENTORY_LIMIT - drinkCount);
   const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
   const canBuyDrink =
     remainingDrinkSlots > 0 &&
     drinkQuantity <= remainingDrinkSlots &&
     coins.walletCoins >= drinkTotalPrice;
-  const remainingPitbullSlots = Math.max(0, 10 - pitbullCount);
+  const remainingPitbullSlots = Math.max(0, INVENTORY_LIMIT - pitbullCount);
   const pitbullTotalPrice = pitbullQuantity * PITBULL_PRICE;
   const canBuyPitbull =
     remainingPitbullSlots > 0 &&
     pitbullQuantity <= remainingPitbullSlots &&
     coins.walletCoins >= pitbullTotalPrice;
-  const remainingColaSlots = Math.max(0, 10 - colaCount);
+  const remainingColaSlots = Math.max(0, INVENTORY_LIMIT - colaCount);
   const colaTotalPrice = colaQuantity * COCOA_COLA_PRICE;
   const canBuyCola =
     remainingColaSlots > 0 &&
     colaQuantity <= remainingColaSlots &&
     coins.walletCoins >= colaTotalPrice;
-  const remainingTeaSlots = Math.max(0, 10 - teaCount);
+  const remainingTeaSlots = Math.max(0, INVENTORY_LIMIT - teaCount);
   const teaTotalPrice = teaQuantity * BERGAMOT_TEA_PRICE;
   const canBuyTea =
     remainingTeaSlots > 0 &&
     teaQuantity <= remainingTeaSlots &&
     coins.walletCoins >= teaTotalPrice;
-  const remainingVitaPowerSlots = Math.max(0, 10 - vitaPowerCount);
+  const remainingVitaPowerSlots = Math.max(0, INVENTORY_LIMIT - vitaPowerCount);
   const vitaPowerTotalPrice = vitaPowerQuantity * VITA_POWER_PRICE;
   const canBuyVitaPower =
     remainingVitaPowerSlots > 0 &&
@@ -2337,10 +2502,29 @@ function KnopikGame({
     coins.walletCoins >= vitaPowerTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
   const selectedRiskMultiplier = Math.round(
-    riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS : 1) * 100,
+    riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1) * 100,
   ) / 100;
   const riskMode = riskPhase !== "normal";
-  const navIndex = shopOpen ? 0 : settingsOpen ? 2 : 1;
+  const navIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
+  const currentQuest = questIndex < QUESTS.length ? QUESTS[questIndex] : null;
+  const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins;
+  const questProgress = currentQuest
+    ? currentQuest.metric === "taps"
+      ? stats.totalTaps
+      : currentQuest.metric === "vault"
+        ? vaultCoins
+        : currentQuest.metric === "wins"
+          ? questWins
+          : levelState.level
+    : 0;
+  const questComplete = Boolean(currentQuest && questProgress >= currentQuest.target);
+  const claimQuestReward = () => {
+    if (!questComplete) return;
+    setBigCases((current) => Math.min(99, current + 1));
+    setQuestIndex((current) => Math.min(QUESTS.length, current + 1));
+    getSound().levelUp();
+    vibrate([18, 24, 48], settingsRef.current.vibration);
+  };
 
   const tempoRatio =
     seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
@@ -2432,10 +2616,8 @@ function KnopikGame({
     riskPhase === "result";
   const multiplier = levelMultiplier(levelState.level);
   const levelBonus = Math.round((multiplier - 1) * 100);
-  const levelProgress =
-    levelState.level >= MAX_LEVEL
-      ? 1
-      : levelState.progressCoins / COINS_PER_LEVEL;
+  const levelDetails = levelProgressDetails(levelState);
+  const levelProgress = levelDetails.progressRatio;
   const paleCalm =
     riskPhase === "normal" &&
     dogState === "calm" &&
@@ -2497,7 +2679,7 @@ function KnopikGame({
     "--ultra-fill": `${Math.round(ultraCharge * 1000) / 10}%`,
     "--risk-chance": `${riskChance * 3.6}deg`,
     "--risk-rotation": `${riskRotation}deg`,
-    "--risk-wheel-rotation": `${-riskRotation}deg`,
+    "--risk-sector-offset": `${180 - (riskChance * 3.6) / 2}deg`,
     "--risk-spin-duration": `${RISK_SPIN_MS}ms`,
   } as CSSProperties;
 
@@ -2566,8 +2748,22 @@ function KnopikGame({
       <div className="game-motion-layer">
       <header className="app-header">
         <div className="top-bar">
-          <div className="wordmark brand-lockup" aria-label="Knopik Tap">
-            <strong>KNOPIK</strong>
+          <div className="brand-cluster">
+            <button
+              className="account-shortcut"
+              type="button"
+              aria-label="Открыть аккаунт и настройки"
+              onClick={() => {
+                setShopOpen(false);
+                setCasesOpen(false);
+                setSettingsOpen(true);
+              }}
+            >
+              <span aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+            </button>
+            <div className="wordmark brand-lockup" aria-label="Knopik Tap">
+              <strong>KNOPIK</strong>
+            </div>
           </div>
           <span className={`mood-chip mood-${dogState}`}><i />{moodLabel}</span>
         </div>
@@ -2583,7 +2779,7 @@ function KnopikGame({
             <div className="level-progress-block">
               <div className="level-progress-copy">
                 <span>{levelState.level >= MAX_LEVEL ? "МАКСИМУМ" : "ДО НОВОГО УРОВНЯ"}</span>
-                <strong>{levelState.level >= MAX_LEVEL ? "ГОТОВО" : `${COINS_PER_LEVEL - levelState.progressCoins} монет`}</strong>
+                <strong>{levelState.level >= MAX_LEVEL ? "ГОТОВО" : `${levelDetails.coinsToNext.toLocaleString("ru-RU")} монет`}</strong>
               </div>
               <div className="level-track"><span /></div>
             </div>
@@ -2610,6 +2806,20 @@ function KnopikGame({
               }}
             />
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
+          </div>
+        )}
+        {!riskMode && (
+          <div className={`quest-strip ${questComplete ? "is-complete" : ""}`}>
+            <span className="quest-symbol" aria-hidden="true">✓</span>
+            <span className="quest-copy">
+              <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ВСЕ ЗАДАНИЯ ВЫПОЛНЕНЫ"}</small>
+              <strong>{currentQuest?.title ?? "Новые задания появятся позже"}</strong>
+            </span>
+            {currentQuest && (
+              questComplete
+                ? <button type="button" onClick={claimQuestReward}>Забрать кейс</button>
+                : <b>{Math.min(questProgress, currentQuest.target).toLocaleString("ru-RU")}/{currentQuest.target.toLocaleString("ru-RU")}</b>
+            )}
           </div>
         )}
         {riskPhase === "selecting" && mohawkEquipped && (
@@ -2937,8 +3147,8 @@ function KnopikGame({
           <span>Играть</span>
         </button>
         <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
-          <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
-          <span>Настройки</span>
+          <span className="case-nav-icon" aria-hidden="true"><i /></span>
+          <span>Кейсы</span>
         </button>
       </footer>
       </div>
@@ -3002,6 +3212,93 @@ function KnopikGame({
         </div>
       )}
 
+      {casesOpen && (
+        <div
+          className="modal-backdrop"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) selectNavigation(1);
+          }}
+        >
+          <section className="sheet cases-sheet" role="dialog" aria-modal="true" aria-labelledby="cases-title">
+            <div className="cases-heading">
+              <div><p className="sheet-kicker">НАГРАДЫ</p><h2 id="cases-title">Кейсы</h2></div>
+              <span><strong>{commonCases + bigCases}</strong><small>доступно</small></span>
+            </div>
+            <div className="case-list">
+              <article className="case-card case-common-card">
+                <div className="case-miniature" aria-hidden="true"><i /><b>3</b></div>
+                <div><small>ЗА НОВЫЙ УРОВЕНЬ</small><h3>Обычный кейс</h3><p>Три награды: монеты, бафы или улучшения.</p></div>
+                <button type="button" disabled={commonCases < 1} onClick={() => openCase("common")}>
+                  {commonCases > 0 ? `Открыть · ${commonCases}` : "Нет кейсов"}
+                </button>
+              </article>
+              <article className="case-card case-big-card">
+                <div className="case-miniature" aria-hidden="true"><i /><b>5</b></div>
+                <div><small>ЗА ЗАДАНИЯ</small><h3>Большой кейс</h3><p>Пять наград и шанс получить одежду целиком.</p></div>
+                <button type="button" disabled={bigCases < 1} onClick={() => openCase("big")}>
+                  {bigCases > 0 ? `Открыть · ${bigCases}` : "Нет кейсов"}
+                </button>
+              </article>
+            </div>
+            <div className={`case-quest-card ${questComplete ? "is-complete" : ""}`}>
+              <span aria-hidden="true">✓</span>
+              <div>
+                <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ЦЕПОЧКА ЗАВЕРШЕНА"}</small>
+                <strong>{currentQuest?.title ?? "Все задания выполнены"}</strong>
+                {currentQuest && <progress max={currentQuest.target} value={Math.min(questProgress, currentQuest.target)} />}
+              </div>
+              {currentQuest && (
+                questComplete
+                  ? <button type="button" onClick={claimQuestReward}>Забрать</button>
+                  : <b>{Math.min(questProgress, currentQuest.target)}/{currentQuest.target}</b>
+              )}
+            </div>
+            <p className="case-hint">Следующее задание откроется после получения награды.</p>
+          </section>
+        </div>
+      )}
+
+      {caseSequence && (
+        <div className={`case-opening case-${caseSequence.kind} phase-${caseSequence.phase}`}>
+          {caseSequence.phase === "reward" ? (
+            <button className="case-reward-screen" type="button" onClick={advanceCaseReward}>
+              <small>НАГРАДА {caseSequence.rewardIndex + 1} ИЗ {caseSequence.rewards.length}</small>
+              <span className={`case-reward-icon reward-${caseSequence.rewards[caseSequence.rewardIndex].type}`} aria-hidden="true">
+                {caseSequence.rewards[caseSequence.rewardIndex].type === "coins" ? "К" : caseSequence.rewards[caseSequence.rewardIndex].type === "buff" ? "✦" : caseSequence.rewards[caseSequence.rewardIndex].type === "item" ? "★" : "↑"}
+              </span>
+              <h2>{caseSequence.rewards[caseSequence.rewardIndex].label}</h2>
+              <p>{caseSequence.rewardIndex < caseSequence.rewards.length - 1 ? "Нажми, чтобы увидеть следующую награду" : "Нажми, чтобы забрать всё"}</p>
+            </button>
+          ) : (
+            <div className="case-opening-stage">
+              <p>{caseSequence.phase === "ready" ? "Зажми кейс" : caseSequence.phase === "charging" ? "Не отпускай…" : "Открыто!"}</p>
+              <button
+                className="case-crate"
+                type="button"
+                aria-label="Зажать и открыть кейс"
+                onPointerDown={beginCaseHold}
+                onPointerUp={cancelCaseHold}
+                onPointerCancel={cancelCaseHold}
+                onPointerLeave={cancelCaseHold}
+                onKeyDown={(event) => {
+                  if (!event.repeat && (event.key === "Enter" || event.key === " ")) beginCaseHold();
+                }}
+                onKeyUp={(event) => {
+                  if (event.key === "Enter" || event.key === " ") cancelCaseHold();
+                }}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                <span className="case-crate-lid" />
+                <span className="case-crate-body"><i>{caseSequence.kind === "common" ? "3" : "5"}</i></span>
+                <span className="case-charge-ring" />
+              </button>
+              <small>{caseSequence.kind === "common" ? "Обычный кейс · 3 награды" : "Большой кейс · 5 наград"}</small>
+            </div>
+          )}
+          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 20}deg` } as CSSProperties} />)}</span>
+        </div>
+      )}
+
       {tutorialOpen && (
         <div className="modal-backdrop tutorial-backdrop">
           <section
@@ -3045,13 +3342,12 @@ function KnopikGame({
           }}
         >
           <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
-            <div className="sheet-heading">
-              <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Всё для Кнопика</h2></div>
-            </div>
-
-            <div className="shop-wallet">
-              <span><small>ДОСТУПНО</small><strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong></span>
-              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+            <div className="shop-hero-row">
+              <div className="sheet-heading"><h2 id="shop-title">Всё для Кнопика</h2></div>
+              <div className="shop-wallet">
+                <span><small>ДОСТУПНО</small><strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong></span>
+                <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+              </div>
             </div>
 
             <div className="shop-categories" role="tablist" aria-label="Разделы магазина">
@@ -3104,131 +3400,83 @@ function KnopikGame({
                 <img className="shop-buff-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
-                <small>ЗАПАС {foodCount}/10</small>
+                <small>ЗАПАС {foodCount}/{INVENTORY_LIMIT}</small>
                 <h3>Корм для Кнопика</h3>
                 <p>Полностью снимает усталость.</p>
               </div>
-              <div className="food-price"><strong>{DOG_FOOD_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество корма">
-                <button type="button" aria-label="Уменьшить количество" disabled={foodQuantity <= 1} onClick={() => setFoodQuantity((current) => Math.max(1, current - 1))}>−</button>
-                <strong>{foodQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={foodQuantity >= remainingFoodSlots} onClick={() => setFoodQuantity((current) => Math.min(remainingFoodSlots, current + 1))}>+</button>
-              </div>
               <button className="shop-buy-button" type="button" disabled={!canBuyFood} onClick={buyFood}>
                 {remainingFoodSlots === 0
-                  ? "ЗАПАС ПОЛОН"
-                  : canBuyFood
-                    ? `КУПИТЬ ×${foodQuantity} · ${foodTotalPrice}`
-                    : `НУЖНО ${foodTotalPrice}`}
+                  ? "Запас заполнен"
+                  : `Купить · ${DOG_FOOD_PRICE}`}
               </button>
             </article>
 
             <article className="shop-card shop-product-card drink-card">
               <span className="drink-pack zhivchik-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {drinkCount}/10</small>
+                <small>ЗАПАС {drinkCount}/{INVENTORY_LIMIT}</small>
                 <h3>Напиток «Живчик»</h3>
                 <p>Умножает обычные тапы на 4 на одну минуту.</p>
               </div>
-              <div className="food-price"><strong>{ZHIVCHIK_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество напитков">
-                <button type="button" aria-label="Уменьшить количество" disabled={drinkQuantity <= 1} onClick={() => setDrinkQuantity((current) => Math.max(1, current - 1))}>−</button>
-                <strong>{drinkQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={drinkQuantity >= remainingDrinkSlots} onClick={() => setDrinkQuantity((current) => Math.min(remainingDrinkSlots, current + 1))}>+</button>
-              </div>
               <button className="shop-buy-button drink-action" type="button" disabled={!canBuyDrink} onClick={buyDrink}>
                 {remainingDrinkSlots === 0
-                  ? "ЗАПАС ПОЛОН"
-                  : canBuyDrink
-                    ? `КУПИТЬ ×${drinkQuantity} · ${drinkTotalPrice}`
-                    : `НУЖНО ${drinkTotalPrice}`}
+                  ? "Запас заполнен"
+                  : `Купить · ${ZHIVCHIK_PRICE}`}
               </button>
             </article>
 
             <article className="shop-card shop-product-card pitbull-card">
               <span className="drink-pack pitbull-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {pitbullCount}/10</small>
+                <small>ЗАПАС {pitbullCount}/{INVENTORY_LIMIT}</small>
                 <h3>Напиток «Питбуль»</h3>
                 <p>Открывает одну игру в рулетку.</p>
               </div>
-              <div className="food-price"><strong>{PITBULL_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество напитков Питбуль">
-                <button type="button" aria-label="Уменьшить количество" disabled={pitbullQuantity <= 1} onClick={() => setPitbullQuantity((current) => Math.max(1, current - 1))}>−</button>
-                <strong>{pitbullQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={pitbullQuantity >= remainingPitbullSlots} onClick={() => setPitbullQuantity((current) => Math.min(remainingPitbullSlots, current + 1))}>+</button>
-              </div>
               <button className="shop-buy-button pitbull-action" type="button" disabled={!canBuyPitbull} onClick={buyPitbull}>
                 {remainingPitbullSlots === 0
-                  ? "ЗАПАС ПОЛОН"
-                  : canBuyPitbull
-                    ? `КУПИТЬ ×${pitbullQuantity} · ${pitbullTotalPrice}`
-                    : `НУЖНО ${pitbullTotalPrice}`}
+                  ? "Запас заполнен"
+                  : `Купить · ${PITBULL_PRICE}`}
               </button>
             </article>
 
             <article className="shop-card shop-product-card cola-card">
               <span className="drink-pack cola-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {colaCount}/10</small>
+                <small>ЗАПАС {colaCount}/{INVENTORY_LIMIT}</small>
                 <h3>Напиток «Какао-Кола»</h3>
                 <p>Открывает слот-машину с тремя барабанами.</p>
               </div>
-              <div className="food-price"><strong>{COCOA_COLA_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество напитков Какао-Кола">
-                <button type="button" aria-label="Уменьшить количество" disabled={colaQuantity <= 1} onClick={() => setColaQuantity((current) => Math.max(1, current - 1))}>−</button>
-                <strong>{colaQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={colaQuantity >= remainingColaSlots} onClick={() => setColaQuantity((current) => Math.min(remainingColaSlots, current + 1))}>+</button>
-              </div>
               <button className="shop-buy-button cola-action" type="button" disabled={!canBuyCola} onClick={buyCola}>
                 {remainingColaSlots === 0
-                  ? "ЗАПАС ПОЛОН"
-                  : canBuyCola
-                    ? `КУПИТЬ ×${colaQuantity} · ${colaTotalPrice}`
-                    : `НУЖНО ${colaTotalPrice}`}
+                  ? "Запас заполнен"
+                  : `Купить · ${COCOA_COLA_PRICE}`}
               </button>
             </article>
 
             <article className="shop-card shop-product-card tea-card">
               <span className="drink-pack tea-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {teaCount}/10</small>
+                <small>ЗАПАС {teaCount}/{INVENTORY_LIMIT}</small>
                 <h3>Чай с бергамотом</h3>
                 <p>Открывает игру с пятью кнопками и миной.</p>
               </div>
-              <div className="food-price"><strong>{BERGAMOT_TEA_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество чая с бергамотом">
-                <button type="button" aria-label="Уменьшить количество" disabled={teaQuantity <= 1} onClick={() => setTeaQuantity((current) => Math.max(1, current - 1))}>−</button>
-                <strong>{teaQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={teaQuantity >= remainingTeaSlots} onClick={() => setTeaQuantity((current) => Math.min(remainingTeaSlots, current + 1))}>+</button>
-              </div>
               <button className="shop-buy-button tea-action" type="button" disabled={!canBuyTea} onClick={buyTea}>
                 {remainingTeaSlots === 0
-                  ? "ЗАПАС ПОЛОН"
-                  : canBuyTea
-                    ? `КУПИТЬ ×${teaQuantity} · ${teaTotalPrice}`
-                    : `НУЖНО ${teaTotalPrice}`}
+                  ? "Запас заполнен"
+                  : `Купить · ${BERGAMOT_TEA_PRICE}`}
               </button>
             </article>
             <article className="shop-card shop-product-card vita-card">
               <span className="drink-pack vita-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {vitaPowerCount}/10 {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
+                <small>ЗАПАС {vitaPowerCount}/{INVENTORY_LIMIT} {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
                 <h3>Напиток «Пепси»</h3>
                 <p>Защищает активный баланс от одной неудачи.</p>
               </div>
-              <div className="food-price"><strong>{VITA_POWER_PRICE}</strong><span>монет</span></div>
-              <div className="quantity-picker" aria-label="Количество напитков Пепси">
-                <button type="button" aria-label="Уменьшить количество" disabled={vitaPowerQuantity <= 1} onClick={() => setVitaPowerQuantity((current) => Math.max(1, current - 1))}>−</button>
-                <strong>{vitaPowerQuantity}</strong>
-                <button type="button" aria-label="Увеличить количество" disabled={vitaPowerQuantity >= remainingVitaPowerSlots} onClick={() => setVitaPowerQuantity((current) => Math.min(remainingVitaPowerSlots, current + 1))}>+</button>
-              </div>
               <button className="shop-buy-button vita-action" type="button" disabled={!canBuyVitaPower} onClick={buyVitaPower}>
                 {remainingVitaPowerSlots === 0
-                  ? "ЗАПАС ПОЛОН"
-                  : canBuyVitaPower
-                    ? `КУПИТЬ ×${vitaPowerQuantity} · ${vitaPowerTotalPrice}`
-                    : `НУЖНО ${vitaPowerTotalPrice}`}
+                  ? "Запас заполнен"
+                  : `Купить · ${VITA_POWER_PRICE}`}
               </button>
             </article>
             </div>}
@@ -3239,32 +3487,40 @@ function KnopikGame({
                 <img src={publicAsset("/hasbik-tubeteika.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
-                <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
+                <small>{hatOwned ? `LVL ${hatLevel}/5 · УЛУЧШЕНИЙ ${hatUpgradeTokens}` : "АКСЕССУАР"}</small>
                 <h3>Тюбетейка Хасбика</h3>
                 <p>Улучшает награду и удержание ультра-тапа.</p>
               </div>
-              <div className="food-price"><strong>{hatOwned ? "✓" : HASBIK_HAT_PRICE}</strong><span>{hatOwned ? "твоя" : "монет"}</span></div>
-              <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>
-                {hatOwned
-                  ? hatEquipped ? "СНЯТЬ ТЮБЕТЕЙКУ" : "НАДЕТЬ ТЮБЕТЕЙКУ"
-                  : canBuyHat ? `КУПИТЬ · ${HASBIK_HAT_PRICE}` : `НУЖНО ${HASBIK_HAT_PRICE}`}
-              </button>
+              <div className="clothing-actions">
+                <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>
+                  {hatOwned
+                    ? hatEquipped ? "Снять" : "Надеть"
+                    : `Купить · ${HASBIK_HAT_PRICE}`}
+                </button>
+                <button className="clothing-upgrade-button" type="button" disabled={!hatOwned || hatLevel >= 5 || hatUpgradeTokens < 1} onClick={() => upgradeClothing("hat")}>
+                  {hatLevel >= 5 ? "Максимальный уровень" : `Улучшить · ${hatUpgradeTokens}`}
+                </button>
+              </div>
             </article>
             <article className={`shop-card shop-product-card mohawk-card ${mohawkOwned ? "owned" : ""}`}>
               <span className="mohawk-preview" aria-hidden="true">
                 <img src={publicAsset("/knopik-mohawk-v2.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
-                <small>{mohawkOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
+                <small>{mohawkOwned ? `LVL ${mohawkLevel}/5 · УЛУЧШЕНИЙ ${mohawkUpgradeTokens}` : "АКСЕССУАР"}</small>
                 <h3>Эрокез</h3>
                 <p>Улучшает коэффициенты и открывает выбор ставки.</p>
               </div>
-              <div className="food-price"><strong>{mohawkOwned ? "✓" : MOHAWK_PRICE}</strong><span>{mohawkOwned ? "твой" : "монет"}</span></div>
-              <button className="shop-buy-button mohawk-action" type="button" disabled={!canBuyMohawk} onClick={buyOrToggleMohawk}>
-                {mohawkOwned
-                  ? mohawkEquipped ? "СНЯТЬ ЭРОКЕЗ" : "НАДЕТЬ ЭРОКЕЗ"
-                  : canBuyMohawk ? `КУПИТЬ · ${MOHAWK_PRICE}` : `НУЖНО ${MOHAWK_PRICE}`}
-              </button>
+              <div className="clothing-actions">
+                <button className="shop-buy-button mohawk-action" type="button" disabled={!canBuyMohawk} onClick={buyOrToggleMohawk}>
+                  {mohawkOwned
+                    ? mohawkEquipped ? "Снять" : "Надеть"
+                    : `Купить · ${MOHAWK_PRICE}`}
+                </button>
+                <button className="clothing-upgrade-button" type="button" disabled={!mohawkOwned || mohawkLevel >= 5 || mohawkUpgradeTokens < 1} onClick={() => upgradeClothing("mohawk")}>
+                  {mohawkLevel >= 5 ? "Максимальный уровень" : `Улучшить · ${mohawkUpgradeTokens}`}
+                </button>
+              </div>
             </article>
             </div>)}
 
