@@ -6679,8 +6679,10 @@ img,
 }
 
 .game-shell .boost-row .inventory-count.is-price {
-  top: -4px;
-  right: -4px;
+  top: auto;
+  right: auto;
+  bottom: -7px;
+  left: 50%;
   min-width: 25px;
   height: 18px;
   padding: 0 5px;
@@ -6689,6 +6691,7 @@ img,
   background: linear-gradient(145deg, #fff197, #f2b820);
   box-shadow: 0 4px 10px rgb(84 53 0 / 20%), inset 0 1px 0 #fff8c7;
   font-size: 7px;
+  transform: translateX(-50%);
 }
 
 .game-shell .boost-row .inventory-count.is-price::before {
@@ -6696,4 +6699,8 @@ img,
   content: "К";
   font-size: 6px;
   opacity: 0.72;
+}
+
+.game-shell .boost-row {
+  margin-bottom: 7px;
 }
