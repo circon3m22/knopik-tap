@@ -19,7 +19,9 @@ export const TWO_PER_SECOND_TAP_LIMIT_MAX = 32;
 export const FAST_TAP_LIMIT_MIN = 25;
 export const FAST_TAP_LIMIT_MAX = 50;
 
-export const FATIGUE_DURATION_MS = 90_000;
+export const FATIGUE_DURATION_MIN_MS = 15_000;
+export const FATIGUE_DURATION_MAX_MS = 40_000;
+export const FATIGUE_DURATION_MS = FATIGUE_DURATION_MAX_MS;
 export const FATIGUE_TAP_LIMIT_MIN = 10;
 export const FATIGUE_TAP_LIMIT_MAX = 20;
 
@@ -57,6 +59,23 @@ function normalizedRandom(random: RandomSource): number {
   }
 
   return clamp(value, 0, 0.999999999);
+}
+
+/** Chooses a 15–40 second rest; difficulty only biases the result inside that range. */
+export function chooseFatigueDuration(
+  difficulty: number = 50,
+  random: RandomSource = Math.random,
+): number {
+  const difficultyRatio = clamp(difficulty, 0, 100) / 100;
+  const exponent = interpolate(1.6, 0.4, difficultyRatio);
+  const weightedSample = Math.pow(normalizedRandom(random), exponent);
+  return Math.round(
+    interpolate(
+      FATIGUE_DURATION_MIN_MS,
+      FATIGUE_DURATION_MAX_MS,
+      weightedSample,
+    ),
+  );
 }
 
 function interpolate(from: number, to: number, ratio: number): number {
@@ -230,7 +249,7 @@ export function calculateTapLimit(
   return Math.round(interpolate(lower, upper, normalizedRandom(random)));
 }
 
-/** Returns 1 immediately after ultra tap and linearly reaches 0 after 90s. */
+/** Returns 1 immediately after fatigue starts and linearly reaches 0. */
 export function calculateFatigueRatio(
   elapsedSinceUltraMs: number,
   durationMs: number = FATIGUE_DURATION_MS,

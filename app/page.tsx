@@ -31,6 +31,7 @@ import {
   calculateUltraTapCoins,
   chooseUltraTapOverheatDeadline,
   chooseUltraTapTwoSecondReward,
+  chooseFatigueDuration,
   isUltraTapOverheated,
   rollingAverageTapInterval,
 } from "./tempo-engine";
@@ -178,10 +179,6 @@ function CaseRewardArtwork({ reward }: { reward: CaseReward }) {
     </span>
   );
 }
-const RISK_RECOVERY_MIN_MS = 30_000;
-const RISK_RECOVERY_SPREAD_MS = 30_000;
-const SAVE_RECOVERY_MIN_MS = 20_000;
-const SAVE_RECOVERY_SPREAD_MS = 40_000;
 const PUBLIC_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const publicAsset = (path: string) => `${PUBLIC_BASE_PATH}${path}`;
 
@@ -1416,7 +1413,7 @@ function KnopikGame({
             transitionTo("calm");
           } else {
             const nextFatigueUntil =
-              Date.now() + difficultyDuration(FATIGUE_DURATION_MS, difficultyRef.current);
+              Date.now() + chooseFatigueDuration(difficultyRef.current);
             fatigueUntilRef.current = nextFatigueUntil;
             setFatigueUntil(nextFatigueUntil);
             setRiskFatigueUntil(nextFatigueUntil);
@@ -1452,8 +1449,7 @@ function KnopikGame({
         return;
       }
       const nextFatigueUntil =
-        Date.now() +
-        difficultyDuration(FATIGUE_DURATION_MS, difficultyRef.current);
+        Date.now() + chooseFatigueDuration(difficultyRef.current);
       fatigueUntilRef.current = nextFatigueUntil;
       setFatigueUntil(nextFatigueUntil);
       setClock(Date.now());
@@ -1590,12 +1586,7 @@ function KnopikGame({
             transitionTo("calm");
           } else {
             const tiredUntil =
-              Date.now() +
-              difficultyDuration(
-                RISK_RECOVERY_MIN_MS +
-                  Math.random() * RISK_RECOVERY_SPREAD_MS,
-                difficultyRef.current,
-              );
+              Date.now() + chooseFatigueDuration(difficultyRef.current);
             fatigueUntilRef.current = tiredUntil;
             setFatigueUntil(tiredUntil);
             setRiskFatigueUntil(tiredUntil);
@@ -1723,11 +1714,7 @@ function KnopikGame({
       transitionTo("calm");
     } else {
       const tiredUntil =
-        Date.now() +
-        difficultyDuration(
-          SAVE_RECOVERY_MIN_MS + Math.random() * SAVE_RECOVERY_SPREAD_MS,
-          difficultyRef.current,
-        );
+        Date.now() + chooseFatigueDuration(difficultyRef.current);
       fatigueUntilRef.current = tiredUntil;
       setFatigueUntil(tiredUntil);
       setRiskFatigueUntil(tiredUntil);
@@ -1963,11 +1950,7 @@ function KnopikGame({
     }
     if (!settingsRef.current.yellow) {
       const tiredUntil =
-        Date.now() +
-        difficultyDuration(
-          RISK_RECOVERY_MIN_MS + Math.random() * RISK_RECOVERY_SPREAD_MS,
-          difficultyRef.current,
-        );
+        Date.now() + chooseFatigueDuration(difficultyRef.current);
       fatigueUntilRef.current = tiredUntil;
       setFatigueUntil(tiredUntil);
       setRiskFatigueUntil(tiredUntil);
@@ -2531,6 +2514,7 @@ function KnopikGame({
     !settings.yellow &&
     (dogState === "tired" ||
       (dogState === "recovering" && fatigueUntil > Date.now()));
+  const isDogResting = !settings.yellow && fatigueUntil > clock;
   const canFeedDog = isDogTired && foodCount > 0;
   const canQuickBuyFood = isDogTired && foodCount === 0 && coins.walletCoins >= DOG_FOOD_PRICE;
   const canQuickBuyDrink = drinkCount === 0 && riskPhase === "normal" && coins.walletCoins >= ZHIVCHIK_PRICE;
@@ -2961,6 +2945,18 @@ function KnopikGame({
         className="game-stage"
       >
         <div className="dog-stage">
+          <div className={`dog-orbit ${vitaPowerShield ? "has-vita-shield" : ""}`}>
+          {isDogResting && (
+            <svg className="fatigue-countdown-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle
+                cx="60"
+                cy="60"
+                r="55"
+                pathLength="100"
+                style={{ strokeDashoffset: 100 - fatigueCountdownRatio * 100 }}
+              />
+            </svg>
+          )}
           <button
             className={`dog-button ${tapVariant} ${vitaPowerShield ? "has-vita-shield" : ""} ${isDogTired ? "has-fatigue-ring" : ""}`}
             type="button"
@@ -2979,17 +2975,6 @@ function KnopikGame({
             onContextMenu={(event) => event.preventDefault()}
           >
             <span className="portrait-surface" aria-hidden="true" />
-            {isDogTired && (
-              <svg className="fatigue-countdown-ring" viewBox="0 0 120 120" aria-hidden="true">
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="55"
-                  pathLength="100"
-                  style={{ strokeDashoffset: 100 - fatigueCountdownRatio * 100 }}
-                />
-              </svg>
-            )}
             {vitaPowerShield && <span className="vita-shield-ring" aria-hidden="true"><i /><i /><i /></span>}
             {shieldBreakVisible && <span className="vita-shield-break" aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>}
             <span className="tap-waves" aria-hidden="true">
@@ -3182,6 +3167,7 @@ function KnopikGame({
               </span>
             )}
           </button>
+          </div>
         </div>
 
         <div className="game-data">

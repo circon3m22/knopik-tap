@@ -3,6 +3,9 @@ import test from "node:test";
 import { sanitizeSave } from "../app/game-logic.ts";
 import {
   FATIGUE_DURATION_MS,
+  FATIGUE_DURATION_MIN_MS,
+  FATIGUE_DURATION_MAX_MS,
+  chooseFatigueDuration,
   calculateFatigueRatio,
   calculateTapLimit,
   calculateUltraTapCoins,
@@ -50,11 +53,18 @@ test("tap limit rewards speed and keeps requested ranges", () => {
   assert.equal(calculateTapLimit(150, 0, () => 0.999), 50);
 });
 
-test("post-ultra fatigue starts at 10-20 and fades after 90 seconds", () => {
+test("post-ultra fatigue starts at 10-20 and fades over its configured duration", () => {
   assert.equal(calculateTapLimit(150, 1, () => 0), 10);
   assert.equal(calculateTapLimit(150, 1, () => 0.999), 20);
   assert.equal(calculateFatigueRatio(0), 1);
   assert.equal(calculateFatigueRatio(FATIGUE_DURATION_MS), 0);
+});
+
+test("rest duration always stays between 15 and 40 seconds", () => {
+  assert.equal(chooseFatigueDuration(0, () => 0), FATIGUE_DURATION_MIN_MS);
+  assert.ok(chooseFatigueDuration(50, () => 0.5) >= FATIGUE_DURATION_MIN_MS);
+  assert.ok(chooseFatigueDuration(50, () => 0.5) <= FATIGUE_DURATION_MAX_MS);
+  assert.ok(chooseFatigueDuration(100, () => 0.999999) <= FATIGUE_DURATION_MAX_MS);
 });
 
 test("ultra tap averages 300, caps at 500, and burns after the deadline", () => {

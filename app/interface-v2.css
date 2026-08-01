@@ -1508,7 +1508,7 @@ button {
 
 .fatigue-countdown-ring {
   position: absolute;
-  z-index: 8;
+  z-index: 12;
   inset: -5%;
   width: 110%;
   height: 110%;
@@ -1526,7 +1526,14 @@ button {
   transition: stroke-dashoffset 900ms linear;
 }
 
-.dog-button.has-vita-shield .fatigue-countdown-ring { inset: -7%; width: 114%; height: 114%; }
+.dog-orbit {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.dog-orbit > .dog-button { grid-area: 1 / 1; }
+.dog-orbit > .fatigue-countdown-ring { grid-area: 1 / 1; }
+.dog-orbit.has-vita-shield .fatigue-countdown-ring { inset: -7%; width: 114%; height: 114%; }
 
 /* Store alignment */
 .shop-sheet .shop-hero-row .shop-wallet {
@@ -1543,12 +1550,16 @@ button {
 .shop-clothes-grid .shop-product-card {
   height: 356px;
   min-height: 356px;
-  grid-template-rows: 104px minmax(0, 1fr) 104px;
+  grid-template-rows: 104px minmax(0, 1fr);
+  padding-bottom: 124px;
 }
 .shop-clothes-grid .food-copy { align-self: start; }
 .shop-clothes-grid .clothing-actions {
-  width: 100%;
-  align-self: end;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: auto;
   grid-template-rows: repeat(2, 48px);
   gap: 8px;
 }
