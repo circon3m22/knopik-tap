@@ -6043,8 +6043,18 @@ img,
   border-radius: 19px;
   background: #cdd5da;
   box-shadow: inset 0 13px 18px rgb(2 10 17 / 34%), inset 0 -13px 18px rgb(2 10 17 / 38%), 0 8px 17px rgb(0 0 0 / 28%);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+.slot-reel-perspective {
+  position: absolute;
+  inset: 0;
+  -webkit-perspective: 390px;
   perspective: 390px;
   perspective-origin: 50% 50%;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
 }
 
 .slot-reel-rotor {
@@ -6053,7 +6063,9 @@ img,
   left: 50%;
   width: 100%;
   height: 68px;
-  transform: translate(-50%, -50%) rotateX(var(--reel-angle));
+  -webkit-transform: translate3d(-50%, -50%, 0) rotateX(var(--reel-angle));
+  transform: translate3d(-50%, -50%, 0) rotateX(var(--reel-angle));
+  -webkit-transform-style: preserve-3d;
   transform-style: preserve-3d;
   transition: transform var(--reel-duration) cubic-bezier(0.12, 0.74, 0.16, 1);
   will-change: transform;
@@ -6070,7 +6082,9 @@ img,
   background: linear-gradient(180deg, #f9fbfc, #e9edf0 55%, #cbd3d8);
   box-shadow: inset 0 1px 0 #fff;
   text-align: center;
-  transform: rotateX(var(--face-angle)) translateZ(47px);
+  -webkit-transform: rotateX(var(--face-angle)) translate3d(0, 0, 47px);
+  transform: rotateX(var(--face-angle)) translate3d(0, 0, 47px);
+  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
 
@@ -6184,4 +6198,11 @@ img,
   .slot-reel-face span { font-size: 29px; }
   .mini-primary,
   .mine-actions button { min-height: 44px; }
+}
+
+/* Slot rotation is essential game feedback, including in standalone iOS mode. */
+@media (prefers-reduced-motion: reduce) {
+  .mini-slots .slot-reel-rotor {
+    transition-duration: var(--reel-duration) !important;
+  }
 }

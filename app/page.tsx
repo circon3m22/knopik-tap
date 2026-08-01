@@ -2064,7 +2064,8 @@ function KnopikGame({
     transitionTo,
   ]);
 
-  const vaultLocked = dogState !== "calm" || holding || riskPhase !== "normal" || miniGame !== null;
+  // A normal tap briefly sets `holding`; it must not toggle the vault button.
+  const vaultLocked = dogState !== "calm" || riskPhase !== "normal" || miniGame !== null;
   const isDogTired =
     !settings.yellow &&
     (dogState === "tired" ||

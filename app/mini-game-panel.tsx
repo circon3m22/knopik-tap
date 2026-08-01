@@ -211,23 +211,25 @@ export function MiniGamePanel({
               <div className="slot-payline" aria-hidden="true" />
               {reelAngles.map((angle, reelIndex) => (
                 <div className="slot-reel-window" key={reelIndex}>
-                  <div
-                    className="slot-reel-rotor"
-                    style={{
-                      "--reel-angle": `${angle}deg`,
-                      "--reel-duration": `${1.7 + reelIndex * 0.42}s`,
-                    } as CSSProperties}
-                  >
-                    {SLOT_FACE_ORDER.map((symbol, faceIndex) => (
-                      <div
-                        className={`slot-reel-face symbol-${symbol}`}
-                        style={{ "--face-angle": `${faceIndex * 72}deg` } as CSSProperties}
-                        key={symbol}
-                      >
-                        <span>{SLOT_GLYPHS[symbol]}</span>
-                        <small>{SLOT_SYMBOL_LABELS[symbol]}</small>
-                      </div>
-                    ))}
+                  <div className="slot-reel-perspective">
+                    <div
+                      className="slot-reel-rotor"
+                      style={{
+                        "--reel-angle": `${angle}deg`,
+                        "--reel-duration": `${1.7 + reelIndex * 0.42}s`,
+                      } as CSSProperties}
+                    >
+                      {SLOT_FACE_ORDER.map((symbol, faceIndex) => (
+                        <div
+                          className={`slot-reel-face symbol-${symbol}`}
+                          style={{ "--face-angle": `${faceIndex * 72}deg` } as CSSProperties}
+                          key={symbol}
+                        >
+                          <span>{SLOT_GLYPHS[symbol]}</span>
+                          <small>{SLOT_SYMBOL_LABELS[symbol]}</small>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <span className="slot-reel-glass" aria-hidden="true" />
                 </div>
