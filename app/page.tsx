@@ -138,6 +138,7 @@ const RISK_RESULT_MS = 1_650;
 const INVENTORY_LIMIT = 25;
 const CASE_HOLD_MS = 1_050;
 const COMMON_CASE_PRICE = 2_500;
+const BIG_CASE_PRICE = 25_000;
 
 type CaseSequence = {
   kind: CaseKind;
@@ -2175,6 +2176,14 @@ function KnopikGame({
     vibrate([18, 22, 34], settingsRef.current.vibration);
   }, [commonCases, getSound, updateCoins]);
 
+  const buyBigCase = useCallback(() => {
+    if (coinsRef.current.walletCoins < BIG_CASE_PRICE || bigCases >= 99) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - BIG_CASE_PRICE }));
+    setBigCases((current) => Math.min(99, current + 1));
+    getSound().purchase();
+    vibrate([18, 22, 34], settingsRef.current.vibration);
+  }, [bigCases, getSound, updateCoins]);
+
   const advanceCaseReward = useCallback(() => {
     setCaseSequence((current) => {
       if (!current || current.phase !== "reward") return current;
@@ -2970,7 +2979,17 @@ function KnopikGame({
             onContextMenu={(event) => event.preventDefault()}
           >
             <span className="portrait-surface" aria-hidden="true" />
-            {isDogTired && <span className="fatigue-countdown-ring" aria-hidden="true" />}
+            {isDogTired && (
+              <svg className="fatigue-countdown-ring" viewBox="0 0 120 120" aria-hidden="true">
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="55"
+                  pathLength="100"
+                  style={{ strokeDashoffset: 100 - fatigueCountdownRatio * 100 }}
+                />
+              </svg>
+            )}
             {vitaPowerShield && <span className="vita-shield-ring" aria-hidden="true"><i /><i /><i /></span>}
             {shieldBreakVisible && <span className="vita-shield-break" aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>}
             <span className="tap-waves" aria-hidden="true">
@@ -3314,9 +3333,10 @@ function KnopikGame({
               <article className="case-card case-big-card">
                 <div className="case-miniature" aria-hidden="true"><i /><b>5</b></div>
                 <div><small>ЗА ЗАДАНИЯ</small><h3>Большой кейс</h3><p>Пять наград и шанс получить одежду целиком.</p></div>
-                <button type="button" disabled={bigCases < 1} onClick={() => openCase("big")}>
-                  {bigCases > 0 ? `Открыть · ${bigCases}` : "Нет кейсов"}
-                </button>
+                <div className="case-card-actions">
+                  <button type="button" disabled={bigCases < 1} onClick={() => openCase("big")}>Открыть · {bigCases}</button>
+                  <button type="button" disabled={coins.walletCoins < BIG_CASE_PRICE || bigCases >= 99} onClick={buyBigCase}>Купить · {BIG_CASE_PRICE.toLocaleString("ru-RU")}</button>
+                </div>
               </article>
             </div>
             <div className={`case-quest-card ${questComplete ? "is-complete" : ""}`}>
@@ -3577,7 +3597,7 @@ function KnopikGame({
                     : `Купить · ${HASBIK_HAT_PRICE}`}
                 </button>
                 <button className="clothing-upgrade-button" type="button" disabled={!hatOwned || hatLevel >= 5 || hatUpgradeTokens < 1} onClick={() => upgradeClothing("hat")}>
-                  {hatLevel >= 5 ? "Максимальный уровень" : `Улучшить · ${hatUpgradeTokens}`}
+                  {hatLevel >= 5 ? "Максимум" : `Улучшить · ${hatUpgradeTokens}`}
                 </button>
               </div>
             </article>
@@ -3597,7 +3617,7 @@ function KnopikGame({
                     : `Купить · ${MOHAWK_PRICE}`}
                 </button>
                 <button className="clothing-upgrade-button" type="button" disabled={!mohawkOwned || mohawkLevel >= 5 || mohawkUpgradeTokens < 1} onClick={() => upgradeClothing("mohawk")}>
-                  {mohawkLevel >= 5 ? "Максимальный уровень" : `Улучшить · ${mohawkUpgradeTokens}`}
+                  {mohawkLevel >= 5 ? "Максимум" : `Улучшить · ${mohawkUpgradeTokens}`}
                 </button>
               </div>
             </article>

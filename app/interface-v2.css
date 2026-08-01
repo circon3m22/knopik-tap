@@ -1448,8 +1448,9 @@ button {
   overflow: hidden;
   max-width: 92px;
   color: var(--adaptive-ink);
-  font-size: 10px;
-  font-weight: 790;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .025em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1473,9 +1474,9 @@ button {
   overflow: hidden;
   max-width: 90px;
   color: var(--adaptive-ink);
-  font-size: 8px;
-  font-weight: 820;
-  letter-spacing: .045em;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .025em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1508,17 +1509,24 @@ button {
 .fatigue-countdown-ring {
   position: absolute;
   z-index: 8;
-  inset: -4.2%;
-  border-radius: 50%;
-  background: conic-gradient(from -90deg, #fff6b0 0deg, #ffd52f var(--fatigue-angle), transparent calc(var(--fatigue-angle) + .5deg) 360deg);
-  filter: drop-shadow(0 0 7px #ffdc38) drop-shadow(0 0 15px rgb(255 193 31 / 70%));
-  -webkit-mask: radial-gradient(circle, transparent 0 89%, #000 89.7% 100%);
-  mask: radial-gradient(circle, transparent 0 89%, #000 89.7% 100%);
+  inset: -5%;
+  width: 110%;
+  height: 110%;
+  overflow: visible;
+  filter: drop-shadow(0 0 5px #ffe263) drop-shadow(0 0 13px rgb(255 190 24 / 82%));
   pointer-events: none;
-  transition: background 900ms linear;
+  transform: rotate(-90deg);
+}
+.fatigue-countdown-ring circle {
+  fill: none;
+  stroke: #ffd83d;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  transition: stroke-dashoffset 900ms linear;
 }
 
-.dog-button.has-vita-shield .fatigue-countdown-ring { inset: -6.5%; }
+.dog-button.has-vita-shield .fatigue-countdown-ring { inset: -7%; width: 114%; height: 114%; }
 
 /* Store alignment */
 .shop-sheet .shop-hero-row .shop-wallet {
@@ -1535,10 +1543,25 @@ button {
 .shop-clothes-grid .shop-product-card {
   height: 356px;
   min-height: 356px;
-  grid-template-rows: 104px 126px 102px;
+  grid-template-rows: 104px minmax(0, 1fr) 104px;
 }
 .shop-clothes-grid .food-copy { align-self: start; }
-.shop-clothes-grid .clothing-actions { align-self: end; }
+.shop-clothes-grid .clothing-actions {
+  width: 100%;
+  align-self: end;
+  grid-template-rows: repeat(2, 48px);
+  gap: 8px;
+}
+.shop-clothes-grid .clothing-actions button {
+  display: flex;
+  width: 100%;
+  height: 48px;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+}
 .clothing-actions .shop-buy-button.hat-action,
 .clothing-actions .shop-buy-button.mohawk-action {
   color: var(--ui-ink) !important;
@@ -1569,7 +1592,11 @@ button {
 
 .case-opening::before {
   position: absolute;
-  inset: -35%;
+  top: 50%;
+  left: 50%;
+  width: 240vmax;
+  height: 240vmax;
+  border-radius: 50%;
   background: repeating-conic-gradient(from 0deg, rgb(255 255 255 / 0%) 0 8deg, rgb(255 255 255 / 8%) 9deg 14deg, transparent 15deg 27deg);
   content: "";
   animation: case-background-turn 9s linear infinite;
@@ -1611,7 +1638,10 @@ button {
 .reward-coin-art::before { position: absolute; inset: 13px; border: 2px dashed rgb(131 71 0 / 43%); border-radius: 50%; content: ""; }
 .reward-coin-art i { font-size: 46px; font-style: normal; font-weight: 950; text-shadow: 0 2px 0 rgb(255 255 255 / 45%); }
 
-@keyframes case-background-turn { to { transform: rotate(360deg); } }
+@keyframes case-background-turn {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
 @keyframes case-shake-strong { from { transform: translate(-3px, 1px) rotate(-3deg) scale(1.025); } to { transform: translate(3px, -1px) rotate(3deg) scale(1.055); } }
 @keyframes case-lid-rattle { from { transform: translateY(-2px) rotate(-1deg); } to { transform: translateY(3px) rotate(1deg); } }
 @keyframes case-shine { from { transform: translateX(-120%); } to { transform: translateX(120%); } }
@@ -1622,7 +1652,7 @@ button {
 
 @media (max-width: 420px) {
   .account-identity > strong,
-  .status-cluster > strong { max-width: 66px; font-size: 7.5px; }
+  .status-cluster > strong { max-width: 66px; font-size: 8px; }
   .brand-lockup strong { font-size: 23px; letter-spacing: .09em; }
 }
 
