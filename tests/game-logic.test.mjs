@@ -187,7 +187,7 @@ test("one-time promo redemption persists in version eleven", () => {
   assert.equal(saved.hasbulaRedeemed, true);
 });
 
-test("new drink inventories and mini-game stats persist in version twelve", () => {
+test("new drink inventories and mini-game stats migrate into the current save", () => {
   const saved = sanitizeSave({
     version: 12,
     walletCoins: 900,
@@ -199,7 +199,7 @@ test("new drink inventories and mini-game stats persist in version twelve", () =
     mineWins: 5,
     mineLosses: 2,
   });
-  assert.equal(saved.version, 12);
+  assert.equal(saved.version, 13);
   assert.equal(saved.colaCount, 10);
   assert.equal(saved.teaCount, 3);
   assert.equal(saved.slotPlays, 8);
@@ -211,6 +211,19 @@ test("new drink inventories and mini-game stats persist in version twelve", () =
   const legacy = sanitizeSave({ version: 11, colaCount: 9, teaCount: 9 });
   assert.equal(legacy.colaCount, 0);
   assert.equal(legacy.teaCount, 0);
+});
+
+test("VitaPower inventory and active shield persist in version thirteen", () => {
+  const saved = sanitizeSave({
+    version: 13,
+    vitaPowerCount: 14,
+    vitaPowerShield: true,
+  });
+  assert.equal(saved.vitaPowerCount, 10);
+  assert.equal(saved.vitaPowerShield, true);
+  const legacy = sanitizeSave({ version: 12, vitaPowerCount: 4, vitaPowerShield: true });
+  assert.equal(legacy.vitaPowerCount, 0);
+  assert.equal(legacy.vitaPowerShield, false);
 });
 
 test("risk wheel resolves payout and final angle from the configured chance", () => {

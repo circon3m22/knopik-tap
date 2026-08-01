@@ -19,7 +19,7 @@ export type GameStats = {
 };
 
 export type SaveData = {
-  version: 12;
+  version: 13;
   vaultCoins: number;
   walletCoins: number;
   foodCount: number;
@@ -27,6 +27,8 @@ export type SaveData = {
   pitbullCount: number;
   colaCount: number;
   teaCount: number;
+  vitaPowerCount: number;
+  vitaPowerShield: boolean;
   hatOwned: boolean;
   hatEquipped: boolean;
   mohawkOwned: boolean;
@@ -55,7 +57,7 @@ export type SaveData = {
 };
 
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 12 as const;
+export const SAVE_VERSION = 13 as const;
 
 export function createDefaultSave(): SaveData {
   return {
@@ -67,6 +69,8 @@ export function createDefaultSave(): SaveData {
     pitbullCount: 0,
     colaCount: 0,
     teaCount: 0,
+    vitaPowerCount: 0,
+    vitaPowerShield: false,
     hatOwned: false,
     hatEquipped: false,
     mohawkOwned: false,
@@ -165,6 +169,10 @@ export function sanitizeSave(value: unknown): SaveData {
       isVersion(12) ? Math.min(10, safeInteger(candidate.colaCount)) : 0,
     teaCount:
       isVersion(12) ? Math.min(10, safeInteger(candidate.teaCount)) : 0,
+    vitaPowerCount:
+      isVersion(13) ? Math.min(10, safeInteger(candidate.vitaPowerCount)) : 0,
+    vitaPowerShield:
+      isVersion(13) && candidate.vitaPowerShield === true,
     hatOwned:
       isVersion(6) &&
       typeof candidate.hatOwned === "boolean"

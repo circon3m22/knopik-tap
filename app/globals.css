@@ -6920,3 +6920,320 @@ img,
   from { opacity: 0.9; transform: scale(0.72); }
   to { opacity: 0; transform: scale(1.18); }
 }
+
+/* 3D glass storefront */
+.shop-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - env(safe-area-inset-top) - 8px);
+  overflow: hidden;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+  background:
+    radial-gradient(circle at 50% 38%, rgb(255 255 255 / 96%), transparent 43%),
+    linear-gradient(165deg, rgb(240 246 252 / 97%), rgb(220 230 240 / 96%));
+}
+
+.shop-sheet .sheet-heading {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+.shop-sheet .shop-wallet {
+  min-height: 52px;
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border-radius: 19px;
+}
+
+.shop-sheet .shop-wallet strong { font-size: 23px; }
+.shop-sheet .shop-wallet .coin-mark { width: 34px; height: 34px; flex-basis: 34px; }
+.shop-sheet .shop-categories { flex: 0 0 auto; margin-top: 9px; }
+.shop-sheet .shop-section-copy { flex: 0 0 auto; padding: 8px 4px 2px; text-align: center; }
+.shop-sheet .purchase-message { flex: 0 0 auto; margin-block: 5px 0; }
+
+.shop-showcase-carousel {
+  position: relative;
+  display: flex;
+  min-height: 390px;
+  flex: 1 1 auto;
+  gap: 13px;
+  align-items: stretch;
+  margin-inline: -14px;
+  padding: 12px calc((100% - min(76vw, 342px)) / 2) 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  perspective: 1050px;
+  scroll-behavior: smooth;
+  scroll-padding-inline: calc((100% - min(76vw, 342px)) / 2);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.shop-showcase-carousel::-webkit-scrollbar { display: none; }
+
+.shop-showcase-carousel .shop-showcase-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  max-height: 520px;
+  flex: 0 0 min(76vw, 342px);
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(145px, 1.2fr) auto auto auto;
+  gap: 9px 11px;
+  align-self: center;
+  padding: 18px 17px 16px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 32px;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 78%), rgb(238 246 252 / 48%)),
+    rgb(255 255 255 / 38%);
+  box-shadow:
+    0 24px 52px rgb(27 54 78 / 17%),
+    inset 0 1px 0 rgb(255 255 255 / 100%),
+    inset 0 -18px 34px rgb(123 151 176 / 8%);
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  transform-style: preserve-3d;
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 260ms ease, filter 260ms ease;
+}
+
+.shop-showcase-carousel .shop-card + .shop-card { margin-top: 0; }
+.shop-showcase-card.is-active { z-index: 3; filter: saturate(1.06); transform: translateZ(34px) scale(1); }
+.shop-showcase-card.is-before { opacity: 0.78; transform: rotateY(13deg) translateX(8px) scale(0.92); transform-origin: right center; }
+.shop-showcase-card.is-after { opacity: 0.78; transform: rotateY(-13deg) translateX(-8px) scale(0.92); transform-origin: left center; }
+
+.shop-showcase-card::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(112deg, rgb(255 255 255 / 45%) 0 9%, transparent 18% 72%, rgb(255 255 255 / 20%) 82% 88%, transparent 94%),
+    radial-gradient(circle at 50% 23%, rgb(255 255 255 / 70%), transparent 37%);
+  content: "";
+  pointer-events: none;
+}
+
+.shop-showcase-card::after {
+  position: absolute;
+  z-index: 0;
+  right: 10%;
+  bottom: 118px;
+  left: 10%;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(89 119 145 / 12%);
+  box-shadow: 0 13px 21px rgb(35 62 86 / 16%);
+  content: "";
+  filter: blur(3px);
+  pointer-events: none;
+  transform: rotateX(64deg);
+}
+
+.shop-showcase-card > * { position: relative; z-index: 1; }
+
+.shop-showcase-card > .food-pack,
+.shop-showcase-card > .drink-pack,
+.shop-showcase-card > .hat-preview,
+.shop-showcase-card > .mohawk-preview {
+  width: 148px;
+  height: 148px;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+  margin: 0;
+  filter: drop-shadow(0 20px 17px rgb(29 51 69 / 20%));
+  transform: translateZ(55px) rotateX(-2deg);
+}
+
+.shop-showcase-card > .food-pack,
+.shop-showcase-card > .drink-pack {
+  display: grid;
+  place-items: center;
+}
+
+.shop-showcase-card .food-icon,
+.shop-showcase-card .drink-icon { transform: scale(1.8); }
+.shop-showcase-card .drink-pack > b { right: 7px; bottom: 7px; }
+.shop-showcase-card .hat-preview img,
+.shop-showcase-card .mohawk-preview img { width: 100%; height: 100%; object-fit: contain; }
+
+.shop-showcase-card > .food-copy {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: end;
+  text-align: center;
+}
+
+.shop-showcase-card .food-copy h3 { margin-top: 3px; font-size: 18px; letter-spacing: -0.035em; }
+.shop-showcase-card .food-copy p { max-width: 285px; margin: 5px auto 0; font-size: 9px; line-height: 1.4; }
+.shop-showcase-card > .food-price { grid-column: 1; grid-row: 3; justify-self: start; }
+.shop-showcase-card > .quantity-picker { grid-column: 2; grid-row: 3; align-self: center; }
+.shop-showcase-card > .shop-buy-button { grid-column: 1 / -1; grid-row: 4; min-height: 48px; border-radius: 17px; }
+.shop-showcase-card.hat-card > .food-price,
+.shop-showcase-card.mohawk-card > .food-price { grid-column: 1 / -1; justify-self: center; }
+
+.shop-showcase-controls {
+  display: grid;
+  min-height: 38px;
+  flex: 0 0 auto;
+  grid-template-columns: 38px 1fr 38px;
+  gap: 10px;
+  align-items: center;
+  padding-inline: 7px;
+}
+
+.shop-showcase-controls button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 92%);
+  border-radius: 50%;
+  color: #123149;
+  background: rgb(255 255 255 / 72%);
+  box-shadow: 0 7px 15px rgb(31 57 78 / 12%), inset 0 1px 0 #fff;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.shop-showcase-controls button:disabled { opacity: 0.28; }
+.shop-showcase-controls > div { display: flex; justify-content: center; gap: 6px; }
+.shop-showcase-controls i { width: 6px; height: 6px; border-radius: 999px; background: #9eafbd; transition: width 180ms ease, background 180ms ease; }
+.shop-showcase-controls i.active { width: 23px; background: #147ff0; }
+
+@media (max-height: 720px) {
+  .shop-sheet .shop-section-copy span { display: none; }
+  .shop-showcase-carousel { min-height: 330px; padding-top: 7px; }
+  .shop-showcase-carousel .shop-showcase-card { grid-template-rows: minmax(112px, 1fr) auto auto auto; padding-top: 12px; }
+  .shop-showcase-card > .food-pack,
+  .shop-showcase-card > .drink-pack,
+  .shop-showcase-card > .hat-preview,
+  .shop-showcase-card > .mohawk-preview { width: 116px; height: 116px; }
+  .shop-showcase-card .food-copy p { display: none; }
+}
+
+/* VitaPower inventory, shield and showcase */
+.game-shell .boost-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+.drink-vita {
+  background: linear-gradient(160deg, #5de1ff, #087ce2 58%, #07469e);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 62%), 0 5px 13px rgb(5 86 174 / 30%);
+}
+
+.drink-vita::after {
+  background: linear-gradient(160deg, #e9fbff, #9edfff 56%, #5da9ef);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.drink-vita i {
+  width: 9px;
+  height: 10px;
+  border: 1.5px solid #0872c9;
+  border-radius: 5px 5px 7px 7px;
+  background: linear-gradient(#d9f8ff, #8fd2ff);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 62%), 0 1px 2px rgb(0 61 128 / 18%);
+  clip-path: polygon(50% 0, 100% 20%, 88% 76%, 50% 100%, 12% 76%, 0 20%);
+}
+
+.vita-pack { background: linear-gradient(145deg, #eafaff, #9bdcff 58%, #74aeea); }
+.vita-action { background: linear-gradient(145deg, #17baf0, #086bd8) !important; box-shadow: 0 10px 22px rgb(8 102 203 / 24%) !important; }
+.inventory-vita.is-active { border-color: rgb(91 220 255 / 70%) !important; box-shadow: inset 0 1px 0 rgb(255 255 255 / 25%), 0 0 18px rgb(26 174 241 / 34%) !important; opacity: 1 !important; }
+
+.vita-shield-ring,
+.vita-shield-break {
+  position: absolute;
+  z-index: 9;
+  inset: -1.5%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.vita-shield-ring {
+  background:
+    conic-gradient(from -16deg, #e8fbff 0 5%, #4ed6ff 8% 18%, #0877d8 21% 31%, #b7f1ff 34% 39%, #198bdc 43% 56%, #70e2ff 61% 74%, #075bb8 79% 91%, #d8f8ff 95% 100%);
+  box-shadow:
+    0 0 0 2px rgb(190 241 255 / 78%),
+    0 0 22px rgb(31 178 245 / 62%),
+    inset 0 0 14px rgb(171 238 255 / 60%);
+  -webkit-mask: radial-gradient(circle, transparent 0 88%, #000 89% 100%);
+  mask: radial-gradient(circle, transparent 0 88%, #000 89% 100%);
+  animation: vita-shield-breathe 1.8s ease-in-out infinite;
+}
+
+.vita-shield-ring::after {
+  position: absolute;
+  inset: 3%;
+  border: 1px solid rgb(126 225 255 / 64%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 18px rgb(33 166 239 / 26%);
+  content: "";
+}
+
+.vita-shield-ring i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #dffaff;
+  border-radius: 50%;
+  background: #168bdc;
+  box-shadow: 0 0 7px #60ddff;
+}
+
+.vita-shield-ring i:nth-child(1) { top: 3%; left: 49%; }
+.vita-shield-ring i:nth-child(2) { right: 8%; bottom: 23%; }
+.vita-shield-ring i:nth-child(3) { bottom: 13%; left: 13%; }
+
+.vita-shield-break {
+  animation: vita-shield-flash 720ms ease-out both;
+}
+
+.vita-shield-break::before {
+  position: absolute;
+  inset: -3%;
+  border: 8px solid #68ddff;
+  border-radius: 50%;
+  box-shadow: 0 0 36px #16aef1, inset 0 0 28px rgb(72 204 255 / 55%);
+  content: "";
+}
+
+.vita-shield-break i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 25px;
+  height: 5px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #dffaff, #159ee6, transparent);
+  box-shadow: 0 0 9px #55d7ff;
+  transform: rotate(calc(var(--shield-piece) * 60deg)) translateX(150px);
+}
+
+.vita-shield-break i:nth-child(1) { --shield-piece: 0; }
+.vita-shield-break i:nth-child(2) { --shield-piece: 1; }
+.vita-shield-break i:nth-child(3) { --shield-piece: 2; }
+.vita-shield-break i:nth-child(4) { --shield-piece: 3; }
+.vita-shield-break i:nth-child(5) { --shield-piece: 4; }
+.vita-shield-break i:nth-child(6) { --shield-piece: 5; }
+
+@keyframes vita-shield-breathe {
+  0%, 100% { filter: brightness(1); transform: scale(1); }
+  50% { filter: brightness(1.2); transform: scale(1.012); }
+}
+
+@keyframes vita-shield-flash {
+  0% { opacity: 1; transform: scale(0.96) rotate(0); }
+  35% { opacity: 1; transform: scale(1.08) rotate(4deg); }
+  100% { opacity: 0; transform: scale(1.28) rotate(12deg); }
+}
+
+@media (max-width: 370px) {
+  .game-shell .boost-row { gap: 3px; }
+  .game-shell .boost-row .inventory-item { padding-inline: 1px; }
+  .game-shell .boost-row .inventory-copy strong { font-size: 6.8px; }
+}
