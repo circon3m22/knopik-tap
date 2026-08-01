@@ -56,6 +56,7 @@ import {
   CloudAccountGate,
   type CloudAccount,
   type CloudSyncState,
+  type PromoCode,
 } from "./cloud-account";
 
 type TapParticle = {
@@ -168,7 +169,11 @@ type KnopikGameProps = {
   account: CloudAccount;
   initialSave: SaveData;
   syncState: CloudSyncState;
+  promoCodes: PromoCode[];
   onSave: (save: SaveData) => void;
+  onRefreshPromoCodes: () => Promise<void>;
+  onCreatePromoCode: (code: string, amount: number) => Promise<string>;
+  onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
   onChangePassword: (password: string) => Promise<string>;
   onSignOut: () => Promise<void>;
 };
@@ -177,7 +182,11 @@ function KnopikGame({
   account,
   initialSave,
   syncState,
+  promoCodes,
   onSave,
+  onRefreshPromoCodes,
+  onCreatePromoCode,
+  onRedeemPromoCode,
   onChangePassword,
   onSignOut,
 }: KnopikGameProps) {
@@ -225,6 +234,10 @@ function KnopikGame({
   const [newPassword, setNewPassword] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
   const [accountPending, setAccountPending] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoAmount, setPromoAmount] = useState("");
+  const [promoMessage, setPromoMessage] = useState("");
+  const [promoPending, setPromoPending] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [seriesTaps, setSeriesTaps] = useState(0);
@@ -546,6 +559,10 @@ function KnopikGame({
   }, [settings]);
 
   useEffect(() => {
+    if (settingsOpen && account.isAdmin) void onRefreshPromoCodes();
+  }, [account.isAdmin, onRefreshPromoCodes, settingsOpen]);
+
+  useEffect(() => {
     fatigueUntilRef.current = fatigueUntil;
   }, [fatigueUntil]);
 
@@ -640,6 +657,32 @@ function KnopikGame({
     setAccountPending(true);
     await onSignOut();
   }, [onSignOut]);
+
+  const submitPromoCode = useCallback(async () => {
+    setPromoPending(true);
+    setPromoMessage("");
+    if (account.isAdmin) {
+      const message = await onCreatePromoCode(promoCode, Number(promoAmount));
+      setPromoMessage(message);
+      if (message === "Промокод создан.") {
+        setPromoCode("");
+        setPromoAmount("");
+      }
+    } else {
+      const result = await onRedeemPromoCode(promoCode);
+      setPromoMessage(result.message);
+      if (result.amount) {
+        updateCoins((current) => ({
+          ...current,
+          walletCoins: current.walletCoins + result.amount!,
+        }));
+        setBalancePulse((current) => current + 1);
+        setPromoCode("");
+        getSound().purchase();
+      }
+    }
+    setPromoPending(false);
+  }, [account.isAdmin, getSound, onCreatePromoCode, onRedeemPromoCode, promoAmount, promoCode, updateCoins]);
 
   useEffect(() => {
     if (!fatigueUntil) return;
@@ -2043,7 +2086,6 @@ function KnopikGame({
         <div className="top-bar">
           <div className="wordmark brand-lockup" aria-label="Knopik Tap">
             <strong>KNOPIK</strong>
-            <small>TAP · PLAY · SAVE</small>
           </div>
           <span className={`mood-chip mood-${dogState}`}><i />{moodLabel}</span>
         </div>
@@ -2054,12 +2096,18 @@ function KnopikGame({
           >
             <div className="level-title">
               <span>УРОВЕНЬ</span>
-              <strong>{levelState.level}<small>/ {MAX_LEVEL}</small></strong>
+              <strong>{levelState.level}<small>из {MAX_LEVEL}</small></strong>
             </div>
-            <div className="level-track"><span /></div>
+            <div className="level-progress-block">
+              <div className="level-progress-copy">
+                <span>{levelState.level >= MAX_LEVEL ? "МАКСИМУМ" : "ДО НОВОГО УРОВНЯ"}</span>
+                <strong>{levelState.level >= MAX_LEVEL ? "ГОТОВО" : `${COINS_PER_LEVEL - levelState.progressCoins} монет`}</strong>
+              </div>
+              <div className="level-track"><span /></div>
+            </div>
             <div className="level-reward">
-              <strong>{levelState.level >= MAX_LEVEL ? "MAX" : `${levelState.progressCoins}/100`}</strong>
-              <small>БОНУС +{levelBonus}%</small>
+              <small>БОНУС</small>
+              <strong>+{levelBonus}%</strong>
             </div>
           </div>
         ) : (
@@ -2313,20 +2361,31 @@ function KnopikGame({
         </div>
 
         <div className="game-data">
-          <div className="balance-overview">
-            <div
-              ref={walletBalanceRef}
-              className={`wallet-balance ${balanceVariant}`}
-              aria-label={`Активные монеты ${coins.walletCoins}`}
-            >
-              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
-              <div>
-                <small>НА РУКАХ</small>
-                <strong className="balance-number" key={`balance-${balancePulse}`}>
-                  {coins.walletCoins.toLocaleString("ru-RU")}
-                </strong>
-              </div>
+          <div
+            ref={walletBalanceRef}
+            className={`wallet-balance ${balanceVariant}`}
+            aria-label={`Активные монеты ${coins.walletCoins}`}
+          >
+            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+            <div>
+              <small>АКТИВНЫЕ МОНЕТЫ</small>
+              <strong className="balance-number" key={`balance-${balancePulse}`}>
+                {coins.walletCoins.toLocaleString("ru-RU")}
+              </strong>
             </div>
+          </div>
+          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
+          <div className="vault-row">
+            <button
+              className="quick-save-button"
+              type="button"
+              disabled={!canSave}
+              onClick={saveAllToVault}
+            >
+              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span>ПЕРЕНЕСТИ В СЕЙФ</span>
+              <small>+{saveAmount.toLocaleString("ru-RU")}</small>
+            </button>
             <div
               ref={savedBalanceRef}
               className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
@@ -2336,17 +2395,6 @@ function KnopikGame({
               <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
             </div>
           </div>
-          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
-          <button
-            className="quick-save-button"
-            type="button"
-            disabled={!canSave}
-            onClick={saveAllToVault}
-          >
-            <span className="safe-icon" aria-hidden="true"><i /></span>
-            <span>ПЕРЕВЕСТИ В СЕЙФ</span>
-            <small>+{saveAmount.toLocaleString("ru-RU")}</small>
-          </button>
         </div>
       </section>
 
@@ -2462,12 +2510,12 @@ function KnopikGame({
         >
           <section className="sheet shop-sheet" aria-labelledby="shop-title">
             <div className="sheet-heading">
-              <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Забота о Кнопике</h2></div>
+              <div><p className="sheet-kicker">МАГАЗИН</p><h2 id="shop-title">Всё для Кнопика</h2></div>
             </div>
 
             <div className="shop-wallet">
-              <span>АКТИВНЫЕ МОНЕТЫ</span>
-              <strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong>
+              <span><small>ДОСТУПНО</small><strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong></span>
+              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
             </div>
 
             <div className="shop-categories" role="tablist" aria-label="Разделы магазина">
@@ -2478,7 +2526,7 @@ function KnopikGame({
                 aria-selected={shopCategory === "food"}
                 onClick={() => setShopCategory("food")}
               >
-                Еда и напитки
+                Запасы
               </button>
               <button
                 className={shopCategory === "clothes" ? "active" : ""}
@@ -2487,8 +2535,13 @@ function KnopikGame({
                 aria-selected={shopCategory === "clothes"}
                 onClick={() => setShopCategory("clothes")}
               >
-                Одежда
+                Образы
               </button>
+            </div>
+
+            <div className="shop-section-copy">
+              <strong>{shopCategory === "food" ? "Помощь и усиления" : "Стиль и способности"}</strong>
+              <span>{shopCategory === "food" ? "Купи запас сейчас, используй на главной когда понадобится." : "Каждый образ даёт Кнопику уникальное преимущество."}</span>
             </div>
 
             {shopMessage && <p className="purchase-message" role="status">{shopMessage}</p>}
@@ -2612,6 +2665,7 @@ function KnopikGame({
             <div className="sheet-heading">
               <div><p className="sheet-kicker">ПРОФИЛЬ</p><h2 id="settings-title">{account.username}</h2></div>
             </div>
+
             <div className="account-settings">
               <div className="account-summary">
                 <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
@@ -2648,10 +2702,70 @@ function KnopikGame({
               <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
               <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
             </div>
-            <div className="setting-row">
-              <div><strong>Вибрация</strong><span>На iPhone Safari — визуально-звуковой отклик</span></div>
-              <button className="switch" type="button" role="switch" aria-checked={settings.vibration} aria-label="Вибрация" onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}><span /></button>
-            </div>
+            <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
+              <div className="promo-heading">
+                <span className="promo-symbol" aria-hidden="true">%</span>
+                <div>
+                  <strong>{account.isAdmin ? "Промокоды" : "Есть промокод?"}</strong>
+                  <span>{account.isAdmin ? "Создай одноразовое начисление монет" : "Активировать его можно только один раз"}</span>
+                </div>
+              </div>
+              <form
+                className="promo-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitPromoCode();
+                }}
+              >
+                <input
+                  type="text"
+                  value={promoCode}
+                  placeholder="ПРОМОКОД"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={32}
+                  required
+                  onChange={(event) => {
+                    setPromoCode(event.currentTarget.value.toUpperCase());
+                    setPromoMessage("");
+                  }}
+                />
+                {account.isAdmin && (
+                  <input
+                    className="promo-amount"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    max="1000000000"
+                    value={promoAmount}
+                    placeholder="СУММА"
+                    required
+                    onChange={(event) => {
+                      setPromoAmount(event.currentTarget.value);
+                      setPromoMessage("");
+                    }}
+                  />
+                )}
+                <button type="submit" disabled={promoPending}>
+                  {promoPending ? "ПОДОЖДИ…" : account.isAdmin ? "СОЗДАТЬ" : "АКТИВИРОВАТЬ"}
+                </button>
+              </form>
+              {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
+              {account.isAdmin && (
+                <div className="promo-list" aria-label="Созданные промокоды">
+                  <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
+                  {promoCodes.length === 0 ? (
+                    <p className="promo-empty">Пока нет созданных промокодов.</p>
+                  ) : promoCodes.map((promo) => (
+                    <div className={`promo-code-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
+                      <span><strong>{promo.code}</strong><small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small></span>
+                      <span><strong>+{promo.amount.toLocaleString("ru-RU")}</strong><small>{promo.redeemed ? "ИСПОЛЬЗОВАН" : "ДОСТУПЕН"}</small></span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
             <form
               className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
               onSubmit={(event) => {
@@ -2703,13 +2817,17 @@ function KnopikGame({
 export default function Home() {
   return (
     <CloudAccountGate>
-      {({ account, initialSave, gameKey, syncState, saveProgress, changePassword, signOut }) => (
+      {({ account, initialSave, gameKey, syncState, promoCodes, saveProgress, refreshPromoCodes, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
         <KnopikGame
           key={gameKey}
           account={account}
           initialSave={initialSave}
           syncState={syncState}
+          promoCodes={promoCodes}
           onSave={saveProgress}
+          onRefreshPromoCodes={refreshPromoCodes}
+          onCreatePromoCode={createPromoCode}
+          onRedeemPromoCode={redeemPromoCode}
           onChangePassword={changePassword}
           onSignOut={signOut}
         />

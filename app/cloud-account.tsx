@@ -28,6 +28,15 @@ type GameSaveRow = {
   save: unknown;
 };
 
+type PromoCodeRow = {
+  id: string;
+  code: string;
+  amount: number;
+  created_at: string;
+  redeemed_by: string | null;
+  redeemed_at: string | null;
+};
+
 export type CloudAccount = {
   userId: string;
   username: string;
@@ -36,12 +45,30 @@ export type CloudAccount = {
 
 export type CloudSyncState = "saved" | "saving" | "error";
 
+export type PromoCode = {
+  id: string;
+  code: string;
+  amount: number;
+  createdAt: string;
+  redeemed: boolean;
+  redeemedAt: string | null;
+};
+
+export type PromoResult = {
+  message: string;
+  amount?: number;
+};
+
 type CloudGameSession = {
   account: CloudAccount;
   initialSave: SaveData;
   gameKey: string;
   syncState: CloudSyncState;
+  promoCodes: PromoCode[];
   saveProgress: (save: SaveData) => void;
+  refreshPromoCodes: () => Promise<void>;
+  createPromoCode: (code: string, amount: number) => Promise<string>;
+  redeemPromoCode: (code: string) => Promise<PromoResult>;
   changePassword: (password: string) => Promise<string>;
   signOut: () => Promise<void>;
 };
@@ -51,6 +78,7 @@ type CloudAccountGateProps = {
 };
 
 const SAVE_DELAY_MS = 4_000;
+const MAX_PROMO_AMOUNT = 1_000_000_000;
 const CLOUD_SOURCE_ID =
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -73,6 +101,21 @@ function writeLocalSave(save: SaveData) {
   }
 }
 
+function normalizePromoCode(code: string) {
+  return code.trim().toUpperCase();
+}
+
+function mapPromoCode(row: PromoCodeRow): PromoCode {
+  return {
+    id: row.id,
+    code: row.code,
+    amount: row.amount,
+    createdAt: row.created_at,
+    redeemed: Boolean(row.redeemed_by),
+    redeemedAt: row.redeemed_at,
+  };
+}
+
 export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
@@ -84,9 +127,21 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const [loginError, setLoginError] = useState("");
   const [loginPending, setLoginPending] = useState(false);
   const [syncState, setSyncState] = useState<CloudSyncState>("saved");
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const accountRef = useRef<CloudAccount | null>(null);
   const latestSaveRef = useRef<SaveData | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshPromoCodes = useCallback(async () => {
+    if (!accountRef.current?.isAdmin) return;
+    const { data, error } = await getSupabaseClient()
+      .from("promo_codes")
+      .select("id, code, amount, created_at, redeemed_by, redeemed_at")
+      .order("created_at", { ascending: false })
+      .limit(200)
+      .returns<PromoCodeRow[]>();
+    if (!error) setPromoCodes((data ?? []).map(mapPromoCode));
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -106,6 +161,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         accountRef.current = null;
         setAccount(null);
         setInitialSave(null);
+        setPromoCodes([]);
       }
     });
 
@@ -179,6 +235,17 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       setInitialSave(loadedSave);
       setGameRevision((current) => current + 1);
       setSyncState("saved");
+      if (nextAccount.isAdmin) {
+        const { data: codes } = await supabase
+          .from("promo_codes")
+          .select("id, code, amount, created_at, redeemed_by, redeemed_at")
+          .order("created_at", { ascending: false })
+          .limit(200)
+          .returns<PromoCodeRow[]>();
+        if (active) setPromoCodes((codes ?? []).map(mapPromoCode));
+      } else {
+        setPromoCodes([]);
+      }
       setAuthLoading(false);
     }
 
@@ -215,6 +282,63 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     saveTimerRef.current = setTimeout(() => {
       void flushProgress();
     }, SAVE_DELAY_MS);
+  }, [flushProgress]);
+
+  const createPromoCode = useCallback(async (code: string, amount: number) => {
+    const currentAccount = accountRef.current;
+    if (!currentAccount?.isAdmin) return "Создавать промокоды может только Kamrad.";
+
+    const normalizedCode = normalizePromoCode(code);
+    const normalizedAmount = Math.floor(amount);
+    if (!/^[A-Z0-9_-]{3,32}$/.test(normalizedCode)) {
+      return "Код: 3–32 латинских символа, цифры, _ или -.";
+    }
+    if (!Number.isSafeInteger(normalizedAmount) || normalizedAmount < 1 || normalizedAmount > MAX_PROMO_AMOUNT) {
+      return `Сумма должна быть от 1 до ${MAX_PROMO_AMOUNT.toLocaleString("ru-RU")}.`;
+    }
+
+    const { data, error } = await getSupabaseClient()
+      .from("promo_codes")
+      .insert({
+        code: normalizedCode,
+        amount: normalizedAmount,
+        created_by: currentAccount.userId,
+      })
+      .select("id, code, amount, created_at, redeemed_by, redeemed_at")
+      .single<PromoCodeRow>();
+
+    if (error) {
+      return error.code === "23505" ? "Такой промокод уже существует." : "Не удалось создать промокод.";
+    }
+    setPromoCodes((current) => [mapPromoCode(data), ...current]);
+    return "Промокод создан.";
+  }, []);
+
+  const redeemPromoCode = useCallback(async (code: string): Promise<PromoResult> => {
+    const currentAccount = accountRef.current;
+    if (!currentAccount) return { message: "Сначала войди в аккаунт." };
+    if (currentAccount.isAdmin) return { message: "Промокоды предназначены для другого игрока." };
+
+    const normalizedCode = normalizePromoCode(code);
+    if (!/^[A-Z0-9_-]{3,32}$/.test(normalizedCode)) {
+      return { message: "Проверь формат промокода." };
+    }
+
+    await flushProgress();
+    const { data, error } = await getSupabaseClient().rpc("redeem_promo_code", {
+      promo_code: normalizedCode,
+    });
+    if (error) return { message: error.message || "Не удалось применить промокод." };
+
+    const result = data as { amount?: unknown; save?: unknown } | null;
+    const amount = typeof result?.amount === "number" ? Math.max(0, Math.floor(result.amount)) : 0;
+    if (!amount || !result?.save) return { message: "Не удалось получить награду." };
+
+    const nextSave = sanitizeSave(result.save);
+    latestSaveRef.current = nextSave;
+    writeLocalSave(nextSave);
+    setSyncState("saved");
+    return { amount, message: `Начислено ${amount.toLocaleString("ru-RU")} монет.` };
   }, [flushProgress]);
 
   useEffect(() => {
@@ -311,7 +435,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     initialSave,
     gameKey: `${account.userId}:${gameRevision}`,
     syncState,
+    promoCodes,
     saveProgress,
+    refreshPromoCodes,
+    createPromoCode,
+    redeemPromoCode,
     changePassword,
     signOut,
   });
