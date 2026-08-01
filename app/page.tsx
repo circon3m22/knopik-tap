@@ -3106,7 +3106,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>ЗАПАС {foodCount}/10</small>
                 <h3>Корм для Кнопика</h3>
-                <p>Одна порция полностью снимает усталость. Купленный корм хранится в запасе.</p>
+                <p>Полностью снимает усталость.</p>
               </div>
               <div className="food-price"><strong>{DOG_FOOD_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество корма">
@@ -3128,7 +3128,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>ЗАПАС {drinkCount}/10</small>
                 <h3>Напиток «Живчик»</h3>
-                <p>Даёт ×4 монет за обычные тапы на одну минуту. Порции включаются отдельно сверху.</p>
+                <p>Умножает обычные тапы на 4 на одну минуту.</p>
               </div>
               <div className="food-price"><strong>{ZHIVCHIK_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество напитков">
@@ -3150,7 +3150,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>ЗАПАС {pitbullCount}/10</small>
                 <h3>Напиток «Питбуль»</h3>
-                <p>Одноразово открывает рулетку. Выбери размер цветного сектора и попади в него стрелкой.</p>
+                <p>Открывает одну игру в рулетку.</p>
               </div>
               <div className="food-price"><strong>{PITBULL_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество напитков Питбуль">
@@ -3172,7 +3172,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>ЗАПАС {colaCount}/10</small>
                 <h3>Напиток «Какао-Кола»</h3>
-                <p>Открывает три барабана. Пары, тройки и три алмаза дают всё более крупный выигрыш.</p>
+                <p>Открывает слот-машину с тремя барабанами.</p>
               </div>
               <div className="food-price"><strong>{COCOA_COLA_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество напитков Какао-Кола">
@@ -3194,7 +3194,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>ЗАПАС {teaCount}/10</small>
                 <h3>Чай с бергамотом</h3>
-                <p>Открывает пять закрытых кнопок. Иди дальше ради множителя или забери накопленный выигрыш.</p>
+                <p>Открывает игру с пятью кнопками и миной.</p>
               </div>
               <div className="food-price"><strong>{BERGAMOT_TEA_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество чая с бергамотом">
@@ -3215,7 +3215,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>ЗАПАС {vitaPowerCount}/10 {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
                 <h3>Напиток «Пепси»</h3>
-                <p>Создаёт металлический синий щит. Следующий укус или провал ультра разрушит щит, но активный баланс и уровень останутся целы.</p>
+                <p>Защищает активный баланс от одной неудачи.</p>
               </div>
               <div className="food-price"><strong>{VITA_POWER_PRICE}</strong><span>монет</span></div>
               <div className="quantity-picker" aria-label="Количество напитков Пепси">
@@ -3241,7 +3241,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>{hatOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
                 <h3>Тюбетейка Хасбика</h3>
-                <p>Слегка продлевает безопасное удержание и повышает шанс на более крупную награду ультра-тапа.</p>
+                <p>Улучшает награду и удержание ультра-тапа.</p>
               </div>
               <div className="food-price"><strong>{hatOwned ? "✓" : HASBIK_HAT_PRICE}</strong><span>{hatOwned ? "твоя" : "монет"}</span></div>
               <button className="shop-buy-button hat-action" type="button" disabled={!canBuyHat} onClick={buyOrToggleHat}>
@@ -3257,7 +3257,7 @@ function KnopikGame({
               <div className="food-copy">
                 <small>{mohawkOwned ? "КУПЛЕНО" : "АКСЕССУАР"}</small>
                 <h3>Эрокез</h3>
-                <p>Слегка повышает коэффициенты рулетки и открывает выбор ставки в рулетке, слотах и игре с минами.</p>
+                <p>Улучшает коэффициенты и открывает выбор ставки.</p>
               </div>
               <div className="food-price"><strong>{mohawkOwned ? "✓" : MOHAWK_PRICE}</strong><span>{mohawkOwned ? "твой" : "монет"}</span></div>
               <button className="shop-buy-button mohawk-action" type="button" disabled={!canBuyMohawk} onClick={buyOrToggleMohawk}>

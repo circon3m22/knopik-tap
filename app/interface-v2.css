@@ -663,7 +663,7 @@ button {
   font-size: 11px;
   line-height: 1.35;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 2;
 }
 
 .shop-product-card > .food-price,
