@@ -1258,6 +1258,23 @@ function KnopikGame({
 
       if (elapsed < ULTRA_TAP_MIN_HOLD_MS) {
         stopHoldVisual("cancel");
+        if (elapsed >= ULTRA_VISUAL_DELAY_MS) {
+          if (settingsRef.current.yellow) {
+            resetSeries();
+            transitionTo("calm");
+          } else {
+            const nextFatigueUntil =
+              Date.now() + difficultyDuration(FATIGUE_DURATION_MS, difficultyRef.current);
+            fatigueUntilRef.current = nextFatigueUntil;
+            setFatigueUntil(nextFatigueUntil);
+            setRiskFatigueUntil(nextFatigueUntil);
+            setClock(Date.now());
+            resetSeries();
+            beginRecovery("ultra");
+            vibrate([26, 24, 42], settingsRef.current.vibration);
+          }
+          return;
+        }
         registerTap(point.x, point.y);
         return;
       }
@@ -1292,6 +1309,7 @@ function KnopikGame({
     [
       clearRoundTimers,
       awardCoins,
+      beginRecovery,
       finishRecovery,
       registerTap,
       resetSeries,
@@ -1758,7 +1776,22 @@ function KnopikGame({
       getSound().riskLose();
       vibrate([40, 32, 22], settingsRef.current.vibration);
     }
-  }, [getSound, updateCoins]);
+    if (!settingsRef.current.yellow) {
+      const tiredUntil =
+        Date.now() +
+        difficultyDuration(
+          RISK_RECOVERY_MIN_MS + Math.random() * RISK_RECOVERY_SPREAD_MS,
+          difficultyRef.current,
+        );
+      fatigueUntilRef.current = tiredUntil;
+      setFatigueUntil(tiredUntil);
+      setRiskFatigueUntil(tiredUntil);
+      setClock(Date.now());
+      setRecoveryReason("rest");
+      resetSeries();
+      transitionTo("tired");
+    }
+  }, [getSound, resetSeries, transitionTo, updateCoins]);
 
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
@@ -1983,6 +2016,92 @@ function KnopikGame({
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
   }, [clearRoundTimers, foodCount, getSound, resetSeries, transitionTo]);
 
+  const handleFoodItem = useCallback(() => {
+    if (foodCount > 0) {
+      feedDog();
+      return;
+    }
+    const tiredNow =
+      dogStateRef.current === "tired" ||
+      (dogStateRef.current === "recovering" && fatigueUntilRef.current > Date.now());
+    if (!tiredNow || coinsRef.current.walletCoins < DOG_FOOD_PRICE) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
+    clearRoundTimers();
+    fatigueUntilRef.current = 0;
+    setFatigueUntil(0);
+    setRiskFatigueUntil(0);
+    setClock(Date.now());
+    setRecoveryReason("rest");
+    resetSeries();
+    transitionTo("calm");
+    getSound().purchase();
+    vibrate([16, 22, 38], settingsRef.current.vibration);
+  }, [clearRoundTimers, feedDog, foodCount, getSound, resetSeries, transitionTo, updateCoins]);
+
+  const handleDrinkItem = useCallback(() => {
+    if (drinkCount > 0) {
+      activateDrink();
+      return;
+    }
+    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < ZHIVCHIK_PRICE) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
+    const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
+    boostUntilRef.current = nextBoostUntil;
+    setBoostUntil(nextBoostUntil);
+    getSound().purchase();
+    vibrate([14, 20, 34], settingsRef.current.vibration);
+  }, [activateDrink, drinkCount, getSound, updateCoins]);
+
+  const handlePitbullItem = useCallback(() => {
+    if (pitbullCount > 0) {
+      activatePitbull();
+      return;
+    }
+    const remainingCoins = coinsRef.current.walletCoins - PITBULL_PRICE;
+    if (
+      remainingCoins < 1 ||
+      riskPhaseRef.current !== "normal" ||
+      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
+      dogStateRef.current !== "calm"
+    ) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
+    setShopOpen(false);
+    setSettingsOpen(false);
+    riskCommittedRef.current = false;
+    setRiskBetAmount(remainingCoins);
+    setRiskResult(null);
+    setRiskPayout(0);
+    setRiskRotation(0);
+    transitionRisk("selecting");
+    getSound().purchase();
+    vibrate([16, 24, 34], settingsRef.current.vibration);
+  }, [activatePitbull, getSound, pitbullCount, transitionRisk, updateCoins]);
+
+  const handleMiniGameItem = useCallback((kind: MiniGameKind) => {
+    const itemCount = kind === "slots" ? colaCount : teaCount;
+    if (itemCount > 0) {
+      openMiniGame(kind);
+      return;
+    }
+    const price = kind === "slots" ? COCOA_COLA_PRICE : BERGAMOT_TEA_PRICE;
+    if (
+      coinsRef.current.walletCoins - price < 1 ||
+      miniGame !== null ||
+      riskPhaseRef.current !== "normal" ||
+      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
+      dogStateRef.current !== "calm"
+    ) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
+    if (kind === "slots") setColaCount(1);
+    else setTeaCount(1);
+    setShopOpen(false);
+    setSettingsOpen(false);
+    setMiniGameSession((current) => current + 1);
+    setMiniGame(kind);
+    getSound().purchase();
+    vibrate([16, 24, 34], settingsRef.current.vibration);
+  }, [colaCount, getSound, miniGame, openMiniGame, teaCount, updateCoins]);
+
   const finishTutorial = useCallback(() => {
     setTutorialSeen(true);
     setTutorialOpen(false);
@@ -2071,6 +2190,11 @@ function KnopikGame({
     (dogState === "tired" ||
       (dogState === "recovering" && fatigueUntil > Date.now()));
   const canFeedDog = isDogTired && foodCount > 0;
+  const canQuickBuyFood = isDogTired && foodCount === 0 && coins.walletCoins >= DOG_FOOD_PRICE;
+  const canQuickBuyDrink = drinkCount === 0 && riskPhase === "normal" && coins.walletCoins >= ZHIVCHIK_PRICE;
+  const canQuickBuyPitbull = pitbullCount === 0 && riskPhase === "normal" && dogState === "calm" && coins.walletCoins > PITBULL_PRICE;
+  const canQuickBuyCola = colaCount === 0 && riskPhase === "normal" && dogState === "calm" && miniGame === null && coins.walletCoins > COCOA_COLA_PRICE;
+  const canQuickBuyTea = teaCount === 0 && riskPhase === "normal" && dogState === "calm" && miniGame === null && coins.walletCoins > BERGAMOT_TEA_PRICE;
   const canSave = !vaultLocked && coins.walletCoins >= 2;
   const saveAmount = Math.floor(coins.walletCoins / 2);
   const foodTotalPrice = foodQuantity * DOG_FOOD_PRICE;
@@ -2259,6 +2383,7 @@ function KnopikGame({
     "--ultra-fill": `${Math.round(ultraCharge * 1000) / 10}%`,
     "--risk-chance": `${riskChance * 3.6}deg`,
     "--risk-rotation": `${riskRotation}deg`,
+    "--risk-wheel-rotation": `${-riskRotation}deg`,
     "--risk-spin-duration": `${RISK_SPIN_MS}ms`,
   } as CSSProperties;
 
@@ -2388,30 +2513,30 @@ function KnopikGame({
           </div>
         )}
         <div className="boost-row" aria-label="Предметы Кнопика">
-          <button className="inventory-item inventory-food" type="button" disabled={!canFeedDog} onClick={feedDog}>
+          <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
             <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
             <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
-            <b className="inventory-count">{foodCount}</b>
+            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{foodCount || (canQuickBuyFood ? DOG_FOOD_PRICE : 0)}</b>
           </button>
-          <button className="inventory-item inventory-zhivchik" type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
+          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
             <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
             <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
-            <b className="inventory-count">{drinkCount}</b>
+            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{drinkCount || (canQuickBuyDrink ? ZHIVCHIK_PRICE : 0)}</b>
           </button>
-          <button className="inventory-item inventory-pitbull" type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
+          <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
             <span className="drink-icon drink-pitbull" aria-hidden="true"><i /></span>
             <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
-            <b className="inventory-count">{pitbullCount}</b>
+            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{pitbullCount || (canQuickBuyPitbull ? PITBULL_PRICE : 0)}</b>
           </button>
-          <button className="inventory-item inventory-cola" type="button" disabled={colaCount < 1 || riskMode || isDogTired || miniGame !== null} onClick={() => openMiniGame("slots")}>
+          <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
             <span className="drink-icon drink-cola" aria-hidden="true"><i /></span>
             <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
-            <b className="inventory-count">{colaCount}</b>
+            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{colaCount || (canQuickBuyCola ? COCOA_COLA_PRICE : 0)}</b>
           </button>
-          <button className="inventory-item inventory-tea" type="button" disabled={teaCount < 1 || riskMode || isDogTired || miniGame !== null} onClick={() => openMiniGame("mines")}>
+          <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
             <span className="drink-icon drink-tea" aria-hidden="true"><i /></span>
             <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
-            <b className="inventory-count">{teaCount}</b>
+            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{teaCount || (canQuickBuyTea ? BERGAMOT_TEA_PRICE : 0)}</b>
           </button>
         </div>
       </header>

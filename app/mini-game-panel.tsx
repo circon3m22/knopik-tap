@@ -248,12 +248,17 @@ export function MiniGamePanel({
           </>
         ) : (
           <>
-            <div className="mine-progress">
+            <div className={`mine-progress phase-${minePhase}`}>
               <span><small>ПРОЙДЕНО</small><strong>{mineRound}</strong></span>
               <span><small>СЕЙЧАС</small><strong>×{mineRound ? MINE_MULTIPLIERS[mineRound - 1] : "1.00"}</strong></span>
               <span><small>ДАЛЬШЕ</small><strong>×{mineNextMultiplier}</strong></span>
             </div>
-            <div className="mine-grid" aria-label="Пять закрытых кнопок">
+            <div className="mine-round-track" aria-label={`Пройдено раундов: ${mineRound} из ${MINE_MULTIPLIERS.length}`}>
+              {MINE_MULTIPLIERS.map((_, index) => (
+                <i className={index < mineRound ? "is-complete" : index === mineRound ? "is-current" : ""} key={index} />
+              ))}
+            </div>
+            <div className={`mine-grid phase-${minePhase}`} aria-label="Пять закрытых кнопок">
               {mineTiles.map((tile, index) => (
                 <button
                   className={`mine-tile is-${tile}`}
@@ -263,7 +268,8 @@ export function MiniGamePanel({
                   aria-label={tile === "hidden" ? `Кнопка ${index + 1}` : tile === "safe" ? "Безопасно" : "Мина"}
                   onClick={() => chooseMineTile(index)}
                 >
-                  {tile === "hidden" ? index + 1 : tile === "safe" ? "✓" : "×"}
+                  <span>{tile === "hidden" ? index + 1 : tile === "safe" ? "✓" : "✹"}</span>
+                  <small>{tile === "hidden" ? "ВЫБРАТЬ" : tile === "safe" ? "ЧИСТО" : "МИНА"}</small>
                 </button>
               ))}
             </div>

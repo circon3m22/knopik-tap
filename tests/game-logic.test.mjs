@@ -283,6 +283,9 @@ test("real wheel chance changes while difficulty 50 keeps the existing +8 bonus"
   assert.equal(hard.won, false);
   assert.equal(easy.chance, 50);
   assert.equal(easy.multiplier, 1.75);
+
+  assert.equal(createRiskOutcome(10, 100, () => 0.999, 0).won, true);
+  assert.equal(createRiskOutcome(90, 100, () => 0, 100).won, false);
 });
 
 test("slots resolve three reels and hide difficulty inside real odds", () => {
@@ -297,6 +300,8 @@ test("slots resolve three reels and hide difficulty inside real odds", () => {
   assert.equal(standard.tier, "loss");
   assert.equal(easy.tier, "pair");
   assert.equal(hard.tier, "loss");
+  assert.notEqual(createSlotOutcome(100, 0, () => 0.999).tier, "loss");
+  assert.equal(createSlotOutcome(100, 100, () => 0).tier, "loss");
 });
 
 test("mini-games are all-in unless the mohawk unlocks bet choice", () => {
@@ -308,8 +313,8 @@ test("mini-games are all-in unless the mohawk unlocks bet choice", () => {
 
 test("five-button game supports hidden difficulty and progressive cashout", () => {
   assert.equal(mineSafeChance(50), 0.8);
-  assert.equal(mineSafeChance(0), 0.95);
-  assert.equal(mineSafeChance(100), 0.65);
+  assert.equal(mineSafeChance(0), 1);
+  assert.equal(mineSafeChance(100), 0);
 
   const standard = createMinePickOutcome(2, 50, (() => {
     const rolls = [0.79, 0];
@@ -319,6 +324,8 @@ test("five-button game supports hidden difficulty and progressive cashout", () =
   assert.equal(standard.safe, true);
   assert.notEqual(standard.mineIndex, 2);
   assert.deepEqual(hard, { safe: false, mineIndex: 2 });
+  assert.equal(createMinePickOutcome(1, 0, () => 0.999).safe, true);
+  assert.equal(createMinePickOutcome(1, 100, () => 0).safe, false);
   assert.equal(minePayout(1_000, 1), 1_180);
   assert.equal(minePayout(1_000, 3), 1_840);
 });

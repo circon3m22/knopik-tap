@@ -78,6 +78,9 @@ export function difficultyRiskChance(
   displayedChance: number,
   difficulty: number,
 ): number {
-  const adjustment = (DEFAULT_DIFFICULTY - clampDifficulty(difficulty)) * 0.3;
+  const normalized = clampDifficulty(difficulty);
+  if (normalized === MIN_DIFFICULTY) return 100;
+  if (normalized === MAX_DIFFICULTY) return 0;
+  const adjustment = (DEFAULT_DIFFICULTY - normalized) * 0.3;
   return Math.min(98, Math.max(1, displayedChance + 8 + adjustment));
 }

@@ -6206,3 +6206,474 @@ img,
     transition-duration: var(--reel-duration) !important;
   }
 }
+
+/* Casino realism and sharp motion — v58 */
+.slot-machine {
+  padding: 15px 14px;
+  border-color: rgb(255 230 171 / 28%);
+  background:
+    linear-gradient(105deg, transparent 0 23%, rgb(255 255 255 / 7%) 25%, transparent 28% 70%, rgb(255 255 255 / 4%) 73%, transparent 76%),
+    linear-gradient(155deg, #455362 0%, #131d27 22%, #050a0f 58%, #293744 100%);
+  box-shadow:
+    inset 0 2px 1px rgb(255 255 255 / 22%),
+    inset 0 -3px 1px rgb(0 0 0 / 48%),
+    inset 0 -22px 34px rgb(0 0 0 / 34%),
+    0 19px 34px rgb(0 0 0 / 31%);
+}
+
+.slot-reel-window {
+  border-color: rgb(255 241 209 / 46%);
+  background: linear-gradient(90deg, #89949c, #e3e7e9 12%, #cbd2d7 50%, #edf0f2 88%, #87939c);
+  box-shadow:
+    inset 7px 0 10px rgb(15 24 31 / 25%),
+    inset -7px 0 10px rgb(15 24 31 / 25%),
+    inset 0 17px 20px rgb(2 10 17 / 40%),
+    inset 0 -17px 20px rgb(2 10 17 / 44%),
+    0 9px 18px rgb(0 0 0 / 32%);
+}
+
+.slot-reel-window::before,
+.slot-reel-window::after {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  left: 0;
+  height: 19px;
+  content: "";
+  pointer-events: none;
+}
+
+.slot-reel-window::before {
+  top: 0;
+  background: linear-gradient(#111a22 0%, rgb(24 36 46 / 76%) 34%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
+}
+
+.slot-reel-window::after {
+  bottom: 0;
+  background: linear-gradient(transparent, rgb(17 27 35 / 82%) 68%, #091017);
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 15%);
+}
+
+.slot-reel-face {
+  border-block-color: rgb(65 78 88 / 24%);
+  background:
+    linear-gradient(90deg, rgb(42 55 64 / 14%), transparent 14% 86%, rgb(42 55 64 / 16%)),
+    linear-gradient(180deg, #cbd2d7 0%, #f9fbfc 23%, #fff 52%, #edf1f3 78%, #bac4ca 100%);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgb(66 80 91 / 24%);
+}
+
+.slot-reel-face span,
+.slot-reel-face small {
+  filter: none !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.slot-machine.is-spinning .slot-reel-face span,
+.slot-machine.is-spinning .slot-reel-face small {
+  filter: none !important;
+}
+
+.slot-machine.is-spinning .slot-reel-glass {
+  animation: slot-glass-sweep 620ms linear infinite;
+}
+
+.slot-reel-glass::after {
+  position: absolute;
+  inset: 7% 9% 58% 13%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgb(255 255 255 / 33%), transparent 66%);
+  content: "";
+  transform: rotate(-8deg);
+}
+
+@keyframes slot-glass-sweep {
+  0% { background-position: -80px 0, 0 0; }
+  100% { background-position: 120px 0, 0 0; }
+}
+
+/* A physical wheel: the dial spins beneath a fixed spring pointer. */
+.risk-wheel {
+  border: 1px solid #78838c;
+  background:
+    radial-gradient(circle at 37% 28%, rgb(255 255 255 / 18%), transparent 18%),
+    radial-gradient(circle, #3e4952 0 62%, #141b21 63% 74%, #8d989f 75% 77%, #252d34 78% 100%);
+  box-shadow:
+    0 30px 66px rgb(0 0 0 / 52%),
+    0 0 0 5px #0a0e12,
+    0 0 0 8px #68747d,
+    0 0 0 10px #171d22,
+    inset 0 2px 2px rgb(255 255 255 / 35%),
+    inset 0 -13px 22px rgb(0 0 0 / 52%);
+}
+
+.risk-wheel::before {
+  inset: -2.7%;
+  border: 3px solid #9ba4a9;
+  background: linear-gradient(145deg, rgb(255 255 255 / 38%), transparent 24% 72%, rgb(0 0 0 / 32%));
+  box-shadow: inset 0 2px 2px rgb(255 255 255 / 42%), inset 0 -3px 4px rgb(0 0 0 / 42%), 0 3px 8px rgb(0 0 0 / 36%);
+}
+
+.risk-wheel::after {
+  display: block;
+  inset: 1.1%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #dce2e5 0 0.8deg, transparent 0.9deg 9deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 91%, #000 91.5% 95%, transparent 95.5%);
+  mask: radial-gradient(circle, transparent 0 91%, #000 91.5% 95%, transparent 95.5%);
+  opacity: 0.66;
+}
+
+.risk-dial {
+  inset: 6.2%;
+  border: 2px solid rgb(227 237 242 / 22%);
+  background:
+    radial-gradient(circle at 36% 26%, rgb(255 255 255 / 19%), transparent 25%),
+    radial-gradient(circle, transparent 0 59%, rgb(0 0 0 / 15%) 60% 100%),
+    conic-gradient(from 0deg, #b5f84c 0deg, #69cf24 var(--risk-chance), #3a424a var(--risk-chance), #171d24 360deg);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 9%),
+    inset 0 -16px 30px rgb(0 0 0 / 27%),
+    0 0 0 2px #0b1015,
+    0 9px 18px rgb(0 0 0 / 35%);
+  transform: rotate(var(--risk-wheel-rotation)) !important;
+  transform-style: preserve-3d;
+}
+
+.risk-dial::before {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgb(255 255 255 / 34%) 0 0.7deg, transparent 0.8deg 9deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 66%, #000 67% 72%, transparent 73%);
+  mask: radial-gradient(circle, transparent 0 66%, #000 67% 72%, transparent 73%);
+  content: "";
+  opacity: 0.56;
+}
+
+.game-shell.risk-spinning .risk-dial {
+  animation: risk-dial-spin-real var(--risk-spin-duration) cubic-bezier(0.08, 0.72, 0.06, 1) both;
+}
+
+.game-shell .risk-pointer {
+  inset: -3.5% auto auto 50%;
+  width: 44px;
+  height: 75px;
+  filter: drop-shadow(0 6px 7px rgb(0 0 0 / 58%));
+  transform: translateX(-50%);
+  transform-origin: 50% 12px;
+}
+
+.game-shell .risk-pointer::before {
+  top: 0;
+  left: 50%;
+  width: 27px;
+  height: 27px;
+  border: 2px solid #eef2f3;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, #fff, #aeb8bd 31%, #4e5960 68%, #171d21 100%);
+  box-shadow: inset 0 1px 1px #fff, 0 3px 7px rgb(0 0 0 / 40%);
+  transform: translateX(-50%);
+}
+
+.game-shell .risk-pointer::after {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: 18px;
+  height: 43px;
+  border: 1px solid #e8edef;
+  clip-path: polygon(20% 0, 80% 0, 100% 72%, 50% 100%, 0 72%);
+  background: linear-gradient(90deg, #6d777c, #f4f7f8 43%, #9ca7ac 67%, #41494d);
+  box-shadow: inset 0 1px 0 #fff;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.game-shell .risk-pointer i { display: none; }
+
+.game-shell.risk-spinning .risk-pointer {
+  animation: risk-pointer-rattle 115ms ease-in-out infinite alternate;
+}
+
+.game-shell.risk-result .risk-pointer,
+.game-shell.risk-returning .risk-pointer {
+  transform: translateX(-50%);
+}
+
+.risk-center {
+  width: 37%;
+  border: 3px solid #889299;
+  background:
+    radial-gradient(circle at 38% 28%, rgb(255 255 255 / 17%), transparent 22%),
+    radial-gradient(circle, #29333c, #0b1117 72%);
+  box-shadow: 0 11px 24px rgb(0 0 0 / 48%), inset 0 2px 2px rgb(255 255 255 / 16%), 0 0 0 3px #090d11;
+}
+
+@keyframes risk-dial-spin-real {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(var(--risk-wheel-rotation)); }
+}
+
+@keyframes risk-pointer-rattle {
+  from { transform: translateX(-50%) rotate(-5deg); }
+  to { transform: translateX(-50%) rotate(5deg); }
+}
+
+/* Bergamot mine board */
+.mini-mines .mini-game-panel {
+  background:
+    radial-gradient(circle at 82% 8%, rgb(185 225 104 / 12%), transparent 27%),
+    linear-gradient(165deg, #263d31, #111c18 52%, #17251e);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 14%), 0 26px 64px rgb(0 0 0 / 42%);
+}
+
+.mine-progress > span {
+  border-color: rgb(206 232 177 / 15%);
+  background: linear-gradient(145deg, rgb(255 255 255 / 10%), rgb(0 0 0 / 8%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.mine-progress.phase-safe > span:nth-child(2) {
+  border-color: rgb(166 234 103 / 32%);
+  background: rgb(119 189 68 / 16%);
+}
+
+.mine-round-track {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  padding: 3px 2px;
+}
+
+.mine-round-track i {
+  height: 5px;
+  border-radius: 99px;
+  background: rgb(220 237 216 / 12%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 22%);
+}
+
+.mine-round-track i.is-complete {
+  background: linear-gradient(90deg, #79d35c, #b7ed67);
+  box-shadow: 0 0 8px rgb(129 219 90 / 33%);
+}
+
+.mine-round-track i.is-current {
+  background: #f0d968;
+  box-shadow: 0 0 9px rgb(240 217 104 / 35%);
+  animation: mine-current-pulse 900ms ease-in-out infinite alternate;
+}
+
+.mine-grid {
+  gap: 8px;
+  padding: 12px 9px;
+  border: 1px solid rgb(214 235 204 / 13%);
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgb(4 11 8 / 42%), rgb(255 255 255 / 4%));
+  box-shadow: inset 0 13px 24px rgb(0 0 0 / 24%), 0 10px 24px rgb(0 0 0 / 18%);
+}
+
+.mine-tile {
+  position: relative;
+  display: grid;
+  aspect-ratio: 0.78;
+  place-content: center;
+  gap: 5px;
+  overflow: hidden;
+  border: 1px solid rgb(235 248 224 / 25%);
+  border-bottom-color: rgb(8 18 12 / 66%);
+  border-radius: 16px;
+  color: #f3faee;
+  background:
+    linear-gradient(125deg, rgb(255 255 255 / 18%), transparent 30%),
+    linear-gradient(155deg, #71885e, #3b5340 60%, #24382c);
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / 18%), inset 0 -6px 9px rgb(0 0 0 / 22%), 0 8px 0 #17271d, 0 13px 18px rgb(0 0 0 / 27%);
+  text-shadow: 0 2px 3px rgb(0 0 0 / 28%);
+  transform: translateY(-3px);
+  transition: transform 120ms ease, filter 150ms ease;
+}
+
+.mine-tile::before {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 11px;
+  content: "";
+}
+
+.mine-tile:active:not(:disabled) {
+  box-shadow: inset 0 3px 7px rgb(0 0 0 / 30%), 0 3px 0 #17271d, 0 7px 12px rgb(0 0 0 / 24%);
+  transform: translateY(2px);
+}
+
+.mine-tile span { position: relative; z-index: 1; font-size: 24px; line-height: 1; }
+.mine-tile small { position: relative; z-index: 1; color: rgb(239 248 234 / 55%); font-size: 5px; font-weight: 950; letter-spacing: 0.08em; }
+
+.mine-tile.is-safe {
+  color: #f4ffd8;
+  background: radial-gradient(circle at 50% 42%, #a7ea68, #54a144 61%, #2d6535);
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / 28%), inset 0 -7px 12px rgb(0 0 0 / 19%), 0 5px 0 #204b2b, 0 0 24px rgb(121 218 82 / 25%);
+  animation: mine-safe-reveal 420ms cubic-bezier(0.16, 0.9, 0.2, 1.25) both;
+}
+
+.mine-tile.is-mine {
+  color: #fff2de;
+  background: radial-gradient(circle at 50% 40%, #ffb043, #db4c37 54%, #6f2029);
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / 24%), inset 0 -8px 13px rgb(63 4 8 / 35%), 0 5px 0 #541a22, 0 0 30px rgb(255 79 53 / 32%);
+  animation: mine-danger-reveal 520ms cubic-bezier(0.18, 0.82, 0.2, 1.1) both;
+}
+
+.mine-tile.is-mine span { animation: mine-danger-pulse 420ms ease-in-out 2 alternate; }
+.mine-hint { padding: 10px 12px; border: 1px solid rgb(203 230 190 / 10%); border-radius: 14px; background: rgb(0 0 0 / 10%); }
+
+@keyframes mine-current-pulse { to { filter: brightness(1.35); transform: scaleY(1.3); } }
+@keyframes mine-safe-reveal { from { opacity: 0.3; transform: rotateY(80deg) scale(0.82); } to { opacity: 1; transform: translateY(-1px) rotateY(0) scale(1); } }
+@keyframes mine-danger-reveal { 0% { transform: scale(0.76) rotate(-8deg); } 55% { transform: scale(1.1) rotate(4deg); } 100% { transform: translateY(-1px) scale(1); } }
+@keyframes mine-danger-pulse { to { filter: brightness(1.4); transform: scale(1.16); } }
+
+/* Adaptive main-screen contrast and reduced visual load — v59 */
+.game-shell {
+  --adaptive-ink: #fff;
+  --adaptive-muted: rgb(255 255 255 / 66%);
+  --adaptive-surface: rgb(7 19 30 / 18%);
+  --adaptive-border: rgb(255 255 255 / 22%);
+}
+
+.game-shell.state-calm.pale-calm,
+.game-shell.state-tired,
+.game-shell.state-warning,
+.game-shell.state-recovering.has-fatigue {
+  --adaptive-ink: #132c42;
+  --adaptive-muted: rgb(19 44 66 / 62%);
+  --adaptive-surface: rgb(255 255 255 / 52%);
+  --adaptive-border: rgb(23 53 78 / 10%);
+}
+
+.game-shell .wordmark,
+.game-shell .wordmark strong,
+.game-shell .wallet-balance,
+.game-shell .wallet-balance strong,
+.game-shell .wallet-balance small {
+  color: var(--adaptive-ink) !important;
+  text-shadow: 0 2px 14px rgb(3 18 31 / 16%);
+  transition: color 180ms ease;
+}
+
+.game-shell.state-calm.pale-calm .wordmark,
+.game-shell.state-calm.pale-calm .wordmark strong,
+.game-shell.state-calm.pale-calm .wallet-balance,
+.game-shell.state-calm.pale-calm .wallet-balance strong,
+.game-shell.state-calm.pale-calm .wallet-balance small,
+.game-shell.state-tired .wordmark,
+.game-shell.state-tired .wallet-balance,
+.game-shell.state-tired .wallet-balance strong,
+.game-shell.state-warning .wordmark,
+.game-shell.state-warning .wallet-balance,
+.game-shell.state-warning .wallet-balance strong {
+  text-shadow: none;
+}
+
+.game-shell .level-strip {
+  min-height: 41px;
+  gap: 9px;
+  padding: 6px 10px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 15px;
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%);
+  backdrop-filter: blur(10px);
+}
+
+.game-shell .level-title,
+.game-shell .level-reward {
+  gap: 2px;
+  color: var(--adaptive-ink);
+}
+
+.game-shell .level-title > span,
+.game-shell .level-reward small {
+  color: var(--adaptive-muted);
+  font-size: 5.5px;
+  letter-spacing: 0.08em;
+}
+
+.game-shell .level-title strong,
+.game-shell .level-reward strong {
+  color: var(--adaptive-ink);
+  font-size: 15px;
+  text-shadow: none;
+}
+
+.game-shell .level-title strong small { color: var(--adaptive-muted); font-size: 7px; }
+
+.game-shell .level-track {
+  height: 6px;
+  border: 0;
+  background: rgb(5 18 30 / 18%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 18%);
+}
+
+.game-shell .level-track > span {
+  background: linear-gradient(90deg, #41d3ef, #77e6cb 54%, #ffd85a);
+  box-shadow: 0 0 8px rgb(73 211 228 / 28%);
+}
+
+.game-shell .boost-row {
+  gap: 5px;
+}
+
+.game-shell .boost-row .inventory-item {
+  min-height: 57px;
+  padding: 6px 4px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 17px;
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 13%), 0 5px 13px rgb(5 20 33 / 7%);
+  backdrop-filter: blur(10px);
+}
+
+.game-shell .boost-row .inventory-copy strong {
+  color: var(--adaptive-ink);
+  font-size: 7.5px;
+  text-shadow: none;
+}
+
+.game-shell .boost-row .inventory-copy small {
+  display: none;
+}
+
+.game-shell .boost-row .inventory-item:disabled {
+  color: var(--adaptive-ink);
+  background: var(--adaptive-surface);
+  opacity: 0.48;
+  filter: saturate(0.72);
+}
+
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  border-color: rgb(255 210 74 / 48%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 0 0 1px rgb(255 201 52 / 12%), 0 7px 16px rgb(12 28 39 / 10%);
+}
+
+.game-shell .boost-row .inventory-count.is-price {
+  top: -4px;
+  right: -4px;
+  min-width: 25px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid rgb(255 246 181 / 80%);
+  color: #523500;
+  background: linear-gradient(145deg, #fff197, #f2b820);
+  box-shadow: 0 4px 10px rgb(84 53 0 / 20%), inset 0 1px 0 #fff8c7;
+  font-size: 7px;
+}
+
+.game-shell .boost-row .inventory-count.is-price::before {
+  margin-right: 2px;
+  content: "К";
+  font-size: 6px;
+  opacity: 0.72;
+}
