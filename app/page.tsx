@@ -137,6 +137,7 @@ const RISK_SPIN_MS = 5_400;
 const RISK_RESULT_MS = 1_650;
 const INVENTORY_LIMIT = 25;
 const CASE_HOLD_MS = 1_050;
+const COMMON_CASE_PRICE = 2_500;
 
 type CaseSequence = {
   kind: CaseKind;
@@ -151,6 +152,30 @@ function riskSectorPath(chance: number) {
   const endX = 50 + 48 * Math.cos(radians);
   const endY = 50 + 48 * Math.sin(radians);
   return `M 50 50 L 50 2 A 48 48 0 ${angle > 180 ? 1 : 0} 1 ${endX} ${endY} Z`;
+}
+
+function CaseRewardArtwork({ reward }: { reward: CaseReward }) {
+  if (reward.type === "coins") {
+    return <span className="reward-coin-art"><i>К</i></span>;
+  }
+  const path = reward.type === "buff"
+    ? {
+        food: "/buffs/food.png",
+        drink: "/buffs/zhivchik.png",
+        pitbull: "/buffs/pitbull.png",
+        cola: "/buffs/cocoa-cola.png",
+        tea: "/buffs/bergamot-tea.png",
+        shield: "/buffs/pepsi.png",
+      }[reward.kind]
+    : reward.kind === "hat"
+      ? "/hasbik-tubeteika.png"
+      : "/knopik-mohawk-v2.png";
+  return (
+    <span className={`reward-image-art ${reward.type === "upgrade" ? "is-upgrade" : ""}`}>
+      <img src={publicAsset(path)} alt="" draggable={false} />
+      {reward.type === "upgrade" && <i aria-hidden="true">↑</i>}
+    </span>
+  );
 }
 const RISK_RECOVERY_MIN_MS = 30_000;
 const RISK_RECOVERY_SPREAD_MS = 30_000;
@@ -272,6 +297,9 @@ function KnopikGame({
   const [commonCases, setCommonCases] = useState(0);
   const [bigCases, setBigCases] = useState(0);
   const [questIndex, setQuestIndex] = useState(0);
+  const [earInteractionCount, setEarInteractionCount] = useState(0);
+  const [hatInteractionCount, setHatInteractionCount] = useState(0);
+  const [mohawkInteractionCount, setMohawkInteractionCount] = useState(0);
   const [boostUntil, setBoostUntil] = useState(0);
   const [settings, setSettings] = useState<GameSettings>({
     sound: true,
@@ -285,7 +313,7 @@ function KnopikGame({
     totalBites: 0,
   });
   const [levelState, setLevelState] = useState<LevelState>({
-    level: 1,
+    level: 0,
     progressCoins: 0,
     lifetimeCoins: 0,
   });
@@ -312,6 +340,7 @@ function KnopikGame({
   const [seriesTaps, setSeriesTaps] = useState(0);
   const [averageInterval, setAverageInterval] = useState(600);
   const [fatigueUntil, setFatigueUntil] = useState(0);
+  const [fatigueVisualDuration, setFatigueVisualDuration] = useState(1);
   const [clock, setClock] = useState(() => Date.now());
   const [holding, setHolding] = useState(false);
   const [ultraActive, setUltraActive] = useState(false);
@@ -373,6 +402,7 @@ function KnopikGame({
   const boostUntilRef = useRef(0);
   const bonusCarryRef = useRef(0);
   const fatigueUntilRef = useRef(0);
+  const fatigueVisualDeadlineRef = useRef(0);
   const seriesTapsRef = useRef(0);
   const tapLimitRef = useRef(0);
   const tapIntervalsRef = useRef<number[]>([]);
@@ -626,6 +656,9 @@ function KnopikGame({
       setCommonCases(saved.commonCases);
       setBigCases(saved.bigCases);
       setQuestIndex(saved.questIndex);
+      setEarInteractionCount(saved.earInteractionCount);
+      setHatInteractionCount(saved.hatInteractionCount);
+      setMohawkInteractionCount(saved.mohawkInteractionCount);
       setHasbulaRedeemed(saved.hasbulaRedeemed);
       hasbulaRedeemedRef.current = saved.hasbulaRedeemed;
       setBoostUntil(saved.boostUntil > Date.now() ? saved.boostUntil : 0);
@@ -691,6 +724,13 @@ function KnopikGame({
 
   useEffect(() => {
     fatigueUntilRef.current = fatigueUntil;
+    if (fatigueUntil > Date.now() && fatigueUntil !== fatigueVisualDeadlineRef.current) {
+      fatigueVisualDeadlineRef.current = fatigueUntil;
+      setFatigueVisualDuration(Math.max(1, fatigueUntil - Date.now()));
+    } else if (!fatigueUntil) {
+      fatigueVisualDeadlineRef.current = 0;
+      setFatigueVisualDuration(1);
+    }
   }, [fatigueUntil]);
 
   useEffect(() => {
@@ -733,6 +773,9 @@ function KnopikGame({
             commonCases,
             bigCases,
             questIndex,
+            earInteractionCount,
+            hatInteractionCount,
+            mohawkInteractionCount,
             hasbulaRedeemed,
             riskFatigueUntil,
             riskSpins: riskStats.spins,
@@ -786,6 +829,9 @@ function KnopikGame({
     commonCases,
     bigCases,
     questIndex,
+    earInteractionCount,
+    hatInteractionCount,
+    mohawkInteractionCount,
     onSave,
     hydrated,
     levelState,
@@ -900,6 +946,9 @@ function KnopikGame({
     const duration = difficultyDuration(FATIGUE_DURATION_MS, difficulty);
     return calculateFatigueRatio(duration - remaining, duration);
   }, [clock, difficulty, fatigueUntil]);
+  const fatigueCountdownRatio = fatigueUntil > clock
+    ? Math.min(1, Math.max(0, (fatigueUntil - clock) / fatigueVisualDuration))
+    : 0;
 
   const stopHoldVisual = useCallback(
     (result: UltraStopResult) => {
@@ -1006,6 +1055,12 @@ function KnopikGame({
         totalBites: current.totalBites + 1,
       }));
       if (!shieldAbsorbed) bonusCarryRef.current = 0;
+      if (!shieldAbsorbed) {
+        const resetLevel = { level: 0, progressCoins: 0, lifetimeCoins: 0 };
+        levelStateRef.current = resetLevel;
+        setLevelState(resetLevel);
+        setLevelBurstVisible(false);
+      }
       seriesTapsRef.current = 0;
       tapLimitRef.current = 0;
       tapIntervalsRef.current = [];
@@ -1064,6 +1119,7 @@ function KnopikGame({
       }
 
       getSound().unlock();
+      setEarInteractionCount((current) => current + 1);
       if (settingsRef.current.suliman) {
         getSound().tap(0.25);
         vibrate(8, settingsRef.current.vibration);
@@ -2017,6 +2073,7 @@ function KnopikGame({
     event.preventDefault();
     event.stopPropagation();
     setHatBounce((current) => current + 1);
+    setHatInteractionCount((current) => current + 1);
     registerTap(50, 16);
   }, [registerTap]);
 
@@ -2024,6 +2081,7 @@ function KnopikGame({
     event.preventDefault();
     event.stopPropagation();
     setMohawkSwing((current) => current + 1);
+    setMohawkInteractionCount((current) => current + 1);
     registerTap(50, 14);
   }, [registerTap]);
 
@@ -2070,6 +2128,7 @@ function KnopikGame({
   const beginCaseHold = useCallback(() => {
     if (!caseSequence || caseSequence.phase !== "ready") return;
     getSound().unlock();
+    getSound().caseCharge();
     setCaseSequence((current) => current ? { ...current, phase: "charging" } : current);
     vibrate(18, settingsRef.current.vibration);
     caseHoldTimerRef.current = setTimeout(() => {
@@ -2090,7 +2149,7 @@ function KnopikGame({
       vibrate([30, 36, 70, 32, 100], settingsRef.current.vibration);
       caseBurstTimerRef.current = setTimeout(() => {
         setCaseSequence((current) => current ? { ...current, phase: "reward" } : current);
-      }, 620);
+      }, 900);
     }, CASE_HOLD_MS);
   }, [applyCaseRewards, caseSequence, getSound]);
 
@@ -2107,6 +2166,14 @@ function KnopikGame({
     if (available < 1) return;
     setCaseSequence({ kind, rewards: [], phase: "ready", rewardIndex: 0 });
   }, [bigCases, commonCases]);
+
+  const buyCommonCase = useCallback(() => {
+    if (coinsRef.current.walletCoins < COMMON_CASE_PRICE || commonCases >= 99) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - COMMON_CASE_PRICE }));
+    setCommonCases((current) => Math.min(99, current + 1));
+    getSound().purchase();
+    vibrate([18, 22, 34], settingsRef.current.vibration);
+  }, [commonCases, getSound, updateCoins]);
 
   const advanceCaseReward = useCallback(() => {
     setCaseSequence((current) => {
@@ -2365,7 +2432,7 @@ function KnopikGame({
     const resetCoins = { walletCoins: 0, streakCoins: 0 };
     const resetStats = { bestStreak: 0, totalTaps: 0, totalBites: 0 };
     const resetLevel = {
-      level: 1,
+      level: 0,
       progressCoins: 0,
       lifetimeCoins: 0,
     };
@@ -2404,6 +2471,9 @@ function KnopikGame({
     setCommonCases(0);
     setBigCases(0);
     setQuestIndex(0);
+    setEarInteractionCount(0);
+    setHatInteractionCount(0);
+    setMohawkInteractionCount(0);
     setCasesOpen(false);
     setCaseSequence(null);
     setHasbulaRedeemed(false);
@@ -2513,8 +2583,14 @@ function KnopikGame({
       ? stats.totalTaps
       : currentQuest.metric === "vault"
         ? vaultCoins
-        : currentQuest.metric === "wins"
+      : currentQuest.metric === "wins"
           ? questWins
+          : currentQuest.metric === "ears"
+            ? earInteractionCount
+            : currentQuest.metric === "hat"
+              ? hatInteractionCount
+              : currentQuest.metric === "mohawk"
+                ? mohawkInteractionCount
           : levelState.level
     : 0;
   const questComplete = Boolean(currentQuest && questProgress >= currentQuest.target);
@@ -2681,6 +2757,7 @@ function KnopikGame({
     "--risk-rotation": `${riskRotation}deg`,
     "--risk-sector-offset": `${180 - (riskChance * 3.6) / 2}deg`,
     "--risk-spin-duration": `${RISK_SPIN_MS}ms`,
+    "--fatigue-angle": `${Math.round(fatigueCountdownRatio * 360)}deg`,
   } as CSSProperties;
 
   return (
@@ -2748,9 +2825,8 @@ function KnopikGame({
       <div className="game-motion-layer">
       <header className="app-header">
         <div className="top-bar">
-          <div className="brand-cluster">
-            <button
-              className="account-shortcut"
+          <button
+              className="account-identity"
               type="button"
               aria-label="Открыть аккаунт и настройки"
               onClick={() => {
@@ -2759,13 +2835,14 @@ function KnopikGame({
                 setSettingsOpen(true);
               }}
             >
-              <span aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
-            </button>
-            <div className="wordmark brand-lockup" aria-label="Knopik Tap">
-              <strong>KNOPIK</strong>
-            </div>
+              <span className="account-shortcut" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+              <strong>{account.username}</strong>
+          </button>
+          <div className="wordmark brand-lockup" aria-label="Knopik Tap"><strong>KNOPIK</strong></div>
+          <div className="status-cluster" aria-label={`Статус Кнопика: ${moodLabel}`}>
+            <strong>{moodLabel}</strong>
+            <span className={`mood-indicator mood-${dogState}`} aria-hidden="true"><i /></span>
           </div>
-          <span className={`mood-chip mood-${dogState}`}><i />{moodLabel}</span>
         </div>
         {!riskMode ? (
           <div
@@ -2876,7 +2953,7 @@ function KnopikGame({
       >
         <div className="dog-stage">
           <button
-            className={`dog-button ${tapVariant} ${vitaPowerShield ? "has-vita-shield" : ""}`}
+            className={`dog-button ${tapVariant} ${vitaPowerShield ? "has-vita-shield" : ""} ${isDogTired ? "has-fatigue-ring" : ""}`}
             type="button"
             data-testid="knopik"
             aria-label={
@@ -2893,6 +2970,7 @@ function KnopikGame({
             onContextMenu={(event) => event.preventDefault()}
           >
             <span className="portrait-surface" aria-hidden="true" />
+            {isDogTired && <span className="fatigue-countdown-ring" aria-hidden="true" />}
             {vitaPowerShield && <span className="vita-shield-ring" aria-hidden="true"><i /><i /><i /></span>}
             {shieldBreakVisible && <span className="vita-shield-break" aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>}
             <span className="tap-waves" aria-hidden="true">
@@ -3228,9 +3306,10 @@ function KnopikGame({
               <article className="case-card case-common-card">
                 <div className="case-miniature" aria-hidden="true"><i /><b>3</b></div>
                 <div><small>ЗА НОВЫЙ УРОВЕНЬ</small><h3>Обычный кейс</h3><p>Три награды: монеты, бафы или улучшения.</p></div>
-                <button type="button" disabled={commonCases < 1} onClick={() => openCase("common")}>
-                  {commonCases > 0 ? `Открыть · ${commonCases}` : "Нет кейсов"}
-                </button>
+                <div className="case-card-actions">
+                  <button type="button" disabled={commonCases < 1} onClick={() => openCase("common")}>Открыть · {commonCases}</button>
+                  <button type="button" disabled={coins.walletCoins < COMMON_CASE_PRICE || commonCases >= 99} onClick={buyCommonCase}>Купить · {COMMON_CASE_PRICE.toLocaleString("ru-RU")}</button>
+                </div>
               </article>
               <article className="case-card case-big-card">
                 <div className="case-miniature" aria-hidden="true"><i /><b>5</b></div>
@@ -3263,9 +3342,7 @@ function KnopikGame({
           {caseSequence.phase === "reward" ? (
             <button className="case-reward-screen" type="button" onClick={advanceCaseReward}>
               <small>НАГРАДА {caseSequence.rewardIndex + 1} ИЗ {caseSequence.rewards.length}</small>
-              <span className={`case-reward-icon reward-${caseSequence.rewards[caseSequence.rewardIndex].type}`} aria-hidden="true">
-                {caseSequence.rewards[caseSequence.rewardIndex].type === "coins" ? "К" : caseSequence.rewards[caseSequence.rewardIndex].type === "buff" ? "✦" : caseSequence.rewards[caseSequence.rewardIndex].type === "item" ? "★" : "↑"}
-              </span>
+              <span className={`case-reward-icon reward-${caseSequence.rewards[caseSequence.rewardIndex].type}`} aria-hidden="true"><CaseRewardArtwork reward={caseSequence.rewards[caseSequence.rewardIndex]} /></span>
               <h2>{caseSequence.rewards[caseSequence.rewardIndex].label}</h2>
               <p>{caseSequence.rewardIndex < caseSequence.rewards.length - 1 ? "Нажми, чтобы увидеть следующую награду" : "Нажми, чтобы забрать всё"}</p>
             </button>
@@ -3295,7 +3372,9 @@ function KnopikGame({
               <small>{caseSequence.kind === "common" ? "Обычный кейс · 3 награды" : "Большой кейс · 5 наград"}</small>
             </div>
           )}
-          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 20}deg` } as CSSProperties} />)}</span>
+          <span className="case-burst-flash" aria-hidden="true" />
+          <span className="case-burst-rays" aria-hidden="true" />
+          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 10}deg`, "--case-distance": `${190 + (index % 5) * 34}px`, "--case-delay": `${(index % 6) * 18}ms` } as CSSProperties} />)}</span>
         </div>
       )}
 
@@ -3343,9 +3422,9 @@ function KnopikGame({
         >
           <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
             <div className="shop-hero-row">
-              <div className="sheet-heading"><h2 id="shop-title">Всё для Кнопика</h2></div>
+              <div className="sheet-heading"><h2 id="shop-title">Магазин</h2></div>
               <div className="shop-wallet">
-                <span><small>ДОСТУПНО</small><strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong></span>
+                <span><strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong></span>
                 <span className="coin-mark" aria-hidden="true"><i>К</i></span>
               </div>
             </div>

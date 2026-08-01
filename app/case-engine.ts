@@ -9,11 +9,14 @@ export type CaseReward =
   | { type: "item"; kind: ClothingKind; amount: 1; label: string };
 
 export const QUESTS = [
-  { id: "tap-100", title: "Тапни Кнопика 100 раз", target: 100, metric: "taps" },
-  { id: "vault-1000", title: "Накопи 1 000 монет в сейфе", target: 1_000, metric: "vault" },
-  { id: "tap-500", title: "Сделай всего 500 тапов", target: 500, metric: "taps" },
-  { id: "win-2", title: "Выиграй две мини-игры", target: 2, metric: "wins" },
-  { id: "level-3", title: "Достигни третьего уровня", target: 3, metric: "level" },
+  { id: "tap-1500", title: "Сделай 1 500 тапов", target: 1_500, metric: "taps" },
+  { id: "vault-5000", title: "Накопи 5 000 монет в сейфе", target: 5_000, metric: "vault" },
+  { id: "win-8", title: "Выиграй 8 мини-игр", target: 8, metric: "wins" },
+  { id: "tap-5000", title: "Сделай всего 5 000 тапов", target: 5_000, metric: "taps" },
+  { id: "ears-30", title: "Тапни по ушам 30 раз", target: 30, metric: "ears" },
+  { id: "hat-15", title: "Встряхни тюбетейку 15 раз", target: 15, metric: "hat" },
+  { id: "mohawk-10", title: "Расчеши эрокез 10 раз", target: 10, metric: "mohawk" },
+  { id: "level-5", title: "Достигни пятого уровня", target: 5, metric: "level" },
 ] as const;
 
 function normalizedRandom(random: () => number) {

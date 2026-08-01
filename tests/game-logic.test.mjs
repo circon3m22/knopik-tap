@@ -75,15 +75,15 @@ test("ultra tap averages 300, caps at 500, and burns after the deadline", () => 
 
 test("levels follow the extended progression and cap at ten", () => {
   const first = addLevelCoins(
-    { level: 1, progressCoins: 995, lifetimeCoins: 995 },
+    { level: 0, progressCoins: 995, lifetimeCoins: 995 },
     10,
   );
-  assert.equal(first.state.level, 2);
+  assert.equal(first.state.level, 1);
   assert.equal(first.state.progressCoins, 5);
   const maximum = addLevelCoins(first.state, 200_000);
   assert.equal(maximum.state.level, 10);
   assert.equal(maximum.progressRatio, 1);
-  assert.equal(levelMultiplier(1), 1);
+  assert.equal(levelMultiplier(0), 1);
   assert.equal(levelMultiplier(10), 1.45);
 });
 
@@ -200,7 +200,7 @@ test("new drink inventories and mini-game stats migrate into the current save", 
     mineWins: 5,
     mineLosses: 2,
   });
-  assert.equal(saved.version, 14);
+  assert.equal(saved.version, 15);
   assert.equal(saved.colaCount, 14);
   assert.equal(saved.teaCount, 3);
   assert.equal(saved.slotPlays, 8);
@@ -225,6 +225,20 @@ test("VitaPower inventory and active shield persist in version thirteen", () => 
   const legacy = sanitizeSave({ version: 12, vitaPowerCount: 4, vitaPowerShield: true });
   assert.equal(legacy.vitaPowerCount, 0);
   assert.equal(legacy.vitaPowerShield, false);
+});
+
+test("case quest interaction counters persist in version fifteen", () => {
+  const saved = sanitizeSave({
+    version: 15,
+    questIndex: 7,
+    earInteractionCount: 30,
+    hatInteractionCount: 15,
+    mohawkInteractionCount: 10,
+  });
+  assert.equal(saved.questIndex, 7);
+  assert.equal(saved.earInteractionCount, 30);
+  assert.equal(saved.hatInteractionCount, 15);
+  assert.equal(saved.mohawkInteractionCount, 10);
 });
 
 test("risk wheel resolves payout and final angle from the configured chance", () => {

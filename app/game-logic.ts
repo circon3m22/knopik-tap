@@ -19,7 +19,7 @@ export type GameStats = {
 };
 
 export type SaveData = {
-  version: 14;
+  version: 15;
   vaultCoins: number;
   walletCoins: number;
   foodCount: number;
@@ -40,6 +40,9 @@ export type SaveData = {
   commonCases: number;
   bigCases: number;
   questIndex: number;
+  earInteractionCount: number;
+  hatInteractionCount: number;
+  mohawkInteractionCount: number;
   hasbulaRedeemed: boolean;
   riskFatigueUntil: number;
   riskSpins: number;
@@ -64,7 +67,7 @@ export type SaveData = {
 };
 
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 14 as const;
+export const SAVE_VERSION = 15 as const;
 
 export function createDefaultSave(): SaveData {
   return {
@@ -89,6 +92,9 @@ export function createDefaultSave(): SaveData {
     commonCases: 0,
     bigCases: 0,
     questIndex: 0,
+    earInteractionCount: 0,
+    hatInteractionCount: 0,
+    mohawkInteractionCount: 0,
     hasbulaRedeemed: false,
     riskFatigueUntil: 0,
     riskSpins: 0,
@@ -108,7 +114,7 @@ export function createDefaultSave(): SaveData {
     totalTaps: 0,
     totalBites: 0,
     ultraFatigueUntil: 0,
-    level: 1,
+    level: 0,
     levelCoins: 0,
   };
 }
@@ -223,7 +229,13 @@ export function sanitizeSave(value: unknown): SaveData {
     bigCases:
       isVersion(14) ? Math.min(99, safeInteger(candidate.bigCases)) : 0,
     questIndex:
-      isVersion(14) ? Math.min(5, safeInteger(candidate.questIndex)) : 0,
+      isVersion(14) ? Math.min(8, safeInteger(candidate.questIndex)) : 0,
+    earInteractionCount:
+      isVersion(15) ? safeInteger(candidate.earInteractionCount) : 0,
+    hatInteractionCount:
+      isVersion(15) ? safeInteger(candidate.hatInteractionCount) : 0,
+    mohawkInteractionCount:
+      isVersion(15) ? safeInteger(candidate.mohawkInteractionCount) : 0,
     hasbulaRedeemed:
       isVersion(11) && candidate.hasbulaRedeemed === true,
     riskFatigueUntil:
@@ -270,8 +282,8 @@ export function sanitizeSave(value: unknown): SaveData {
         : 0,
     level:
       isVersion(4)
-        ? Math.min(10, Math.max(1, safeInteger(candidate.level)))
-        : 1,
+        ? Math.min(10, safeInteger(candidate.level))
+        : 0,
     levelCoins:
       isVersion(4)
         ? safeInteger(candidate.levelCoins)

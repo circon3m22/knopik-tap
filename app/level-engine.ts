@@ -9,15 +9,14 @@ export const LEVEL_THRESHOLDS = [
   80_000,
   110_000,
   150_000,
+  200_000,
 ] as const;
 
-export const MAX_LEVEL = LEVEL_THRESHOLDS.length;
+export const MAX_LEVEL = LEVEL_THRESHOLDS.length - 1;
 
 export interface LevelState {
   level: number;
-  /** Coins earned after the current level threshold. */
   progressCoins: number;
-  /** All valid earned coins, including coins from runs that were later lost. */
   lifetimeCoins: number;
 }
 
@@ -46,15 +45,15 @@ function safeSum(left: number, right: number): number {
 }
 
 export function levelThreshold(level: number): number {
-  const safeLevel = Math.min(MAX_LEVEL, Math.max(1, Math.floor(level)));
-  return LEVEL_THRESHOLDS[safeLevel - 1];
+  const safeLevel = Math.min(MAX_LEVEL, Math.max(0, Math.floor(level)));
+  return LEVEL_THRESHOLDS[safeLevel];
 }
 
 export function nextLevelThreshold(level: number): number {
-  const safeLevel = Math.min(MAX_LEVEL, Math.max(1, Math.floor(level)));
+  const safeLevel = Math.min(MAX_LEVEL, Math.max(0, Math.floor(level)));
   return safeLevel >= MAX_LEVEL
-    ? LEVEL_THRESHOLDS[MAX_LEVEL - 1]
-    : LEVEL_THRESHOLDS[safeLevel];
+    ? LEVEL_THRESHOLDS[MAX_LEVEL]
+    : LEVEL_THRESHOLDS[safeLevel + 1];
 }
 
 export function levelProgressDetails(state: LevelState) {
@@ -67,28 +66,25 @@ export function levelProgressDetails(state: LevelState) {
 }
 
 function levelForLifetime(lifetimeCoins: number): number {
-  let level = 1;
+  let level = 0;
   for (let index = 1; index < LEVEL_THRESHOLDS.length; index += 1) {
     if (lifetimeCoins < LEVEL_THRESHOLDS[index]) break;
-    level = index + 1;
+    level = index;
   }
   return level;
 }
 
-/** Returns a multiplier from 1.00 at level 1 to 1.45 at level 10. */
+/** Returns a multiplier from 1.00 at level 0 to 1.45 at level 10. */
 export function levelMultiplier(level: number): number {
   const safeLevel = Number.isFinite(level)
-    ? Math.min(MAX_LEVEL, Math.max(1, Math.floor(level)))
-    : 1;
-  return Number((1 + (safeLevel - 1) * 0.05).toFixed(2));
+    ? Math.min(MAX_LEVEL, Math.max(0, Math.floor(level)))
+    : 0;
+  return Number((1 + safeLevel * 0.045).toFixed(3));
 }
 
 export function sanitizeLevelState(value: unknown): LevelState {
   const input = isRecord(value) ? value : {};
-  const persistedLevel = Math.min(
-    MAX_LEVEL,
-    Math.max(1, safeInteger(input.level, 1)),
-  );
+  const persistedLevel = Math.min(MAX_LEVEL, safeInteger(input.level));
   const span = nextLevelThreshold(persistedLevel) - levelThreshold(persistedLevel);
   const persistedProgress = persistedLevel >= MAX_LEVEL
     ? 0

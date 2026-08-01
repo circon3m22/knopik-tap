@@ -138,6 +138,32 @@ export class KnopikSoundEngine {
     });
   }
 
+  caseCharge() {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.filteredSweep(now, 1.05, 180, 3_600, 0.055);
+    this.tonalHit(now, {
+      type: "sawtooth",
+      from: 72,
+      to: 148,
+      duration: 1.04,
+      gain: 0.04,
+      attack: 0.08,
+      lowpass: 680,
+    });
+    [0, .22, .44, .66, .84].forEach((offset, index) => {
+      this.tonalHit(now + offset, {
+        type: "triangle",
+        from: 240 + index * 75,
+        to: 170 + index * 58,
+        duration: .1,
+        gain: .022 + index * .003,
+        attack: .004,
+      });
+    });
+  }
+
   itemUse(kind: "food" | "drink" = "food") {
     const ctx = this.ready();
     if (!ctx) return;
