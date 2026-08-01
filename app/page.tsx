@@ -1362,8 +1362,7 @@ function KnopikGame({
             (mohawkEquipped ? MOHAWK_RISK_BONUS : 1),
         )
       : 0;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const spinDuration = reducedMotion ? 280 : RISK_SPIN_MS;
+    const spinDuration = RISK_SPIN_MS;
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
@@ -1386,19 +1385,17 @@ function KnopikGame({
     riskTransitionTimerRef.current = setTimeout(() => {
       transitionRisk("spinning");
 
-      if (!reducedMotion) {
-        let tickIndex = 0;
-        const scheduleTick = () => {
-          if (riskPhaseRef.current !== "spinning") return;
-          getSound().riskTick(tickIndex > 17);
-          if (tickIndex % 4 === 0) vibrate(3, settingsRef.current.vibration);
-          const nextDelay = Math.min(470, 64 + tickIndex * 15);
-          tickIndex += 1;
-          riskTickTimerRef.current = setTimeout(scheduleTick, nextDelay);
-        };
-        scheduleTick();
-        riskSlowTimerRef.current = setTimeout(() => getSound().riskSlow(), 3_450);
-      }
+      let tickIndex = 0;
+      const scheduleTick = () => {
+        if (riskPhaseRef.current !== "spinning") return;
+        getSound().riskTick(tickIndex > 17);
+        if (tickIndex % 4 === 0) vibrate(3, settingsRef.current.vibration);
+        const nextDelay = Math.min(470, 64 + tickIndex * 15);
+        tickIndex += 1;
+        riskTickTimerRef.current = setTimeout(scheduleTick, nextDelay);
+      };
+      scheduleTick();
+      riskSlowTimerRef.current = setTimeout(() => getSound().riskSlow(), 3_450);
 
       riskSpinTimerRef.current = setTimeout(() => {
         if (riskTickTimerRef.current) {
@@ -2705,6 +2702,7 @@ function KnopikGame({
               <span className={`risk-wheel-shell ${riskResult ? `is-${riskResult}` : ""}`}>
                 <span className="risk-wheel">
                   <span className="risk-dial">
+                    <span className="risk-dial-rotor" key={`risk-rotor-${riskSpinNonce}`} />
                     <span className="risk-wheel-glass" />
                   </span>
                   <span className="risk-pointer" key={`risk-pointer-${riskSpinNonce}`}><i /></span>
