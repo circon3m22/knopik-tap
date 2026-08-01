@@ -1,4 +1,4 @@
-const CACHE_NAME = "knopik-tap-v86";
+const CACHE_NAME = "knopik-tap-v88";
 const BASE_PATH = new URL("./", self.location.href).pathname.replace(/\/$/, "");
 const asset = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
@@ -7,11 +7,12 @@ const APP_SHELL = [
   asset("/apple-touch-icon-v2.png"),
   asset("/icon-192-v2.png"),
   asset("/icon-512-v2.png"),
-  asset("/knopik-joy-sprite-earless.png"),
-  asset("/knopik-rage-sprite-earless.png"),
+  asset("/knopik-calm-earless.webp"),
+  asset("/knopik-joy-sprite-earless.webp"),
+  asset("/knopik-rage-sprite-earless.webp"),
   asset("/knopik-ear-left.png"),
   asset("/knopik-ear-right.png"),
-  asset("/knopik-warning-earless.png"),
+  asset("/knopik-warning-earless.webp"),
   asset("/knopik-mohawk-v2.png"),
   asset("/buffs/food.png"),
   asset("/buffs/zhivchik.png"),
@@ -50,7 +51,7 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(asset("/"), copy));
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(asset("/"), copy)));
           return response;
         })
         .catch(() => caches.match(asset("/"))),
@@ -65,7 +66,7 @@ self.addEventListener("fetch", (event) => {
         fetch(request).then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
           }
           return response;
         }),

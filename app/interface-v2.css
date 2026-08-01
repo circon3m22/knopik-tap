@@ -1647,25 +1647,52 @@ button {
 }
 .case-opening-stage,
 .case-reward-screen { position: relative; z-index: 4; }
+.case-opening-stage::before {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: min(104vw, 470px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(205 242 255 / 0%) 0 18%, rgb(91 202 255 / 0%) 58%, transparent 72%);
+  content: "";
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(.82);
+}
 .phase-charging .case-crate {
   animation: case-shake-strong 72ms linear infinite alternate;
-  filter: drop-shadow(0 28px 30px rgb(0 0 0 / 36%));
+  filter: drop-shadow(0 28px 30px rgb(0 0 0 / 36%)) drop-shadow(0 0 18px rgb(92 207 255 / 44%));
 }
+.case-big.phase-charging .case-crate { filter: drop-shadow(0 28px 30px rgb(0 0 0 / 36%)) drop-shadow(0 0 20px rgb(255 196 74 / 46%)); }
 .phase-charging .case-charge-ring { display: none; }
 .phase-charging .case-crate-lid { animation: none; }
 .phase-charging .case-crate-body::after { display: none; }
+.phase-charging .case-opening-stage::before {
+  background:
+    radial-gradient(circle, rgb(229 249 255 / 42%) 0 7%, rgb(112 214 255 / 28%) 22%, rgb(42 145 229 / 12%) 46%, transparent 70%);
+  animation: case-halo-breathe 820ms ease-in-out infinite alternate;
+}
+.case-big.phase-charging .case-opening-stage::before {
+  background:
+    radial-gradient(circle, rgb(255 251 214 / 44%) 0 7%, rgb(255 207 91 / 29%) 22%, rgb(239 126 25 / 13%) 46%, transparent 70%);
+}
 .case-opening.phase-charging::before { opacity: 0; animation: none; }
 .case-opening.phase-charging::after {
   position: absolute;
   z-index: 1;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, rgb(124 211 255 / 22%) 0, rgb(89 181 242 / 10%) 28%, transparent 58%);
+  background:
+    radial-gradient(circle at 50% 48%, rgb(235 251 255 / 25%) 0 5%, transparent 23%),
+    radial-gradient(circle at 50% 50%, rgb(105 213 255 / 29%) 0, rgb(46 146 226 / 14%) 34%, transparent 66%);
   content: "";
   pointer-events: none;
   animation: case-center-pulse 760ms ease-in-out infinite alternate;
 }
 .case-opening.case-big.phase-charging::after {
-  background: radial-gradient(circle at 50% 50%, rgb(255 226 119 / 22%) 0, rgb(255 166 54 / 10%) 28%, transparent 58%);
+  background:
+    radial-gradient(circle at 50% 48%, rgb(255 251 221 / 27%) 0 5%, transparent 23%),
+    radial-gradient(circle at 50% 50%, rgb(255 218 105 / 29%) 0, rgb(239 135 30 / 14%) 34%, transparent 66%);
 }
 .phase-burst .case-crate { animation-duration: 820ms; }
 .case-burst-flash,
@@ -1694,8 +1721,12 @@ button {
   to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 @keyframes case-center-pulse {
-  from { opacity: .38; transform: scale(.94); }
-  to { opacity: .85; transform: scale(1.04); }
+  from { opacity: .42; transform: scale(.91); }
+  to { opacity: 1; transform: scale(1.065); }
+}
+@keyframes case-halo-breathe {
+  from { opacity: .5; transform: translate(-50%, -50%) scale(.82); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
 }
 @keyframes case-shake-strong { from { transform: translate(-3px, 1px) rotate(-3deg) scale(1.025); } to { transform: translate(3px, -1px) rotate(3deg) scale(1.055); } }
 @keyframes case-lid-rattle { from { transform: translateY(-2px) rotate(-1deg); } to { transform: translateY(3px) rotate(1deg); } }
@@ -1719,6 +1750,7 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .case-opening::before,
   .phase-charging .case-crate,
+  .phase-charging .case-opening-stage::before,
   .case-opening.phase-charging::after,
   .case-reward-icon::after { animation: none !important; }
 }

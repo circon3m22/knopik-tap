@@ -59,8 +59,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
-        <link rel="preload" href={publicAsset("/knopik-joy-sprite-earless.png")} as="image" type="image/png" fetchPriority="high" />
-        <link rel="preload" href={publicAsset("/knopik-rage-sprite-earless.png")} as="image" type="image/png" fetchPriority="high" />
+        <link rel="preload" href={publicAsset("/knopik-calm-earless.webp")} as="image" type="image/webp" fetchPriority="high" />
       </head>
       <body>{children}</body>
     </html>

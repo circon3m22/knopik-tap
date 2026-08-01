@@ -26,11 +26,11 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /icon-192-v2\.png/);
   assert.match(html, /og\.png/);
   assert.match(html, /data-testid="knopik"/);
-  assert.match(html, /knopik-joy-sprite-earless\.png/);
-  assert.match(html, /knopik-rage-sprite-earless\.png/);
+  assert.match(html, /knopik-joy-sprite-earless\.webp/);
+  assert.match(html, /knopik-rage-sprite-earless\.webp/);
   assert.match(html, /knopik-ear-left\.png/);
   assert.match(html, /knopik-ear-right\.png/);
-  assert.match(html, /knopik-warning-earless\.png/);
+  assert.match(html, /knopik-warning-earless\.webp/);
   assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
   assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
   assert.match(html, /class="saved-balance(?:\s|\")/);
@@ -61,6 +61,10 @@ test("ships PWA assets and removes the temporary starter", async () => {
     access(new URL("../public/knopik-warning-earless.png", import.meta.url)),
     access(new URL("../public/knopik-joy-sprite-earless.png", import.meta.url)),
     access(new URL("../public/knopik-rage-sprite-earless.png", import.meta.url)),
+    access(new URL("../public/knopik-calm-earless.webp", import.meta.url)),
+    access(new URL("../public/knopik-warning-earless.webp", import.meta.url)),
+    access(new URL("../public/knopik-joy-sprite-earless.webp", import.meta.url)),
+    access(new URL("../public/knopik-rage-sprite-earless.webp", import.meta.url)),
     access(new URL("../public/knopik-ear-left.png", import.meta.url)),
     access(new URL("../public/knopik-ear-right.png", import.meta.url)),
     access(new URL("../public/hasbik-tubeteika.png", import.meta.url)),

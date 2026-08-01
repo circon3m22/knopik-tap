@@ -94,18 +94,22 @@ const CLOUD_SOURCE_ID =
     ? crypto.randomUUID()
     : `knopik-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-function readLocalSave() {
+function localSaveKey(userId: string) {
+  return `${SAVE_KEY}:${userId}`;
+}
+
+function readLocalSave(userId: string) {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(localSaveKey(userId));
     return sanitizeSave(raw ? JSON.parse(raw) : createDefaultSave());
   } catch {
     return createDefaultSave();
   }
 }
 
-function writeLocalSave(save: SaveData) {
+function writeLocalSave(userId: string, save: SaveData) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    localStorage.setItem(localSaveKey(userId), JSON.stringify(save));
   } catch {
     // The cloud copy remains available if local storage is unavailable.
   }
@@ -142,6 +146,9 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const accountRef = useRef<CloudAccount | null>(null);
   const latestSaveRef = useRef<SaveData | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveVersionRef = useRef(0);
+  const flushedVersionRef = useRef(0);
+  const flushInFlightRef = useRef<Promise<void> | null>(null);
 
   const refreshPromoCodes = useCallback(async () => {
     if (!accountRef.current?.isAdmin) return;
@@ -229,7 +236,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
       const loadedSave = cloudSave
         ? sanitizeSave(cloudSave.save)
-        : readLocalSave();
+        : readLocalSave(user!.id);
 
       if (!cloudSave) {
         const { error } = await supabase.from("game_saves").insert({
@@ -249,9 +256,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         username: profile.username,
         isAdmin: profile.is_admin,
       };
-      writeLocalSave(loadedSave);
+      writeLocalSave(user!.id, loadedSave);
       accountRef.current = nextAccount;
       latestSaveRef.current = loadedSave;
+      saveVersionRef.current = 0;
+      flushedVersionRef.current = 0;
       setAccount(nextAccount);
       setInitialSave(loadedSave);
       setGameRevision((current) => current + 1);
@@ -277,28 +286,50 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     };
   }, [user]);
 
-  const flushProgress = useCallback(async () => {
-    const currentAccount = accountRef.current;
-    const latestSave = latestSaveRef.current;
-    if (!currentAccount || !latestSave) return;
+  const flushProgress = useCallback(async (): Promise<void> => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    setSyncState("saving");
-    const { error } = await getSupabaseClient()
-      .from("game_saves")
-      .update({
-        save: latestSave,
-        source_id: CLOUD_SOURCE_ID,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", currentAccount.userId);
-    setSyncState(error ? "error" : "saved");
+    if (flushInFlightRef.current) return flushInFlightRef.current;
+
+    const operation = (async () => {
+      setSyncState("saving");
+      while (flushedVersionRef.current < saveVersionRef.current) {
+        const currentAccount = accountRef.current;
+        const latestSave = latestSaveRef.current;
+        const version = saveVersionRef.current;
+        if (!currentAccount || !latestSave) return;
+        const { data, error } = await getSupabaseClient()
+          .from("game_saves")
+          .update({
+            save: latestSave,
+            source_id: CLOUD_SOURCE_ID,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", currentAccount.userId)
+          .select("user_id")
+          .maybeSingle<{ user_id: string }>();
+        if (error || !data) {
+          setSyncState("error");
+          return;
+        }
+        flushedVersionRef.current = version;
+      }
+      setSyncState("saved");
+    })();
+    flushInFlightRef.current = operation;
+    try {
+      await operation;
+    } finally {
+      if (flushInFlightRef.current === operation) flushInFlightRef.current = null;
+    }
   }, []);
 
   const saveProgress = useCallback((save: SaveData) => {
     const nextSave = sanitizeSave(save);
     latestSaveRef.current = nextSave;
-    writeLocalSave(nextSave);
+    const currentAccount = accountRef.current;
+    if (currentAccount) writeLocalSave(currentAccount.userId, nextSave);
+    saveVersionRef.current += 1;
     setSyncState("saving");
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
@@ -377,7 +408,9 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
     const nextSave = sanitizeSave(result.save);
     latestSaveRef.current = nextSave;
-    writeLocalSave(nextSave);
+    writeLocalSave(currentAccount.userId, nextSave);
+    saveVersionRef.current += 1;
+    flushedVersionRef.current = saveVersionRef.current;
     setSyncState("saved");
     return { amount, message: `Начислено ${amount.toLocaleString("ru-RU")} монет.` };
   }, [flushProgress]);

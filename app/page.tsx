@@ -801,7 +801,6 @@ function KnopikGame({
             level: levelState.level,
             levelCoins: levelState.progressCoins,
           } as const;
-        localStorage.setItem(SAVE_KEY, JSON.stringify(nextSave));
         onSave(nextSave);
       } catch {
         // The game remains playable when local storage is unavailable.
@@ -3058,41 +3057,40 @@ function KnopikGame({
             <span className="dog-images" data-image-state={dogImageState}>
               <img
                 className="dog-image calm-image"
-                src={publicAsset("/knopik-calm-earless.png")}
+                src={publicAsset("/knopik-calm-earless.webp")}
                 alt=""
                 draggable={false}
                 loading="eager"
-                decoding="sync"
+                decoding="async"
+                fetchPriority="high"
               />
               <img
                 ref={joySpriteImageRef}
                 className="dog-image emotion-strip joy-strip"
-                src={publicAsset("/knopik-joy-sprite-earless.png")}
+                src={publicAsset("/knopik-joy-sprite-earless.webp")}
                 alt=""
                 draggable={false}
                 loading="eager"
-                decoding="sync"
-                fetchPriority="high"
+                decoding="async"
                 style={{ transform: `translate3d(-${joyFrame * 20}%, 0, 0)` }}
                 onLoad={() => setJoySpriteReady(true)}
               />
               <img
                 className="dog-image warning-image"
-                src={publicAsset("/knopik-warning-earless.png")}
+                src={publicAsset("/knopik-warning-earless.webp")}
                 alt=""
                 draggable={false}
                 loading="eager"
-                decoding="sync"
+                decoding="async"
               />
               <img
                 ref={rageSpriteImageRef}
                 className="dog-image emotion-strip rage-strip"
-                src={publicAsset("/knopik-rage-sprite-earless.png")}
+                src={publicAsset("/knopik-rage-sprite-earless.webp")}
                 alt=""
                 draggable={false}
                 loading="eager"
-                decoding="sync"
-                fetchPriority="high"
+                decoding="async"
                 style={{ transform: `translate3d(-${rageFrame * 20}%, 0, 0)` }}
                 onLoad={() => setRageSpriteReady(true)}
               />
