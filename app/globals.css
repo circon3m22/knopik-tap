@@ -4161,7 +4161,7 @@ img,
   background:
     radial-gradient(circle, transparent 0 54%, rgb(0 0 0 / 30%) 55% 100%),
     conic-gradient(from 0deg, #a6f23d 0deg var(--risk-chance), #292e38 var(--risk-chance) 360deg);
-  transform: none !important;
+  transform: none;
   transition: background 120ms linear;
 }
 
@@ -4578,7 +4578,7 @@ img,
   box-shadow:
     inset 0 0 0 2px rgb(255 255 255 / 10%),
     inset 0 0 34px rgb(0 0 0 / 24%);
-  transform: none !important;
+  transform: none;
   transition: none;
 }
 
@@ -6337,7 +6337,7 @@ img,
     inset 0 -16px 30px rgb(0 0 0 / 27%),
     0 0 0 2px #0b1015,
     0 9px 18px rgb(0 0 0 / 35%);
-  transform: rotate(var(--risk-wheel-rotation)) !important;
+  transform: rotate(var(--risk-wheel-rotation));
   transform-style: preserve-3d;
 }
 
