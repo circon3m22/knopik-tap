@@ -4708,3 +4708,340 @@ img,
   .mohawk-preview { width: 64px; height: 64px; }
   .risk-bet-control { gap: 6px; padding-left: 9px; }
 }
+
+/* Main game screen redesign — v50 */
+.game-shell {
+  --panel-bg: rgb(255 255 255 / 76%);
+  --panel-line: rgb(255 255 255 / 74%);
+  --panel-shadow: 0 12px 30px rgb(31 55 77 / 9%);
+  padding:
+    calc(env(safe-area-inset-top) + 10px)
+    clamp(12px, 3.8vw, 20px)
+    calc(env(safe-area-inset-bottom) + 8px);
+  background-image:
+    radial-gradient(circle at 50% 42%, rgb(255 255 255 / 30%), transparent 32%),
+    linear-gradient(180deg, rgb(255 255 255 / 14%), transparent 35%, rgb(20 42 64 / 7%));
+}
+
+.game-motion-layer {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.app-header { gap: 9px; }
+
+.top-bar {
+  min-height: 38px;
+  align-items: center;
+}
+
+.brand-lockup {
+  display: grid;
+  gap: 0;
+}
+
+.brand-lockup strong {
+  font-size: clamp(23px, 6.4vw, 29px);
+  letter-spacing: 0.14em;
+  line-height: 0.95;
+}
+
+.brand-lockup small {
+  margin-top: 5px;
+  color: rgb(27 48 68 / 54%);
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+}
+
+.risk-mode .brand-lockup small { color: rgb(255 255 255 / 48%); }
+
+.mood-chip {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--panel-line);
+  border-radius: 999px;
+  color: #41566a;
+  background: var(--panel-bg);
+  box-shadow: 0 7px 18px rgb(31 55 77 / 7%);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+  backdrop-filter: blur(16px) saturate(145%);
+}
+
+.mood-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #67b87f;
+  box-shadow: 0 0 0 4px rgb(103 184 127 / 13%);
+}
+
+.mood-chip.mood-warning i { background: #e5ae23; box-shadow: 0 0 0 4px rgb(229 174 35 / 14%); }
+.mood-chip.mood-tired i,
+.mood-chip.mood-recovering i { background: #d7923c; box-shadow: 0 0 0 4px rgb(215 146 60 / 14%); }
+.mood-chip.mood-angry i { background: #df4d46; box-shadow: 0 0 0 4px rgb(223 77 70 / 14%); }
+.risk-mode .mood-chip { color: #edf2f7; background: rgb(255 255 255 / 10%); }
+
+.level-strip,
+.risk-strip {
+  min-height: 54px;
+  padding: 8px 11px;
+  border: 1px solid var(--panel-line);
+  border-radius: 20px;
+  color: #1a2d3f;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow), inset 0 1px 0 rgb(255 255 255 / 82%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.level-strip { grid-template-columns: auto minmax(74px, 1fr) auto; gap: 11px; }
+.level-title { min-width: 68px; }
+.level-title span,
+.level-reward small { color: #71808d; font-size: 6.5px; letter-spacing: 0.11em; }
+.level-title strong { font-size: 21px; letter-spacing: -0.05em; }
+.level-title strong small { font-size: 8px; }
+.level-reward strong { font-size: 14px; }
+
+.level-track {
+  height: 8px;
+  padding: 2px;
+  border-radius: 99px;
+  background: #d8dee3;
+  box-shadow: inset 0 1px 3px rgb(37 52 65 / 15%);
+}
+
+.level-track span {
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #43c8e9, #ffd754);
+  box-shadow: 0 0 10px rgb(69 201 232 / 30%);
+}
+
+.boost-row { gap: 7px; }
+
+.boost-row .inventory-item {
+  min-height: 66px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 7px;
+  padding: 8px 8px;
+  border: 1px solid var(--panel-line);
+  border-radius: 20px;
+  color: #1d3042;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow), inset 0 1px 0 rgb(255 255 255 / 88%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.boost-row .inventory-item:disabled {
+  color: #60707e;
+  opacity: 0.66;
+  filter: saturate(0.7);
+}
+
+.boost-row .inventory-copy { gap: 3px; }
+.boost-row .inventory-copy strong { font-size: 9px; letter-spacing: -0.01em; }
+.boost-row .inventory-copy small { display: block; color: #77838d; font-size: 6px; line-height: 1.2; }
+
+.inventory-count {
+  top: 5px;
+  right: 5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid rgb(255 255 255 / 80%);
+  background: rgb(247 249 252 / 92%);
+  box-shadow: 0 4px 10px rgb(31 55 77 / 10%);
+  font-size: 7px;
+}
+
+.game-stage {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 0;
+}
+
+.dog-stage {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  padding: 4px 0 0;
+}
+
+.dog-button,
+.ultra-aura {
+  width: min(82vw, 356px, calc(100dvh - 430px));
+}
+
+.dog-button {
+  filter: drop-shadow(0 24px 28px rgb(37 56 73 / 18%));
+}
+
+.portrait-surface {
+  border: 6px solid rgb(255 255 255 / 92%);
+  box-shadow:
+    0 22px 46px rgb(37 56 73 / 18%),
+    inset 0 0 0 1px rgb(91 114 133 / 8%);
+}
+
+.game-data {
+  display: grid;
+  min-height: 0;
+  gap: 7px;
+  padding: 0;
+}
+
+.balance-overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.wallet-balance,
+.saved-balance {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 0;
+  padding: 7px 11px;
+  border: 1px solid var(--panel-line);
+  border-radius: 18px;
+  color: #193047;
+  background: var(--panel-bg);
+  box-shadow: 0 9px 22px rgb(31 55 77 / 8%), inset 0 1px 0 rgb(255 255 255 / 86%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+.wallet-balance > div,
+.saved-balance > span:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.wallet-balance small,
+.saved-balance small {
+  color: #71808d;
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+}
+
+.wallet-balance strong,
+.saved-balance strong {
+  font-size: clamp(22px, 6vw, 29px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.wallet-balance .coin-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+}
+
+.saved-balance .safe-icon { flex: 0 0 auto; transform: scale(0.84); }
+
+.quick-save-button {
+  min-height: 48px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 9px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 82%);
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(135deg, #1478ed, #0a55c8);
+  box-shadow: 0 12px 24px rgb(20 120 237 / 22%), inset 0 1px 0 rgb(255 255 255 / 25%);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+}
+
+.quick-save-button small {
+  padding: 5px 8px;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 16%);
+  font-size: 8px;
+  opacity: 1;
+}
+
+.quick-save-button:disabled {
+  color: #6d7d8b;
+  background: rgb(232 237 241 / 78%);
+  box-shadow: 0 8px 20px rgb(31 55 77 / 6%);
+  opacity: 0.78;
+}
+
+.bottom-bar {
+  z-index: 70;
+  min-height: 69px;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 78%);
+  border-radius: 24px;
+  background: rgb(248 250 252 / 82%);
+  box-shadow: 0 16px 34px rgb(24 45 65 / 14%), inset 0 1px 0 #fff;
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.bottom-bar::before { display: none; }
+
+.nav-thumb {
+  top: 5px;
+  bottom: 5px;
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 19px;
+  background: linear-gradient(145deg, rgb(235 245 255 / 96%), rgb(218 235 250 / 92%));
+  box-shadow: 0 8px 20px rgb(42 78 108 / 12%), inset 0 1px 0 #fff;
+}
+
+.bottom-bar button {
+  min-height: 57px;
+  border-radius: 19px;
+  color: #70808d;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.bottom-bar button.active { color: #142d43; }
+
+@media (max-height: 740px) {
+  .game-motion-layer { gap: 6px; }
+  .app-header { gap: 6px; }
+  .top-bar { min-height: 31px; }
+  .brand-lockup small { display: none; }
+  .level-strip,
+  .risk-strip { min-height: 46px; padding-block: 6px; }
+  .boost-row .inventory-item { min-height: 55px; padding-block: 6px; }
+  .boost-row .inventory-copy small { display: none; }
+  .dog-button,
+  .ultra-aura { width: min(76vw, 318px, calc(100dvh - 395px)); }
+  .wallet-balance,
+  .saved-balance { min-height: 46px; }
+  .quick-save-button { min-height: 43px; }
+  .bottom-bar { min-height: 62px; }
+  .bottom-bar button { min-height: 50px; }
+}
+
+@media (max-width: 355px) {
+  .mood-chip { padding-inline: 8px; font-size: 6px; }
+  .level-strip { gap: 7px; padding-inline: 8px; }
+  .boost-row { gap: 5px; }
+  .boost-row .inventory-item { grid-template-columns: 29px minmax(0, 1fr); gap: 4px; padding-inline: 6px; }
+  .boost-row .inventory-copy small { display: none; }
+  .wallet-balance,
+  .saved-balance { gap: 6px; padding-inline: 7px; }
+}

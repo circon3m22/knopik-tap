@@ -1947,6 +1947,16 @@ function KnopikGame({
           : dogState === "calm"
             ? calmScene
             : "#1478ed";
+  const moodLabel =
+    dogState === "angry"
+      ? "СЕРДИТСЯ"
+      : dogState === "warning"
+        ? "НА ГРАНИ"
+        : dogState === "tired" || dogState === "recovering"
+          ? "ОТДЫХАЕТ"
+          : isHappy
+            ? "РАДУЕТСЯ"
+            : "СПОКОЕН";
 
   useEffect(() => {
     const themeMeta = document.querySelector<HTMLMetaElement>(
@@ -2031,9 +2041,11 @@ function KnopikGame({
       <div className="game-motion-layer">
       <header className="app-header">
         <div className="top-bar">
-          <div className="wordmark" aria-label="Knopik">
+          <div className="wordmark brand-lockup" aria-label="Knopik Tap">
             <strong>KNOPIK</strong>
+            <small>TAP · PLAY · SAVE</small>
           </div>
+          <span className={`mood-chip mood-${dogState}`}><i />{moodLabel}</span>
         </div>
         {!riskMode ? (
           <div
@@ -2088,27 +2100,19 @@ function KnopikGame({
         <div className="boost-row" aria-label="Предметы Кнопика">
           <button className="inventory-item inventory-food" type="button" disabled={!canFeedDog} onClick={feedDog}>
             <span className="food-icon" aria-hidden="true"><i /><i /><i /></span>
-            <span className="inventory-copy"><strong>Корм</strong><small>Снять усталость</small></span>
+            <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
             <b className="inventory-count">{foodCount}</b>
           </button>
           <button className="inventory-item inventory-zhivchik" type="button" disabled={drinkCount < 1 || riskMode} onClick={activateDrink}>
             <span className="drink-icon drink-zhivchik" aria-hidden="true"><i /></span>
-            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>Тап ×4</small></span>
+            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
             <b className="inventory-count">{drinkCount}</b>
           </button>
           <button className="inventory-item inventory-pitbull" type="button" disabled={pitbullCount < 1 || riskMode || isDogTired} onClick={activatePitbull}>
             <span className="drink-icon drink-pitbull" aria-hidden="true"><i /></span>
-            <span className="inventory-copy"><strong>Питбуль</strong><small>Открыть рулетку</small></span>
+            <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
             <b className="inventory-count">{pitbullCount}</b>
           </button>
-        </div>
-        <div
-          ref={savedBalanceRef}
-          className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
-          aria-label={`Баланс сейфа ${vaultCoins} монет`}
-        >
-          <span className="safe-icon" aria-hidden="true"><i /></span>
-          <span><small>БАЛАНС СЕЙФА</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
         </div>
       </header>
 
@@ -2309,16 +2313,27 @@ function KnopikGame({
         </div>
 
         <div className="game-data">
-          <div
-            ref={walletBalanceRef}
-            className={`wallet-balance ${balanceVariant}`}
-            aria-label={`Активные монеты ${coins.walletCoins}`}
-          >
-            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
-            <div>
-              <strong className="balance-number" key={`balance-${balancePulse}`}>
-                {coins.walletCoins.toLocaleString("ru-RU")}
-              </strong>
+          <div className="balance-overview">
+            <div
+              ref={walletBalanceRef}
+              className={`wallet-balance ${balanceVariant}`}
+              aria-label={`Активные монеты ${coins.walletCoins}`}
+            >
+              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+              <div>
+                <small>НА РУКАХ</small>
+                <strong className="balance-number" key={`balance-${balancePulse}`}>
+                  {coins.walletCoins.toLocaleString("ru-RU")}
+                </strong>
+              </div>
+            </div>
+            <div
+              ref={savedBalanceRef}
+              className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
+              aria-label={`Баланс сейфа ${vaultCoins} монет`}
+            >
+              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
             </div>
           </div>
           {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
@@ -2329,8 +2344,8 @@ function KnopikGame({
             onClick={saveAllToVault}
           >
             <span className="safe-icon" aria-hidden="true"><i /></span>
-            <span>ЗАСЕЙВИТЬ</span>
-            <small>В СЕЙФ +{saveAmount.toLocaleString("ru-RU")}</small>
+            <span>ПЕРЕВЕСТИ В СЕЙФ</span>
+            <small>+{saveAmount.toLocaleString("ru-RU")}</small>
           </button>
         </div>
       </section>
@@ -2353,7 +2368,7 @@ function KnopikGame({
         </button>
         <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
           <span className="home-icon" aria-hidden="true"><i /></span>
-          <span>Главная</span>
+          <span>Играть</span>
         </button>
         <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
           <span className="settings-icon" aria-hidden="true"><i /><i /><i /></span>
