@@ -1531,14 +1531,18 @@ button {
   width: 110%;
   height: 110%;
   overflow: visible;
-  filter: drop-shadow(0 0 5px #ffe263) drop-shadow(0 0 13px rgb(255 190 24 / 82%));
+  filter:
+    drop-shadow(0 0 3px rgb(255 255 255 / 100%))
+    drop-shadow(0 0 9px rgb(255 255 255 / 95%))
+    drop-shadow(0 0 17px rgb(159 211 255 / 72%));
   pointer-events: none;
   transform: rotate(-90deg);
 }
+
 .fatigue-countdown-ring circle {
   fill: none;
-  stroke: #ffd83d;
-  stroke-width: 4;
+  stroke: #ffffff;
+  stroke-width: 4.5;
   stroke-linecap: round;
   stroke-dasharray: 100;
   transition: stroke-dashoffset 900ms linear;
