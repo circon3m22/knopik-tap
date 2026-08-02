@@ -1758,3 +1758,7 @@ button {
   .case-opening.phase-charging::after,
   .case-reward-icon::after { animation: none !important; }
 }
+/* Щит должен быть под ушами и головными уборами */
+.dog-button .vita-shield-ring {
+  z-index: 3 !important;
+}
