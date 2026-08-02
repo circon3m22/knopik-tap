@@ -1526,7 +1526,7 @@ button {
 
 .fatigue-countdown-ring {
   position: absolute;
-  z-index: 12;
+  z-index: 2;
   inset: -5%;
   width: 110%;
   height: 110%;
