@@ -3897,26 +3897,89 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   );
 }
 
+const BOOT_SPLASH_MIN_MS = 1_500;
+const BOOT_SPLASH_EXIT_MS = 650;
+const BOOT_SPLASH_FORCE_MS = 6_000;
+
 export default function Home() {
+  const [bootReady, setBootReady] = useState(false);
+  const [splashPhase, setSplashPhase] = useState<"active" | "leaving" | "done">("active");
+  const bootStartRef = useRef<number>(0);
+
+  useEffect(() => {
+    bootStartRef.current = Date.now();
+  }, []);
+
+  const handleBootReady = useCallback(() => setBootReady(true), []);
+
+  // Прячем сплэш не раньше, чем контент загрузится и отыграет входная анимация.
+  useEffect(() => {
+    if (!bootReady || splashPhase !== "active") return;
+    const elapsed = Date.now() - bootStartRef.current;
+    const timer = window.setTimeout(
+      () => setSplashPhase("leaving"),
+      Math.max(0, BOOT_SPLASH_MIN_MS - elapsed),
+    );
+    return () => window.clearTimeout(timer);
+  }, [bootReady, splashPhase]);
+
+  useEffect(() => {
+    if (splashPhase !== "leaving") return;
+    const timer = window.setTimeout(() => setSplashPhase("done"), BOOT_SPLASH_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [splashPhase]);
+
+  // Страховка: если загрузка зависла, сплэш всё равно уйдёт.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSplashPhase((phase) => (phase === "active" ? "leaving" : phase));
+    }, BOOT_SPLASH_FORCE_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const splashVisible = splashPhase !== "done";
+  const contentRevealed = splashPhase !== "active";
+
   return (
-    <CloudAccountGate>
-      {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
-        <KnopikGame
-          key={gameKey}
-          account={account}
-          initialSave={initialSave}
-          syncState={syncState}
-          difficulty={difficulty}
-          promoCodes={promoCodes}
-          onSave={saveProgress}
-          onRefreshPromoCodes={refreshPromoCodes}
-          onUpdateDifficulty={updateDifficulty}
-          onCreatePromoCode={createPromoCode}
-          onRedeemPromoCode={redeemPromoCode}
-          onChangePassword={changePassword}
-          onSignOut={signOut}
-        />
+    <>
+      {splashVisible && (
+        <div
+          className={`boot-splash${splashPhase === "leaving" ? " is-leaving" : ""}`}
+          role="status"
+          aria-label="Загрузка"
+          aria-hidden={splashPhase === "leaving"}
+        >
+          <div className="boot-splash-inner">
+            <div className="boot-splash-word">KNOPIK</div>
+            <div className="boot-splash-dots" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </div>
+          </div>
+        </div>
       )}
-    </CloudAccountGate>
+      <div className={`boot-content${contentRevealed ? " is-revealed" : ""}`}>
+        <CloudAccountGate onBootReady={handleBootReady}>
+          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
+            <KnopikGame
+              key={gameKey}
+              account={account}
+              initialSave={initialSave}
+              syncState={syncState}
+              difficulty={difficulty}
+              promoCodes={promoCodes}
+              onSave={saveProgress}
+              onRefreshPromoCodes={refreshPromoCodes}
+              onUpdateDifficulty={updateDifficulty}
+              onCreatePromoCode={createPromoCode}
+              onRedeemPromoCode={redeemPromoCode}
+              onChangePassword={changePassword}
+              onSignOut={signOut}
+            />
+          )}
+        </CloudAccountGate>
+      </div>
+    </>
   );
 }

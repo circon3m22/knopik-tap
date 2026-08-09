@@ -85,6 +85,8 @@ type CloudGameSession = {
 
 type CloudAccountGateProps = {
   children: (session: CloudGameSession) => ReactNode;
+  /** Вызывается, когда начальная проверка аккаунта завершена (сплэш можно прятать). */
+  onBootReady?: () => void;
 };
 
 const SAVE_DELAY_MS = 4_000;
@@ -130,7 +132,7 @@ function mapPromoCode(row: PromoCodeRow): PromoCode {
   };
 }
 
-export function CloudAccountGate({ children }: CloudAccountGateProps) {
+export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProps) {
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [account, setAccount] = useState<CloudAccount | null>(null);
@@ -149,6 +151,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const saveVersionRef = useRef(0);
   const flushedVersionRef = useRef(0);
   const flushInFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    onBootReady?.();
+  }, [authLoading, onBootReady]);
 
   const refreshPromoCodes = useCallback(async () => {
     if (!accountRef.current?.isAdmin) return;
