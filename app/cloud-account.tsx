@@ -511,6 +511,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     );
   }
 
+  // eslint-disable-next-line react-hooks/refs -- render-prop pattern: refs are only read inside callbacks and effects below
   return children({
     account,
     initialSave,

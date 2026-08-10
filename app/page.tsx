@@ -327,6 +327,7 @@ function KnopikGame({
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [casesOpen, setCasesOpen] = useState(false);
+  const [navDragIndex, setNavDragIndex] = useState<number | null>(null);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
@@ -414,7 +415,7 @@ function KnopikGame({
   const tapLimitRef = useRef(0);
   const tapIntervalsRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
-  const patienceRollRef = useRef(Math.random());
+  const patienceRollRef = useRef<number | null>(null);
   const particleIdRef = useRef(0);
   const soundRef = useRef<KnopikSoundEngine | null>(null);
   const holdStartRef = useRef(0);
@@ -640,6 +641,7 @@ function KnopikGame({
           );
 
       coinsRef.current = loadedCoins;
+      patienceRollRef.current = Math.random();
       difficultyRef.current = difficultyWithBalancePenalty(
         configuredDifficultyRef.current,
         loadedCoins.walletCoins,
@@ -729,7 +731,6 @@ function KnopikGame({
       normalized,
       coinsRef.current.walletCoins,
     );
-    setDifficultyDraft(normalized);
   }, [difficulty]);
 
   useEffect(() => {
@@ -1218,13 +1219,17 @@ function KnopikGame({
         currentState === "tired"
           ? Math.max(currentFatigue, 0.72)
           : currentFatigue;
+      if (patienceRollRef.current === null) {
+        patienceRollRef.current = Math.random();
+      }
+      const patienceRoll = patienceRollRef.current;
       const dynamicLimit = Math.max(
         1,
         Math.round(
           calculateTapLimit(
             average,
             effectiveFatigue,
-            () => patienceRollRef.current,
+            () => patienceRoll,
           ) * difficultyPatienceMultiplier(difficultyRef.current),
         ),
       );
@@ -1536,8 +1541,8 @@ function KnopikGame({
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
-  const winningDegrees = riskChance * 3.6;
-setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
+    const winningDegrees = riskChance * 3.6;
+    setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins((current) => ({
@@ -2275,35 +2280,53 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setResetConfirmOpen(false);
   }, []);
 
-  const moveNavigationThumb = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
-      selectNavigation(Math.floor(ratio * 3));
-    },
-    [selectNavigation],
-  );
+  const moveNavigationThumb = useCallback((event: PointerEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
+    // Во время свайпа двигаем только «линзу»; раздел открываем на отпускании,
+    // чтобы листы не мигали и inert-слой не обрывал жест.
+    setNavDragIndex(Math.floor(ratio * 3));
+  }, []);
 
-  const handleNavigationDown = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (event.button !== 0) return;
-      navDragStartRef.current = event.clientX;
-      navDidDragRef.current = false;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      moveNavigationThumb(event);
-    },
-    [moveNavigationThumb],
-  );
+  const handleNavigationDown = useCallback((event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    navDragStartRef.current = event.clientX;
+    navDidDragRef.current = false;
+    // Захват указателя не включаем сразу: короткий тап должен дойти до кнопки
+    // обычным click. Захват появляется только после горизонтального сдвига,
+    // чтобы свайп по меню не «съедал» клики по кнопкам.
+  }, []);
 
   const handleNavigationMove = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-      if (Math.abs(event.clientX - navDragStartRef.current) > 8) {
-        navDidDragRef.current = true;
+      if (Math.abs(event.clientX - navDragStartRef.current) <= 8) return;
+      navDidDragRef.current = true;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
       }
       moveNavigationThumb(event);
     },
     [moveNavigationThumb],
+  );
+
+  const handleNavigationUp = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      if (!navDidDragRef.current) return;
+      // Свайп завершён: фиксируем таб под пальцем, открываем раздел и гасим
+      // флаг, чтобы последующий click (он уходит в общий предок из-за
+      // захвата указателя) не был обработан повторно.
+      navDidDragRef.current = false;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
+      const finalIndex = Math.floor(ratio * 3);
+      setNavDragIndex(null);
+      getSound().nav(finalIndex - 1);
+      selectNavigation(finalIndex);
+    },
+    [getSound, selectNavigation],
   );
 
   const clickNavigation = useCallback((index: number) => {
@@ -2314,6 +2337,20 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     getSound().nav(index - 1);
     selectNavigation(index);
   }, [getSound, selectNavigation]);
+
+  const handleNavigationKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const currentIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
+      const nextIndex =
+        event.key === "ArrowRight"
+          ? Math.min(2, currentIndex + 1)
+          : Math.max(0, currentIndex - 1);
+      clickNavigation(nextIndex);
+    },
+    [casesOpen, clickNavigation, shopOpen],
+  );
 
   const buyOrToggleHat = useCallback(() => {
     if (!hatOwned) {
@@ -2589,7 +2626,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   const isDogTired =
     !settings.yellow &&
     (dogState === "tired" ||
-      (dogState === "recovering" && fatigueUntil > Date.now()));
+      (dogState === "recovering" && fatigueUntil > clock));
   const isDogResting = !settings.yellow && fatigueUntil > clock;
   const canFeedDog = isDogTired && foodCount > 0;
   const canQuickBuyFood = isDogTired && foodCount === 0 && coins.walletCoins >= DOG_FOOD_PRICE;
@@ -2754,19 +2791,20 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   useDialogA11y(settingsOpen, settingsSheetRef, closeSettingsSheet);
   useDialogA11y(caseSequence !== null, caseOpeningRef, dismissCaseOpening);
 
-  const tempoRatio =
-    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const isHappy =
     dogState === "calm" && seriesTaps >= 3 && averageInterval <= 360;
+  // Полоски эмоций видны только в своих состояниях; вне их кадр всегда 0 —
+  // это выводится в render, а не сбрасывается эффектом.
+  const joyAnimationActive = dogState === "calm" && joySpriteReady;
+  const rageAnimationActive =
+    (dogState === "angry" ||
+      (dogState === "recovering" && recoveryReason === "bite")) &&
+    rageSpriteReady;
+  const shownJoyFrame = joyAnimationActive ? joyFrame : 0;
+  const shownRageFrame = rageAnimationActive ? rageFrame : 0;
+
   useEffect(() => {
-    if (dogState !== "calm") {
-      setJoyFrame(0);
-      return;
-    }
-    if (!joySpriteReady) {
-      setJoyFrame(0);
-      return;
-    }
+    if (!joyAnimationActive) return;
 
     const targetFrame = isHappy ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -2784,19 +2822,10 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [dogState, isHappy, joySpriteReady]);
+  }, [isHappy, joyAnimationActive]);
 
   useEffect(() => {
-    const reversingAfterBite =
-      dogState === "recovering" && recoveryReason === "bite";
-    if (dogState !== "angry" && !reversingAfterBite) {
-      setRageFrame(0);
-      return;
-    }
-    if (!rageSpriteReady) {
-      setRageFrame(0);
-      return;
-    }
+    if (!rageAnimationActive) return;
 
     const targetFrame = dogState === "angry" ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -2814,17 +2843,17 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [dogState, rageSpriteReady, recoveryReason]);
+  }, [dogState, rageAnimationActive, recoveryReason]);
 
   const showRageSequence =
     rageSpriteReady &&
     (dogState === "angry" ||
-      (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0));
+      (dogState === "recovering" && recoveryReason === "bite" && shownRageFrame > 0));
   const isEmotionShifting =
     (dogState === "calm" &&
-      ((isHappy && joyFrame < 4) || (!isHappy && joyFrame > 0))) ||
-    (dogState === "angry" && rageFrame < 4) ||
-    (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
+      ((isHappy && shownJoyFrame < 4) || (!isHappy && shownJoyFrame > 0))) ||
+    (dogState === "angry" && shownRageFrame < 4) ||
+    (dogState === "recovering" && recoveryReason === "bite" && shownRageFrame > 0);
   const dogImageState =
     showRageSequence
       ? "rage"
@@ -2919,7 +2948,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
       } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
-        dogState === "calm" && joyFrame > 0 ? "is-happy" : ""
+        dogState === "calm" && shownJoyFrame > 0 ? "is-happy" : ""
       } ${isEmotionShifting ? "is-emotion-shifting" : ""} ${
         riskMode ? `risk-mode risk-${riskPhase}` : ""
       } ${riskPhase === "transition" && riskResult ? "risk-returning" : ""} ${
@@ -2985,6 +3014,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 setShopOpen(false);
                 setCasesOpen(false);
                 setSettingsOpen(true);
+                setDifficultyDraft(clampDifficulty(difficulty));
               }}
             >
               <span className="header-avatar-glyph" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
@@ -3233,7 +3263,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 draggable={false}
                 loading="eager"
                 decoding="async"
-                style={{ transform: `translate3d(-${joyFrame * 20}%, 0, 0)` }}
+                style={{ transform: `translate3d(-${shownJoyFrame * 20}%, 0, 0)` }}
                 onLoad={() => setJoySpriteReady(true)}
               />
               <img
@@ -3252,7 +3282,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 draggable={false}
                 loading="eager"
                 decoding="async"
-                style={{ transform: `translate3d(-${rageFrame * 20}%, 0, 0)` }}
+                style={{ transform: `translate3d(-${shownRageFrame * 20}%, 0, 0)` }}
                 onLoad={() => setRageSpriteReady(true)}
               />
             </span>
@@ -3435,6 +3465,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               onPointerMove={handleSaveSwipeMove}
               onPointerUp={handleSaveSwipeEnd}
               onPointerCancel={handleSaveSwipeEnd}
+              onKeyDown={handleSaveSwipeKeyDown}
               onClick={() => {
                 if (canSave && !isSavingSwipe) saveAllToVault();
               }}
@@ -3473,18 +3504,46 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
 
       <footer
         className={`bottom-bar ${miniGame !== null ? "is-locked" : ""}`}
-        style={{ "--nav-index": navIndex } as CSSProperties}
+        style={{ "--nav-index": navDragIndex ?? navIndex } as CSSProperties}
+        role="tablist"
+        aria-label="Разделы игры"
+        onPointerDown={handleNavigationDown}
+        onPointerMove={handleNavigationMove}
+        onPointerUp={handleNavigationUp}
+        onPointerCancel={handleNavigationUp}
+        onKeyDown={handleNavigationKeyDown}
       >
         <span className="nav-thumb" aria-hidden="true" />
-        <button className={navIndex === 0 ? "active" : ""} type="button" disabled={miniGame !== null} onClick={() => { getSound().nav(-1); selectNavigation(0); }}>
+        <button
+          className={navIndex === 0 ? "active" : ""}
+          type="button"
+          role="tab"
+          aria-selected={navIndex === 0}
+          disabled={miniGame !== null}
+          onClick={() => clickNavigation(0)}
+        >
           <span className="shop-icon" aria-hidden="true"><i /></span>
           <span>Магазин</span>
         </button>
-        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" disabled={miniGame !== null} onClick={() => { getSound().nav(0); selectNavigation(1); }}>
+        <button
+          className={`home-nav ${navIndex === 1 ? "active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={navIndex === 1}
+          disabled={miniGame !== null}
+          onClick={() => clickNavigation(1)}
+        >
           <span className="home-icon" aria-hidden="true"><i /></span>
           <span>Играть</span>
         </button>
-        <button className={navIndex === 2 ? "active" : ""} type="button" disabled={miniGame !== null} onClick={() => { getSound().nav(1); selectNavigation(2); }}>
+        <button
+          className={navIndex === 2 ? "active" : ""}
+          type="button"
+          role="tab"
+          aria-selected={navIndex === 2}
+          disabled={miniGame !== null}
+          onClick={() => clickNavigation(2)}
+        >
           <span className="case-nav-icon" aria-hidden="true"><i /></span>
           <span>Кейсы</span>
         </button>

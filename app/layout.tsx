@@ -60,6 +60,14 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
+        {/* vinext сериализует viewport без viewport-fit — добавляем его
+            в уже инжектированный meta, чтобы env(safe-area-inset-*) работали
+            на iPhone в standalone-режиме. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var m=document.querySelector('meta[name="viewport"]');if(m&&m.content.indexOf('viewport-fit')===-1){m.setAttribute('content','width=device-width, initial-scale=1, viewport-fit=cover');}})();`,
+          }}
+        />
         {BOOT_IMAGE_ASSETS.map((path, index) => (
           <link
             key={path}
