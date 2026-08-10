@@ -3566,7 +3566,6 @@ function KnopikGame({
           >
             {/* Заполнение фона показывает прогресс свайпа */}
             <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
-            <div className="bank-swipe-glow" aria-hidden="true" style={{ opacity: bankDragProgress }} />
 
             <div
               ref={walletBalanceRef}
@@ -3585,17 +3584,13 @@ function KnopikGame({
             </div>
 
             <div className="bank-swipe-center" aria-hidden="true">
-              <span className={`bank-swipe-arrow-wrap ${canSave ? "can-animate" : "is-locked"}`}>
-                {/* Минималистичная анимированная стрелка — показывает направление свайпа */}
-                <i className="bank-arrow-line" />
-                <i className="bank-arrow-head" />
-                <i className="bank-arrow-line ghost-1" />
-                <i className="bank-arrow-head ghost-1" />
-                <i className="bank-arrow-line ghost-2" />
-                <i className="bank-arrow-head ghost-2" />
+              <span className={`bank-swipe-arrow ${canSave ? "can-animate" : "is-locked"}`}>
+                {/* Одна минималистичная стрелка — показывает направление свайпа в сейф */}
+                <i className="bank-swipe-arrow-shaft" />
+                <i className="bank-swipe-arrow-head" />
               </span>
               {canSave && (
-                <small className="bank-swipe-label">{bankDragProgress > 0.12 ? `${Math.round(bankDragProgress * 100)}%` : "→ сейф"}</small>
+                <small className="bank-swipe-label">{bankDragProgress > 0.12 ? `${Math.round(bankDragProgress * 100)}%` : "В сейф"}</small>
               )}
             </div>
 
@@ -3663,6 +3658,7 @@ function KnopikGame({
           <span>Кейсы</span>
         </button>
       </footer>
+      <div className="bottom-nav-spacer" aria-hidden="true" />
       </div>
 
       {miniGame && (
@@ -3811,6 +3807,7 @@ function KnopikGame({
                 <span className="case-crate-body"><i>{caseSequence.kind === "common" ? "3" : "5"}</i></span>
                 <span className="case-charge-ring" />
               </button>
+              <span className="case-charge-progress" aria-hidden="true"><i /></span>
               <small>{caseSequence.kind === "common" ? "Обычный кейс · 3 награды" : "Большой кейс · 5 наград"}</small>
             </div>
           )}
@@ -4062,14 +4059,24 @@ function KnopikGame({
 
       {settingsOpen && (
         <div
-          className="modal-backdrop"
+          className="modal-backdrop settings-backdrop"
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) selectNavigation(1);
+            if (event.target === event.currentTarget) closeSettingsSheet();
           }}
         >
           <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" ref={settingsSheetRef} tabIndex={-1}>
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
+              <button
+                className="sheet-close"
+                type="button"
+                aria-label="Закрыть настройки"
+                onClick={closeSettingsSheet}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
             </div>
 
             <p className="settings-section-title">Аккаунт</p>
@@ -4318,6 +4325,49 @@ export default function Home() {
 
   useEffect(() => {
     bootStartRef.current = Date.now();
+  }, []);
+
+  // iOS PWA (добавлен на домашний экран): в некоторых версиях Safari
+  // 100dvh не учитывает home-indicator, из-за чего .game-shell не дотягивается
+  // до низа экрана и нижнее меню «уезжает вверх». Пишем точную высоту
+  // visualViewport в CSS-переменную --app-vh и жёстко сбрасываем любой скролл
+  // страницы (автофокус, scrollIntoView, rubber-band) — иначе меню сдвигается.
+  useEffect(() => {
+    const root = document.documentElement;
+    let raf = 0;
+
+    const applyViewportHeight = () => {
+      raf = window.requestAnimationFrame(() => {
+        const vv = window.visualViewport;
+        const height = Math.round(vv?.height ?? window.innerHeight);
+        root.style.setProperty("--app-vh", `${height}px`);
+      });
+    };
+
+    const resetScroll = () => {
+      if (window.scrollX !== 0 || window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+        root.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    };
+
+    applyViewportHeight();
+    resetScroll();
+    window.addEventListener("resize", applyViewportHeight, { passive: true });
+    window.addEventListener("orientationchange", applyViewportHeight, { passive: true });
+    window.visualViewport?.addEventListener("resize", applyViewportHeight, { passive: true });
+    window.addEventListener("scroll", resetScroll, { passive: true });
+    document.addEventListener("scroll", resetScroll, { passive: true, capture: true });
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", applyViewportHeight);
+      window.removeEventListener("orientationchange", applyViewportHeight);
+      window.visualViewport?.removeEventListener("resize", applyViewportHeight);
+      window.removeEventListener("scroll", resetScroll);
+      document.removeEventListener("scroll", resetScroll, { capture: true });
+    };
   }, []);
 
   const handleBootReady = useCallback(() => setBootReady(true), []);
