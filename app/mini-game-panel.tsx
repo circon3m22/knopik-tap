@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useDialogA11y } from "./use-dialog-a11y";
 import {
   MINE_MULTIPLIERS,
   SLOT_SYMBOL_LABELS,
@@ -181,10 +182,14 @@ export function MiniGamePanel({
 
   const finished = slotPhase === "result" || minePhase === "lost" || minePhase === "cashed";
   const canClose = !committedRef.current || finished;
+  const panelRef = useRef<HTMLElement | null>(null);
+  useDialogA11y(true, panelRef, () => {
+    if (canClose) onClose();
+  });
 
   return (
     <div className={`mini-game-backdrop mini-${kind}`}>
-      <section className="mini-game-panel" role="dialog" aria-modal="true" aria-labelledby="mini-game-title">
+      <section className="mini-game-panel" role="dialog" aria-modal="true" aria-labelledby="mini-game-title" ref={panelRef} tabIndex={-1}>
         <div className="mini-game-topline">
           <span className={`drink-icon ${kind === "slots" ? "drink-cola" : "drink-tea"}`} aria-hidden="true"><i /></span>
           <div>
@@ -215,7 +220,7 @@ export function MiniGamePanel({
 
         {kind === "slots" ? (
           <>
-            <div className={`slot-machine ${slotPhase === "spinning" ? "is-spinning" : ""} ${slotPhase === "result" && slotOutcome?.payout ? "is-winner" : ""}`} aria-label={`Барабаны: ${slotReels.map((symbol) => SLOT_SYMBOL_LABELS[symbol]).join(", ")}`}>
+            <div className={`slot-machine ${slotPhase === "spinning" ? "is-spinning" : ""} ${slotPhase === "result" && slotOutcome?.payout ? "is-winner" : ""}`} role="group" aria-label={`Барабаны: ${slotReels.map((symbol) => SLOT_SYMBOL_LABELS[symbol]).join(", ")}`}>
               <div className="slot-payline" aria-hidden="true" />
               {reelAngles.map((angle, reelIndex) => (
                 <div className="slot-reel-window" key={reelIndex}>
@@ -261,12 +266,12 @@ export function MiniGamePanel({
               <span><small>СЕЙЧАС</small><strong>×{mineRound ? MINE_MULTIPLIERS[mineRound - 1] : "1.00"}</strong></span>
               <span><small>ДАЛЬШЕ</small><strong>×{mineNextMultiplier}</strong></span>
             </div>
-            <div className="mine-round-track" aria-label={`Пройдено раундов: ${mineRound} из ${MINE_MULTIPLIERS.length}`}>
+            <div className="mine-round-track" role="group" aria-label={`Пройдено раундов: ${mineRound} из ${MINE_MULTIPLIERS.length}`}>
               {MINE_MULTIPLIERS.map((_, index) => (
                 <i className={index < mineRound ? "is-complete" : index === mineRound ? "is-current" : ""} key={index} />
               ))}
             </div>
-            <div className={`mine-grid phase-${minePhase}`} aria-label="Пять закрытых кнопок">
+            <div className={`mine-grid phase-${minePhase}`} role="group" aria-label="Пять закрытых кнопок">
               {mineTiles.map((tile, index) => (
                 <button
                   className={`mine-tile is-${tile}`}

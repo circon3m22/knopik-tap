@@ -469,7 +469,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
   if (authLoading) {
     return (
       <main className="auth-screen">
-        <div className="auth-loader" aria-label="Загрузка профиля" />
+        <div className="auth-loader" role="status" aria-label="Загрузка профиля" />
       </main>
     );
   }
