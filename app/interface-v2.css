@@ -1333,10 +1333,10 @@ button {
   border-radius: 30px 30px 0 0;
 }
 .cases-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.cases-heading h2 { margin: 2px 0 0; color: var(--ui-ink); font-size: 30px; letter-spacing: -.04em; }
+.cases-heading h2 { margin: 2px 0 0; color: var(--ui-ink); font-size: 30px; font-weight: 900; letter-spacing: -.04em; }
 .cases-heading p { margin: 0; }
 .cases-heading > span { display: grid; min-width: 94px; padding: 9px 13px; border-radius: 17px; color: #fff; background: var(--ui-blue); text-align: right; }
-.cases-heading > span strong { font-size: 20px; line-height: 1; }
+.cases-heading > span strong { font-size: 20px; font-weight: 880; line-height: 1; }
 .cases-heading > span small { margin-top: 3px; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .case-list { display: grid; gap: 11px; }
 .case-card {
@@ -1351,7 +1351,7 @@ button {
 }
 .case-card > div:nth-child(2) { min-width: 0; align-self: center; }
 .case-card small { color: var(--ui-blue); font-size: 8px; font-weight: 850; letter-spacing: .07em; }
-.case-card h3 { margin: 3px 0 4px; color: var(--ui-ink); font-size: 18px; }
+.case-card h3 { margin: 3px 0 4px; color: var(--ui-ink); font-size: 18px; font-weight: 900; }
 .case-card p { margin: 0; color: var(--ui-muted); font-size: 11px; line-height: 1.35; }
 .case-card > button { min-height: 44px; grid-column: 1 / -1; border: 0; border-radius: 14px; color: #fff; background: var(--ui-blue); font-size: 12px; font-weight: 820; }
 .case-card > button:disabled { color: var(--ui-subtle); background: #e9eef2; }
@@ -1359,7 +1359,7 @@ button {
 .case-big-card .case-miniature { background: linear-gradient(145deg, #ffe77b, #f18d17); }
 .case-miniature::before { width: 55px; height: 43px; border: 3px solid rgb(255 255 255 / 75%); border-radius: 8px; background: rgb(0 51 105 / 25%); content: ""; }
 .case-miniature i { position: absolute; top: 19px; width: 62px; height: 13px; border-radius: 5px; background: rgb(255 255 255 / 82%); box-shadow: 0 4px 7px rgb(0 0 0 / 15%); }
-.case-miniature b { position: absolute; color: #fff; font-size: 19px; text-shadow: 0 2px 4px rgb(0 0 0 / 24%); }
+.case-miniature b { position: absolute; color: #fff; font-size: 19px; font-weight: 900; text-shadow: 0 2px 4px rgb(0 0 0 / 24%); }
 .case-quest-card { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--ui-line); border-radius: 19px; background: #eaf0f4; }
 .case-quest-card > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px; color: #fff; background: var(--ui-blue); font-weight: 900; }
 .case-quest-card div { min-width: 0; }
@@ -1391,7 +1391,7 @@ button {
 .phase-burst .case-burst-particles i { animation: case-particle 620ms ease-out both; }
 .case-reward-screen { display: grid; width: min(100%, 520px); place-items: center; border: 0; color: #fff; background: transparent; text-align: center; }
 .case-reward-screen small { font-size: 11px; font-weight: 850; letter-spacing: .12em; }
-.case-reward-screen h2 { max-width: 90%; margin: 18px 0 8px; color: #fff; font-size: clamp(28px, 9vw, 44px); letter-spacing: -.045em; }
+.case-reward-screen h2 { max-width: 90%; margin: 18px 0 8px; color: #fff; font-size: clamp(28px, 9vw, 44px); font-weight: 880; letter-spacing: -.045em; }
 .case-reward-screen p { margin: 0; color: rgb(255 255 255 / 73%); font-size: 13px; }
 .case-reward-icon { display: grid; width: 140px; height: 140px; margin-top: 24px; place-items: center; border: 7px solid rgb(255 255 255 / 74%); border-radius: 38px; background: linear-gradient(145deg, #fff2a1, #ffab13); box-shadow: 0 24px 48px rgb(0 0 0 / 27%), inset 0 4px 0 rgb(255 255 255 / 58%); font-size: 61px; font-weight: 950; animation: case-reward-in 480ms cubic-bezier(.16,1.2,.3,1) both; }
 
@@ -1542,7 +1542,7 @@ button {
 .fatigue-countdown-ring circle {
   fill: none;
   stroke: #ffffff;
-  stroke-width: 4.5;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 100;
   transition: stroke-dashoffset 900ms linear;
@@ -1893,4 +1893,274 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .boot-splash { display: none !important; }
   .boot-content.is-revealed { animation: none !important; }
+}
+
+/* ==========================================================================
+   Минималистичный пасс — принципы набора better-* (jakubkrehel/skills)
+   Плоские поверхности вместо «стекла», один акцент, меньше декора.
+   Игровая обратная связь (частицы, ультра-тап, выигрыши) сохранена.
+   ========================================================================== */
+
+/* better-typography: сглаживание шрифта на корне, аккуратные переносы */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.sheet-heading h2,
+.tutorial-sheet h2,
+.cases-heading h2,
+.case-card h3,
+.case-reward-screen h2,
+.food-copy h3,
+.mini-game-topline h2,
+.shop-showcase-card .food-copy h3 {
+  text-wrap: balance;
+}
+
+.food-copy p,
+.case-card p,
+.case-hint,
+.tutorial-sheet > p:not(.sheet-kicker),
+.mine-hint,
+.mini-stats,
+.shop-showcase-card .food-copy p {
+  text-wrap: pretty;
+}
+
+.quest-strip > b,
+.case-quest-card > b,
+.cases-heading > span strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* better-colors: плоский фон сцены и экрана входа, без декоративных градиентов */
+.game-shell {
+  background-image: none;
+}
+.game-shell::before {
+  display: none;
+}
+.game-shell.risk-mode {
+  background-image: none;
+}
+.game-shell.risk-mode::before {
+  display: none;
+}
+.auth-screen {
+  background: #f3f7fa;
+}
+
+/* better-ui: убираем «стекло» (blur/saturate) и хром-блики со всех поверхностей */
+.mood-chip,
+.account-shortcut,
+.quest-strip,
+.game-shell .level-strip,
+.game-shell .boost-row .inventory-item,
+.game-shell .boost-row .buff-icon-image,
+.saved-balance,
+.bottom-bar,
+.feed-control,
+.quick-save-button,
+.risk-strip,
+.risk-bet-control,
+.auth-card,
+.modal-backdrop,
+.mini-game-backdrop,
+.shop-product-grid .shop-product-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Глубина остаётся только у «плавающих» слоёв: нижняя панель и шиты */
+.bottom-bar,
+.state-tired .bottom-bar,
+.state-warning .bottom-bar,
+.state-recovering.has-fatigue .bottom-bar {
+  background: rgb(250 252 254 / 92%);
+  box-shadow: 0 10px 26px rgb(18 43 62 / 10%);
+}
+.nav-thumb {
+  box-shadow: none;
+}
+
+.level-strip,
+.game-shell .level-strip,
+.saved-balance,
+.quick-save-button,
+.feed-control,
+.risk-strip,
+.risk-bet-control,
+.game-shell .boost-row .inventory-item,
+.game-shell.state-calm.pale-calm .boost-row .inventory-item,
+.game-shell.state-tired .boost-row .inventory-item,
+.game-shell.state-warning .boost-row .inventory-item,
+.game-shell.state-recovering.has-fatigue .boost-row .inventory-item,
+.game-shell .boost-row .buff-icon-image,
+.game-shell .level-track,
+.game-shell .level-track > span {
+  box-shadow: none;
+}
+.game-shell.state-calm.pale-calm .boost-row .inventory-item,
+.game-shell.state-tired .boost-row .inventory-item,
+.game-shell.state-warning .boost-row .inventory-item,
+.game-shell.state-recovering.has-fatigue .boost-row .inventory-item {
+  background: var(--adaptive-surface);
+}
+.state-calm.pale-calm .level-strip,
+.state-calm.pale-calm .saved-balance,
+.state-calm.pale-calm .bottom-bar {
+  box-shadow: 0 8px 20px rgb(32 62 91 / 6%);
+}
+/* Пульсация «быстрой покупки» — лишнее движение, цена и так видна */
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  animation: none;
+}
+.game-shell .boost-row .inventory-count.is-price {
+  background: #f2b820;
+  box-shadow: none;
+}
+
+.sheet,
+.tutorial-sheet {
+  background: #f6f8fa;
+  box-shadow: 0 -14px 44px rgb(10 30 46 / 14%);
+}
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet {
+  background: #f6f8fa;
+}
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-wallet {
+  background: var(--ui-blue);
+}
+.mini-game-panel {
+  box-shadow: 0 24px 60px rgb(0 0 0 / 30%);
+}
+.slot-machine {
+  box-shadow: 0 14px 28px rgb(0 0 0 / 22%);
+}
+.slot-machine::before,
+.slot-machine::after {
+  box-shadow: none;
+}
+
+/* better-colors: кнопки плоские, без цветных свечений — один акцент */
+.primary-button,
+.mini-primary,
+.shop-buy-button,
+.shop-card > .shop-buy-button,
+.clothing-actions .clothing-upgrade-button,
+.settings-sheet .password-form button,
+.settings-sheet .promo-form button,
+.settings-sheet .cheat-row label button,
+.settings-sheet .difficulty-save,
+.quest-strip > button,
+.feed-control button,
+.case-card > button,
+.case-card-actions button,
+.case-quest-card > button {
+  box-shadow: none;
+}
+.shop-buy-button.hat-action,
+.shop-buy-button.drink-action {
+  box-shadow: none !important;
+}
+.shop-product-card > .shop-buy-button {
+  box-shadow: none !important;
+}
+
+/* Карточки: структура через тонкую границу, без теней */
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card,
+.case-card,
+.settings-sheet .account-settings,
+.settings-sheet .setting-row,
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row,
+.settings-sheet .settings-action,
+.settings-sheet .reset-confirm,
+.settings-sheet .stats-line {
+  box-shadow: none;
+}
+.shop-product-grid .shop-product-card {
+  border-color: var(--ui-line);
+  background: #fff;
+}
+.case-quest-card {
+  background: #fff;
+}
+
+/* better-ui: плоская витрина магазина вместо 3D-карусели (если используется) */
+.shop-showcase-carousel {
+  perspective: none;
+}
+.shop-showcase-carousel .shop-showcase-card {
+  border-color: var(--ui-line);
+  background: #fff;
+  box-shadow: 0 14px 30px rgb(22 48 69 / 8%);
+}
+.shop-showcase-card::before,
+.shop-showcase-card::after {
+  display: none;
+}
+.shop-showcase-card.is-before {
+  transform: translateX(-12px) scale(.94);
+}
+.shop-showcase-card.is-after {
+  transform: translateX(12px) scale(.94);
+}
+.shop-showcase-card.is-active {
+  transform: scale(1);
+}
+.shop-showcase-card > .food-pack,
+.shop-showcase-card > .drink-pack,
+.shop-showcase-card > .hat-preview,
+.shop-showcase-card > .mohawk-preview {
+  filter: none;
+  transform: none;
+}
+.shop-showcase-controls button {
+  border-color: var(--ui-line);
+  background: #fff;
+  box-shadow: none;
+}
+
+/* Плоские плитки: убираем блики и градиенты-подложки там, где это безопасно */
+.food-pack,
+.drink-pack,
+.hat-preview,
+.case-miniature,
+.coin-mark {
+  box-shadow: none;
+}
+.case-miniature {
+  background: #1478ed;
+}
+.case-big-card .case-miniature {
+  background: #f0a92e;
+}
+
+/* Убираем лишние свечения, оставляем мягкие */
+.fatigue-countdown-ring {
+  filter: drop-shadow(0 0 6px rgb(255 255 255 / 50%));
+}
+.risk-scale-values span.selected {
+  filter: none;
+}
+.portrait-surface {
+  box-shadow: 0 14px 30px rgb(0 0 0 / 14%);
+}
+.boost-row .inventory-item::after {
+  display: none;
+}
+
+/* better-accessibility: движение отключается по предпочтению системы */
+@media (prefers-reduced-motion: reduce) {
+  .game-shell *,
+  .game-shell *::before,
+  .game-shell *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }
