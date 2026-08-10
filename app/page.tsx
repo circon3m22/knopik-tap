@@ -460,6 +460,7 @@ function KnopikGame({
   const shopSheetRef = useRef<HTMLElement | null>(null);
   const casesSheetRef = useRef<HTMLElement | null>(null);
   const settingsSheetRef = useRef<HTMLElement | null>(null);
+  const shellRef = useRef<HTMLElement | null>(null);
   const caseOpeningRef = useRef<HTMLDivElement | null>(null);
   const earTapStateRef = useRef({
     left: { count: 0, lastAt: 0 },
@@ -724,6 +725,22 @@ function KnopikGame({
     settingsRef.current = settings;
     soundRef.current?.setEnabled(settings.sound);
   }, [settings]);
+
+  // Страховка нижнего меню: шелл никогда не должен прокручиваться
+  // (overflow:hidden всё равно позволяет браузеру задать scrollTop,
+  // например при автофокусе — из-за этого меню «уезжало наверх»).
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return undefined;
+    const pinToTop = () => {
+      if (shell.scrollTop !== 0 || shell.scrollLeft !== 0) {
+        shell.scrollTo(0, 0);
+      }
+    };
+    pinToTop();
+    shell.addEventListener("scroll", pinToTop, { passive: true });
+    return () => shell.removeEventListener("scroll", pinToTop);
+  }, []);
 
   useEffect(() => {
     const normalized = clampDifficulty(difficulty);
@@ -3047,6 +3064,7 @@ function KnopikGame({
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}
+      ref={shellRef}
       onPointerDownCapture={handleInterfacePress}
     >
       <div
@@ -3097,29 +3115,34 @@ function KnopikGame({
       <header className="app-header" inert={contentInert ? true : undefined}>
         <div className="top-bar">
           <button
-              className="header-pill header-avatar"
-              type="button"
-              aria-label={`Открыть настройки аккаунта ${account.username}`}
-              onClick={() => {
-                setShopOpen(false);
-                setCasesOpen(false);
-                setSettingsOpen(true);
-                setDifficultyDraft(clampDifficulty(difficulty));
-              }}
+            className="header-pill header-avatar header-settings-button"
+            type="button"
+            aria-label={`Открыть настройки аккаунта ${account.username}`}
+            title={`Настройки (${account.username})`}
+            onClick={() => {
+              setShopOpen(false);
+              setCasesOpen(false);
+              setSettingsOpen(true);
+              setDifficultyDraft(clampDifficulty(difficulty));
+            }}
+          >
+            <svg
+              className="header-settings-gear"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              <span className="header-avatar-glyph" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
-              <span className="header-avatar-meta">
-                <small>АККАУНТ</small>
-                <strong>{account.username}</strong>
-              </span>
+              <circle cx="12" cy="12" r="3.2" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.24.6.83 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
           </button>
           <div className="wordmark brand-lockup" aria-hidden="true"><h1>KNOPIK</h1></div>
-          <div className="header-pill header-mood" role="group" aria-label={`Статус Кнопика: ${moodLabel}`}>
+          <div className="header-mood" role="img" aria-label={`Статус Кнопика: ${moodLabel}`}>
             <span className={`mood-indicator mood-${dogState}`} aria-hidden="true"><i /></span>
-            <span className="header-mood-meta">
-              <small>НАСТРОЕНИЕ</small>
-              <strong>{moodLabel}</strong>
-            </span>
           </div>
         </div>
         {!riskMode ? (
@@ -3539,7 +3562,7 @@ function KnopikGame({
             onKeyDown={handleBankKeyDown}
             tabIndex={canSave ? 0 : -1}
             data-drag-progress={bankDragProgress.toFixed(3)}
-            style={{ "--drag-progress": bankDragProgress } as any}
+            style={{ "--drag-progress": bankDragProgress } as CSSProperties}
           >
             {/* Заполнение фона показывает прогресс свайпа */}
             <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
