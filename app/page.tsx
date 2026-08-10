@@ -2432,32 +2432,57 @@ function KnopikGame({
     const tiredNow =
       dogStateRef.current === "tired" ||
       (dogStateRef.current === "recovering" && fatigueUntilRef.current > Date.now());
-    if (!tiredNow || coinsRef.current.walletCoins < DOG_FOOD_PRICE) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
-    clearRoundTimers();
-    fatigueUntilRef.current = 0;
-    setFatigueUntil(0);
-    setRiskFatigueUntil(0);
-    setClock(Date.now());
-    setRecoveryReason("rest");
-    resetSeries();
-    transitionTo("calm");
-    getSound().purchase();
-    vibrate([16, 22, 38], settingsRef.current.vibration);
+    if (tiredNow && coinsRef.current.walletCoins >= DOG_FOOD_PRICE) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
+      clearRoundTimers();
+      fatigueUntilRef.current = 0;
+      setFatigueUntil(0);
+      setRiskFatigueUntil(0);
+      setClock(Date.now());
+      setRecoveryReason("rest");
+      resetSeries();
+      transitionTo("calm");
+      getSound().purchase();
+      vibrate([16, 22, 38], settingsRef.current.vibration);
+      return;
+    }
+    // Если нет корма и не получается быстро купить — открываем магазин, чтобы не выглядело сломанным
+    setShopOpen(true);
+    setShopCategory("food");
+    setCasesOpen(false);
+    setSettingsOpen(false);
+    getSound().uiPress();
   }, [clearRoundTimers, feedDog, foodCount, getSound, resetSeries, transitionTo, updateCoins]);
 
   const handleDrinkItem = useCallback(() => {
+    if (riskPhaseRef.current !== "normal") {
+      if (coinsRef.current.walletCoins < ZHIVCHIK_PRICE && drinkCount === 0) {
+        setShopOpen(true);
+        setShopCategory("food");
+        setCasesOpen(false);
+        setSettingsOpen(false);
+        getSound().uiPress();
+      }
+      return;
+    }
     if (drinkCount > 0) {
       activateDrink();
       return;
     }
-    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < ZHIVCHIK_PRICE) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
-    const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
-    boostUntilRef.current = nextBoostUntil;
-    setBoostUntil(nextBoostUntil);
-    getSound().purchase();
-    vibrate([14, 20, 34], settingsRef.current.vibration);
+    if (coinsRef.current.walletCoins >= ZHIVCHIK_PRICE) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
+      const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
+      boostUntilRef.current = nextBoostUntil;
+      setBoostUntil(nextBoostUntil);
+      getSound().purchase();
+      vibrate([14, 20, 34], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
+    setCasesOpen(false);
+    setSettingsOpen(false);
+    getSound().uiPress();
   }, [activateDrink, drinkCount, getSound, updateCoins]);
 
   const handlePitbullItem = useCallback(() => {
@@ -2467,23 +2492,30 @@ function KnopikGame({
     }
     const remainingCoins = coinsRef.current.walletCoins - PITBULL_PRICE;
     if (
-      remainingCoins < 1 ||
-      riskPhaseRef.current !== "normal" ||
-      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
-      dogStateRef.current !== "calm"
-    ) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
-    setShopOpen(false);
+      remainingCoins >= 1 &&
+      riskPhaseRef.current === "normal" &&
+      (settingsRef.current.yellow || fatigueUntilRef.current <= Date.now()) &&
+      dogStateRef.current === "calm"
+    ) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
+      setShopOpen(false);
+      setCasesOpen(false);
+      setSettingsOpen(false);
+      riskCommittedRef.current = false;
+      setRiskBetAmount(remainingCoins);
+      setRiskResult(null);
+      setRiskPayout(0);
+      setRiskRotation(0);
+      transitionRisk("selecting");
+      getSound().purchase();
+      vibrate([16, 24, 34], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
     setCasesOpen(false);
     setSettingsOpen(false);
-    riskCommittedRef.current = false;
-    setRiskBetAmount(remainingCoins);
-    setRiskResult(null);
-    setRiskPayout(0);
-    setRiskRotation(0);
-    transitionRisk("selecting");
-    getSound().purchase();
-    vibrate([16, 24, 34], settingsRef.current.vibration);
+    getSound().uiPress();
   }, [activatePitbull, getSound, pitbullCount, transitionRisk, updateCoins]);
 
   const handleMiniGameItem = useCallback((kind: MiniGameKind) => {
@@ -2494,22 +2526,29 @@ function KnopikGame({
     }
     const price = kind === "slots" ? COCOA_COLA_PRICE : BERGAMOT_TEA_PRICE;
     if (
-      coinsRef.current.walletCoins - price < 1 ||
-      miniGame !== null ||
-      riskPhaseRef.current !== "normal" ||
-      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
-      dogStateRef.current !== "calm"
-    ) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
-    if (kind === "slots") setColaCount(1);
-    else setTeaCount(1);
-    setShopOpen(false);
+      coinsRef.current.walletCoins - price >= 1 &&
+      miniGame === null &&
+      riskPhaseRef.current === "normal" &&
+      (settingsRef.current.yellow || fatigueUntilRef.current <= Date.now()) &&
+      dogStateRef.current === "calm"
+    ) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
+      if (kind === "slots") setColaCount(1);
+      else setTeaCount(1);
+      setShopOpen(false);
+      setCasesOpen(false);
+      setSettingsOpen(false);
+      setMiniGameSession((current) => current + 1);
+      setMiniGame(kind);
+      getSound().purchase();
+      vibrate([16, 24, 34], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
     setCasesOpen(false);
     setSettingsOpen(false);
-    setMiniGameSession((current) => current + 1);
-    setMiniGame(kind);
-    getSound().purchase();
-    vibrate([16, 24, 34], settingsRef.current.vibration);
+    getSound().uiPress();
   }, [colaCount, getSound, miniGame, openMiniGame, teaCount, updateCoins]);
 
   const handleVitaPowerItem = useCallback(() => {
@@ -2518,11 +2557,18 @@ function KnopikGame({
       activateVitaPower();
       return;
     }
-    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < VITA_POWER_PRICE) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - VITA_POWER_PRICE }));
-    setVitaPowerShield(true);
-    getSound().purchase();
-    vibrate([20, 24, 48, 20], settingsRef.current.vibration);
+    if (riskPhaseRef.current === "normal" && coinsRef.current.walletCoins >= VITA_POWER_PRICE) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - VITA_POWER_PRICE }));
+      setVitaPowerShield(true);
+      getSound().purchase();
+      vibrate([20, 24, 48, 20], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
+    setCasesOpen(false);
+    setSettingsOpen(false);
+    getSound().uiPress();
   }, [activateVitaPower, getSound, updateCoins, vitaPowerCount, vitaPowerShield]);
 
   const finishTutorial = useCallback(() => {
@@ -2782,11 +2828,10 @@ function KnopikGame({
     settingsOpen ||
     miniGame !== null ||
     caseSequence !== null;
-  // Нижняя навигация остаётся активной в магазине и кейсах (persistent nav),
-  // блокируется только когда открыт туториал, настройки, мини-игра или открытие кейса
+  // Нижняя навигация остаётся активной в магазине, кейсах и настройках (persistent nav),
+  // блокируется только когда открыт туториал, мини-игра или открытие кейса
   const navInert =
     tutorialOpen ||
-    settingsOpen ||
     miniGame !== null ||
     caseSequence !== null;
   // Для внешних слоёв, где нужна полная блокировка фона
@@ -3163,7 +3208,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${foodCount === 0 && canQuickBuyFood ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={!canFeedDog && !canQuickBuyFood}
+            disabled={miniGame !== null}
             aria-label={`Корм: ${foodCount} шт.${canQuickBuyFood ? ` (купить за ${DOG_FOOD_PRICE})` : ""}`}
             title="Корм"
             onClick={handleFoodItem}
@@ -3178,7 +3223,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${vitaPowerShield ? "is-active" : ""} ${vitaPowerCount === 0 && canQuickBuyVitaPower ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower)}
+            disabled={vitaPowerShield || miniGame !== null}
             aria-label={`Пепси (щит): ${vitaPowerShield ? "активен" : `${vitaPowerCount} шт.`}${canQuickBuyVitaPower ? ` (купить за ${VITA_POWER_PRICE})` : ""}`}
             title="Пепси"
             onClick={handleVitaPowerItem}
@@ -3193,7 +3238,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${boostSeconds > 0 ? "is-active" : drinkCount === 0 && canQuickBuyDrink ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(drinkCount < 1 && !canQuickBuyDrink && boostSeconds === 0) || riskMode}
+            disabled={riskMode || miniGame !== null}
             aria-label={`Живчик ×4: ${boostSeconds > 0 ? `${boostSeconds} сек.` : `${drinkCount} шт.`}${canQuickBuyDrink ? ` (купить за ${ZHIVCHIK_PRICE})` : ""}`}
             title="Живчик"
             onClick={handleDrinkItem}
@@ -3208,7 +3253,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${pitbullCount === 0 && canQuickBuyPitbull ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"}
+            disabled={riskMode || dogState !== "calm" || miniGame !== null}
             aria-label={`Питбуль (рулетка): ${pitbullCount} шт.${canQuickBuyPitbull ? ` (купить за ${PITBULL_PRICE})` : ""}`}
             title="Питбуль"
             onClick={handlePitbullItem}
@@ -3223,7 +3268,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${colaCount === 0 && canQuickBuyCola ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null}
+            disabled={riskMode || dogState !== "calm" || miniGame !== null}
             aria-label={`Какао-Кола (слоты): ${colaCount} шт.${canQuickBuyCola ? ` (купить за ${COCOA_COLA_PRICE})` : ""}`}
             title="Какао-Кола"
             onClick={() => handleMiniGameItem("slots")}
@@ -3238,7 +3283,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${teaCount === 0 && canQuickBuyTea ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null}
+            disabled={riskMode || dogState !== "calm" || miniGame !== null}
             aria-label={`Чай с бергамотом (5 кнопок): ${teaCount} шт.${canQuickBuyTea ? ` (купить за ${BERGAMOT_TEA_PRICE})` : ""}`}
             title="Бергамот"
             onClick={() => handleMiniGameItem("mines")}
@@ -3494,6 +3539,7 @@ function KnopikGame({
             onKeyDown={handleBankKeyDown}
             tabIndex={canSave ? 0 : -1}
             data-drag-progress={bankDragProgress.toFixed(3)}
+            style={{ "--drag-progress": bankDragProgress } as any}
           >
             {/* Заполнение фона показывает прогресс свайпа */}
             <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
