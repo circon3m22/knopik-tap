@@ -361,10 +361,11 @@ function KnopikGame({
   const [hatBounce, setHatBounce] = useState(0);
   const [mohawkSwing, setMohawkSwing] = useState(0);
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
-  const [saveSwipeRatio, setSaveSwipeRatio] = useState(0);
-  const [isSavingSwipe, setIsSavingSwipe] = useState(false);
-  const swipeTrackRef = useRef<HTMLButtonElement | null>(null);
-  const swipeStartRef = useRef<{ clientX: number; trackWidth: number }>({ clientX: 0, trackWidth: 0 });
+  const [bankDragProgress, setBankDragProgress] = useState(0);
+  const [isBankDragging, setIsBankDragging] = useState(false);
+  const bankPlateRef = useRef<HTMLDivElement | null>(null);
+  const bankStartXRef = useRef(0);
+  const bankDraggingRef = useRef(false);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
   const [riskBetAmount, setRiskBetAmount] = useState(0);
@@ -2431,32 +2432,57 @@ function KnopikGame({
     const tiredNow =
       dogStateRef.current === "tired" ||
       (dogStateRef.current === "recovering" && fatigueUntilRef.current > Date.now());
-    if (!tiredNow || coinsRef.current.walletCoins < DOG_FOOD_PRICE) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
-    clearRoundTimers();
-    fatigueUntilRef.current = 0;
-    setFatigueUntil(0);
-    setRiskFatigueUntil(0);
-    setClock(Date.now());
-    setRecoveryReason("rest");
-    resetSeries();
-    transitionTo("calm");
-    getSound().purchase();
-    vibrate([16, 22, 38], settingsRef.current.vibration);
+    if (tiredNow && coinsRef.current.walletCoins >= DOG_FOOD_PRICE) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
+      clearRoundTimers();
+      fatigueUntilRef.current = 0;
+      setFatigueUntil(0);
+      setRiskFatigueUntil(0);
+      setClock(Date.now());
+      setRecoveryReason("rest");
+      resetSeries();
+      transitionTo("calm");
+      getSound().purchase();
+      vibrate([16, 22, 38], settingsRef.current.vibration);
+      return;
+    }
+    // Если нет корма и не получается быстро купить — открываем магазин, чтобы не выглядело сломанным
+    setShopOpen(true);
+    setShopCategory("food");
+    setCasesOpen(false);
+    setSettingsOpen(false);
+    getSound().uiPress();
   }, [clearRoundTimers, feedDog, foodCount, getSound, resetSeries, transitionTo, updateCoins]);
 
   const handleDrinkItem = useCallback(() => {
+    if (riskPhaseRef.current !== "normal") {
+      if (coinsRef.current.walletCoins < ZHIVCHIK_PRICE && drinkCount === 0) {
+        setShopOpen(true);
+        setShopCategory("food");
+        setCasesOpen(false);
+        setSettingsOpen(false);
+        getSound().uiPress();
+      }
+      return;
+    }
     if (drinkCount > 0) {
       activateDrink();
       return;
     }
-    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < ZHIVCHIK_PRICE) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
-    const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
-    boostUntilRef.current = nextBoostUntil;
-    setBoostUntil(nextBoostUntil);
-    getSound().purchase();
-    vibrate([14, 20, 34], settingsRef.current.vibration);
+    if (coinsRef.current.walletCoins >= ZHIVCHIK_PRICE) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
+      const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
+      boostUntilRef.current = nextBoostUntil;
+      setBoostUntil(nextBoostUntil);
+      getSound().purchase();
+      vibrate([14, 20, 34], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
+    setCasesOpen(false);
+    setSettingsOpen(false);
+    getSound().uiPress();
   }, [activateDrink, drinkCount, getSound, updateCoins]);
 
   const handlePitbullItem = useCallback(() => {
@@ -2466,23 +2492,30 @@ function KnopikGame({
     }
     const remainingCoins = coinsRef.current.walletCoins - PITBULL_PRICE;
     if (
-      remainingCoins < 1 ||
-      riskPhaseRef.current !== "normal" ||
-      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
-      dogStateRef.current !== "calm"
-    ) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
-    setShopOpen(false);
+      remainingCoins >= 1 &&
+      riskPhaseRef.current === "normal" &&
+      (settingsRef.current.yellow || fatigueUntilRef.current <= Date.now()) &&
+      dogStateRef.current === "calm"
+    ) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
+      setShopOpen(false);
+      setCasesOpen(false);
+      setSettingsOpen(false);
+      riskCommittedRef.current = false;
+      setRiskBetAmount(remainingCoins);
+      setRiskResult(null);
+      setRiskPayout(0);
+      setRiskRotation(0);
+      transitionRisk("selecting");
+      getSound().purchase();
+      vibrate([16, 24, 34], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
     setCasesOpen(false);
     setSettingsOpen(false);
-    riskCommittedRef.current = false;
-    setRiskBetAmount(remainingCoins);
-    setRiskResult(null);
-    setRiskPayout(0);
-    setRiskRotation(0);
-    transitionRisk("selecting");
-    getSound().purchase();
-    vibrate([16, 24, 34], settingsRef.current.vibration);
+    getSound().uiPress();
   }, [activatePitbull, getSound, pitbullCount, transitionRisk, updateCoins]);
 
   const handleMiniGameItem = useCallback((kind: MiniGameKind) => {
@@ -2493,22 +2526,29 @@ function KnopikGame({
     }
     const price = kind === "slots" ? COCOA_COLA_PRICE : BERGAMOT_TEA_PRICE;
     if (
-      coinsRef.current.walletCoins - price < 1 ||
-      miniGame !== null ||
-      riskPhaseRef.current !== "normal" ||
-      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
-      dogStateRef.current !== "calm"
-    ) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
-    if (kind === "slots") setColaCount(1);
-    else setTeaCount(1);
-    setShopOpen(false);
+      coinsRef.current.walletCoins - price >= 1 &&
+      miniGame === null &&
+      riskPhaseRef.current === "normal" &&
+      (settingsRef.current.yellow || fatigueUntilRef.current <= Date.now()) &&
+      dogStateRef.current === "calm"
+    ) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
+      if (kind === "slots") setColaCount(1);
+      else setTeaCount(1);
+      setShopOpen(false);
+      setCasesOpen(false);
+      setSettingsOpen(false);
+      setMiniGameSession((current) => current + 1);
+      setMiniGame(kind);
+      getSound().purchase();
+      vibrate([16, 24, 34], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
     setCasesOpen(false);
     setSettingsOpen(false);
-    setMiniGameSession((current) => current + 1);
-    setMiniGame(kind);
-    getSound().purchase();
-    vibrate([16, 24, 34], settingsRef.current.vibration);
+    getSound().uiPress();
   }, [colaCount, getSound, miniGame, openMiniGame, teaCount, updateCoins]);
 
   const handleVitaPowerItem = useCallback(() => {
@@ -2517,11 +2557,18 @@ function KnopikGame({
       activateVitaPower();
       return;
     }
-    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < VITA_POWER_PRICE) return;
-    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - VITA_POWER_PRICE }));
-    setVitaPowerShield(true);
-    getSound().purchase();
-    vibrate([20, 24, 48, 20], settingsRef.current.vibration);
+    if (riskPhaseRef.current === "normal" && coinsRef.current.walletCoins >= VITA_POWER_PRICE) {
+      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - VITA_POWER_PRICE }));
+      setVitaPowerShield(true);
+      getSound().purchase();
+      vibrate([20, 24, 48, 20], settingsRef.current.vibration);
+      return;
+    }
+    setShopOpen(true);
+    setShopCategory("food");
+    setCasesOpen(false);
+    setSettingsOpen(false);
+    getSound().uiPress();
   }, [activateVitaPower, getSound, updateCoins, vitaPowerCount, vitaPowerShield]);
 
   const finishTutorial = useCallback(() => {
@@ -2646,54 +2693,88 @@ function KnopikGame({
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
   const canBuyMohawk = mohawkOwned || coins.walletCoins >= MOHAWK_PRICE;
 
-  const handleSaveSwipeStart = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!canSave || event.button !== 0) return;
-      const track = swipeTrackRef.current;
-      if (!track) return;
-      const rect = track.getBoundingClientRect();
-      swipeStartRef.current = { clientX: event.clientX, trackWidth: rect.width };
-      setIsSavingSwipe(true);
-      setSaveSwipeRatio(0);
-      event.currentTarget.setPointerCapture(event.pointerId);
+  // === New swipe-to-save: свайп от активного баланса к сейфу ===
+  const handleBankPointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!canSave) return;
+      // Только основная кнопка мыши / один палец
+      if (event.button !== 0) return;
+      const plate = bankPlateRef.current;
+      if (!plate) return;
+      bankStartXRef.current = event.clientX;
+      bankDraggingRef.current = true;
+      setIsBankDragging(true);
+      setBankDragProgress(0);
+      try {
+        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      } catch {}
     },
     [canSave],
   );
 
-  const handleSaveSwipeMove = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!isSavingSwipe) return;
-      const deltaX = event.clientX - swipeStartRef.current.clientX;
-      const maxTravel = Math.max(1, swipeStartRef.current.trackWidth - 36);
-      const ratio = Math.max(0, Math.min(1, deltaX / maxTravel));
-      setSaveSwipeRatio(ratio);
-
-      if (ratio >= 0.75) {
-        setIsSavingSwipe(false);
-        setSaveSwipeRatio(0);
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
+  const handleBankPointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!bankDraggingRef.current) return;
+      const plate = bankPlateRef.current;
+      if (!plate) return;
+      const delta = event.clientX - bankStartXRef.current;
+      // Свайп только вправо имеет смысл (от актива к сейфу)
+      if (delta <= 0) {
+        setBankDragProgress(0);
+        return;
+      }
+      const rect = plate.getBoundingClientRect();
+      // Полная дистанция ~ 45% ширины пластины — достаточно, чтобы случайно не триггерить
+      const threshold = rect.width * 0.46;
+      const progress = Math.min(1, delta / threshold);
+      setBankDragProgress(progress);
+      if (progress >= 0.92) {
+        // Порог достигнут — выполняем сохранение
+        bankDraggingRef.current = false;
+        setIsBankDragging(false);
+        setBankDragProgress(0);
+        try {
+          if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+            (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+          }
+        } catch {}
         saveAllToVault();
       }
     },
-    [isSavingSwipe, saveAllToVault],
+    [saveAllToVault],
   );
 
-  const handleSaveSwipeEnd = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!isSavingSwipe) return;
-      setIsSavingSwipe(false);
-      setSaveSwipeRatio(0);
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
+  const handleBankPointerUp = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!bankDraggingRef.current) return;
+      bankDraggingRef.current = false;
+      setIsBankDragging(false);
+      setBankDragProgress(0);
+      try {
+        if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+        }
+      } catch {}
     },
-    [isSavingSwipe],
+    [],
   );
 
-  const handleSaveSwipeKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleBankPointerCancel = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      bankDraggingRef.current = false;
+      setIsBankDragging(false);
+      setBankDragProgress(0);
+      try {
+        if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+        }
+      } catch {}
+    },
+    [],
+  );
+
+  const handleBankKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
       if ((event.key === "Enter" || event.key === " ") && canSave) {
         event.preventDefault();
         saveAllToVault();
@@ -2739,13 +2820,22 @@ function KnopikGame({
   ) / 100;
   const riskMode = riskPhase !== "normal";
   const navIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
-  const anyModalOpen =
+  // Контент (header + игровое поле) должен быть неактивен, когда открыт любой лист/диалог
+  const contentInert =
     tutorialOpen ||
     shopOpen ||
     casesOpen ||
     settingsOpen ||
     miniGame !== null ||
     caseSequence !== null;
+  // Нижняя навигация остаётся активной в магазине, кейсах и настройках (persistent nav),
+  // блокируется только когда открыт туториал, мини-игра или открытие кейса
+  const navInert =
+    tutorialOpen ||
+    miniGame !== null ||
+    caseSequence !== null;
+  // Для внешних слоёв, где нужна полная блокировка фона
+  const anyModalOpen = contentInert;
   const currentQuest = questIndex < QUESTS.length ? QUESTS[questIndex] : null;
   const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins;
   const questProgress = currentQuest
@@ -3003,8 +3093,8 @@ function KnopikGame({
           </g>
         </svg>
       </div>
-      <div className="game-motion-layer" inert={anyModalOpen}>
-      <header className="app-header">
+      <div className="game-motion-layer">
+      <header className="app-header" inert={contentInert ? true : undefined}>
         <div className="top-bar">
           <button
               className="header-pill header-avatar"
@@ -3107,6 +3197,7 @@ function KnopikGame({
 
       <section
         className="game-stage"
+        inert={contentInert ? true : undefined}
       >
         <div
           className={`top-buff-row ${riskMode || miniGame !== null ? "is-hidden" : ""}`}
@@ -3117,7 +3208,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${foodCount === 0 && canQuickBuyFood ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={!canFeedDog && !canQuickBuyFood}
+            disabled={miniGame !== null}
             aria-label={`Корм: ${foodCount} шт.${canQuickBuyFood ? ` (купить за ${DOG_FOOD_PRICE})` : ""}`}
             title="Корм"
             onClick={handleFoodItem}
@@ -3132,7 +3223,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${vitaPowerShield ? "is-active" : ""} ${vitaPowerCount === 0 && canQuickBuyVitaPower ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower)}
+            disabled={vitaPowerShield || miniGame !== null}
             aria-label={`Пепси (щит): ${vitaPowerShield ? "активен" : `${vitaPowerCount} шт.`}${canQuickBuyVitaPower ? ` (купить за ${VITA_POWER_PRICE})` : ""}`}
             title="Пепси"
             onClick={handleVitaPowerItem}
@@ -3147,7 +3238,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${boostSeconds > 0 ? "is-active" : drinkCount === 0 && canQuickBuyDrink ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(drinkCount < 1 && !canQuickBuyDrink && boostSeconds === 0) || riskMode}
+            disabled={riskMode || miniGame !== null}
             aria-label={`Живчик ×4: ${boostSeconds > 0 ? `${boostSeconds} сек.` : `${drinkCount} шт.`}${canQuickBuyDrink ? ` (купить за ${ZHIVCHIK_PRICE})` : ""}`}
             title="Живчик"
             onClick={handleDrinkItem}
@@ -3162,7 +3253,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${pitbullCount === 0 && canQuickBuyPitbull ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"}
+            disabled={riskMode || dogState !== "calm" || miniGame !== null}
             aria-label={`Питбуль (рулетка): ${pitbullCount} шт.${canQuickBuyPitbull ? ` (купить за ${PITBULL_PRICE})` : ""}`}
             title="Питбуль"
             onClick={handlePitbullItem}
@@ -3177,7 +3268,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${colaCount === 0 && canQuickBuyCola ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null}
+            disabled={riskMode || dogState !== "calm" || miniGame !== null}
             aria-label={`Какао-Кола (слоты): ${colaCount} шт.${canQuickBuyCola ? ` (купить за ${COCOA_COLA_PRICE})` : ""}`}
             title="Какао-Кола"
             onClick={() => handleMiniGameItem("slots")}
@@ -3192,7 +3283,7 @@ function KnopikGame({
           <button
             className={`buff-plate ${teaCount === 0 && canQuickBuyTea ? "is-quick-buy" : ""}`}
             type="button"
-            disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null}
+            disabled={riskMode || dogState !== "calm" || miniGame !== null}
             aria-label={`Чай с бергамотом (5 кнопок): ${teaCount} шт.${canQuickBuyTea ? ` (купить за ${BERGAMOT_TEA_PRICE})` : ""}`}
             title="Бергамот"
             onClick={() => handleMiniGameItem("mines")}
@@ -3437,15 +3528,29 @@ function KnopikGame({
         <div className="game-data">
           {riskMessage && <p className="risk-notice" role="status" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
           <div
-            className={`unified-bank-plate ${canSave ? "can-save" : "is-locked"} ${isSavingSwipe ? "is-swiping" : ""}`}
+            ref={bankPlateRef}
+            className={`unified-bank-plate swipe-plate ${canSave ? "can-save" : "is-locked"} ${isBankDragging ? "is-dragging" : ""}`}
             role="group"
-            aria-label="Баланс и перевод в сейф"
+            aria-label={`Баланс и перевод в сейф — ${coins.walletCoins} активных, ${vaultCoins} в сейфе`}
+            onPointerDown={handleBankPointerDown}
+            onPointerMove={handleBankPointerMove}
+            onPointerUp={handleBankPointerUp}
+            onPointerCancel={handleBankPointerCancel}
+            onKeyDown={handleBankKeyDown}
+            tabIndex={canSave ? 0 : -1}
+            data-drag-progress={bankDragProgress.toFixed(3)}
+            style={{ "--drag-progress": bankDragProgress } as any}
           >
+            {/* Заполнение фона показывает прогресс свайпа */}
+            <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
+            <div className="bank-swipe-glow" aria-hidden="true" style={{ opacity: bankDragProgress }} />
+
             <div
               ref={walletBalanceRef}
               className={`bank-side bank-wallet ${balanceVariant}`}
               role="group"
               aria-label={`Активные монеты ${coins.walletCoins}`}
+              data-side="wallet"
             >
               <span className="bank-glyph bank-glyph-coin" aria-hidden="true"><i>К</i></span>
               <div className="bank-side-text">
@@ -3456,41 +3561,27 @@ function KnopikGame({
               </div>
             </div>
 
-            <button
-              ref={swipeTrackRef}
-              type="button"
-              className="bank-action"
-              disabled={!canSave}
-              onPointerDown={handleSaveSwipeStart}
-              onPointerMove={handleSaveSwipeMove}
-              onPointerUp={handleSaveSwipeEnd}
-              onPointerCancel={handleSaveSwipeEnd}
-              onKeyDown={handleSaveSwipeKeyDown}
-              onClick={() => {
-                if (canSave && !isSavingSwipe) saveAllToVault();
-              }}
-              aria-label={
-                canSave
-                  ? `Свайп или нажатие: сохранить ${saveAmount.toLocaleString("ru-RU")} монет в сейф`
-                  : "Нужно минимум 2 монеты для перевода"
-              }
-            >
-              <span className="bank-action-shine" aria-hidden="true" />
-              <span className="bank-action-fill" style={{ width: `${Math.round(saveSwipeRatio * 100)}%` }} aria-hidden="true" />
-              <span className="bank-action-label">
-                <small>{canSave ? "СОХРАНИТЬ 50%" : "ОТ 2 МОНЕТ"}</small>
-                <span className="bank-action-arrow" aria-hidden="true">
-                  <i />
-                  <i />
-                </span>
+            <div className="bank-swipe-center" aria-hidden="true">
+              <span className={`bank-swipe-arrow-wrap ${canSave ? "can-animate" : "is-locked"}`}>
+                {/* Минималистичная анимированная стрелка — показывает направление свайпа */}
+                <i className="bank-arrow-line" />
+                <i className="bank-arrow-head" />
+                <i className="bank-arrow-line ghost-1" />
+                <i className="bank-arrow-head ghost-1" />
+                <i className="bank-arrow-line ghost-2" />
+                <i className="bank-arrow-head ghost-2" />
               </span>
-            </button>
+              {canSave && (
+                <small className="bank-swipe-label">{bankDragProgress > 0.12 ? `${Math.round(bankDragProgress * 100)}%` : "→ сейф"}</small>
+              )}
+            </div>
 
             <div
               ref={savedBalanceRef}
               className={`bank-side bank-vault ${saveFlight ? "receiving-coins" : ""}`}
               role="group"
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
+              data-side="vault"
             >
               <span className="bank-glyph bank-glyph-vault" aria-hidden="true"><i /></span>
               <div className="bank-side-text">
@@ -3503,6 +3594,7 @@ function KnopikGame({
       </section>
 
       <footer
+        inert={navInert ? true : undefined}
         className={`bottom-bar ${miniGame !== null ? "is-locked" : ""}`}
         style={{ "--nav-index": navDragIndex ?? navIndex } as CSSProperties}
         role="tablist"
