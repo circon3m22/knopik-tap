@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { BOOT_IMAGE_ASSETS, bootImageMimeType } from "./boot-assets";
 import "./globals.css";
 import "./interface-v2.css";
 
@@ -59,7 +60,16 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
-        <link rel="preload" href={publicAsset("/knopik-calm-earless.webp")} as="image" type="image/webp" fetchPriority="high" />
+        {BOOT_IMAGE_ASSETS.map((path, index) => (
+          <link
+            key={path}
+            rel="preload"
+            href={publicAsset(path)}
+            as="image"
+            type={bootImageMimeType(path)}
+            fetchPriority={index === 0 ? "high" : "auto"}
+          />
+        ))}
       </head>
       <body>{children}</body>
     </html>

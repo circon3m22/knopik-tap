@@ -84,6 +84,7 @@ import {
   type MiniGameStats,
 } from "./mini-game-panel";
 import { resolveMiniGameBet } from "./mini-game-engine";
+import { BOOT_IMAGE_ASSETS } from "./boot-assets";
 
 type TapParticle = {
   id: number;
@@ -3897,12 +3898,43 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   );
 }
 
-const BOOT_SPLASH_MIN_MS = 1_500;
+const BOOT_SPLASH_MIN_MS = 3_500;
 const BOOT_SPLASH_EXIT_MS = 650;
-const BOOT_SPLASH_FORCE_MS = 6_000;
+const BOOT_ASSET_TIMEOUT_MS = 12_000;
+const BOOT_SPLASH_FORCE_MS = 15_000;
+
+/** Waits for an image to download and decode without making a failed resource fatal. */
+function preloadBootImage(source: string) {
+  return new Promise<void>((resolve) => {
+    const image = new Image();
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      image.onload = null;
+      image.onerror = null;
+
+      if (image.naturalWidth > 0 && typeof image.decode === "function") {
+        void image.decode().catch(() => undefined).then(() => resolve());
+        return;
+      }
+      resolve();
+    };
+
+    image.decoding = "async";
+    image.onload = finish;
+    image.onerror = finish;
+    image.src = source;
+    if (image.complete) finish();
+  });
+}
 
 export default function Home() {
   const [bootReady, setBootReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetPreloadTimedOut, setAssetPreloadTimedOut] = useState(false);
+  const [loadedAssetCount, setLoadedAssetCount] = useState(0);
   const [splashPhase, setSplashPhase] = useState<"active" | "leaving" | "done">("active");
   const bootStartRef = useRef<number>(0);
 
@@ -3912,16 +3944,51 @@ export default function Home() {
 
   const handleBootReady = useCallback(() => setBootReady(true), []);
 
-  // Прячем сплэш не раньше, чем контент загрузится и отыграет входная анимация.
+  // Запускаем загрузку всех изображений главного экрана ещё под сплэшем. Теги
+  // preload в layout начинают сетевые запросы раньше, а decode здесь гарантирует,
+  // что при открытии экрана изображения уже готовы к отрисовке.
   useEffect(() => {
-    if (!bootReady || splashPhase !== "active") return;
+    let cancelled = false;
+    let finished = false;
+
+    const finish = (timedOut = false) => {
+      if (cancelled || finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      setAssetPreloadTimedOut(timedOut);
+      setAssetsReady(true);
+    };
+
+    const timeout = window.setTimeout(() => finish(true), BOOT_ASSET_TIMEOUT_MS);
+    void Promise.all(
+      BOOT_IMAGE_ASSETS.map((asset) =>
+        preloadBootImage(publicAsset(asset)).finally(() => {
+          if (!cancelled) {
+            setLoadedAssetCount((count) =>
+              Math.min(count + 1, BOOT_IMAGE_ASSETS.length),
+            );
+          }
+        }),
+      ),
+    ).then(() => finish());
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, []);
+
+  // Прячем сплэш только после проверки профиля, загрузки изображений и
+  // увеличенной минимальной длительности заставки.
+  useEffect(() => {
+    if (!bootReady || !assetsReady || splashPhase !== "active") return;
     const elapsed = Date.now() - bootStartRef.current;
     const timer = window.setTimeout(
       () => setSplashPhase("leaving"),
       Math.max(0, BOOT_SPLASH_MIN_MS - elapsed),
     );
     return () => window.clearTimeout(timer);
-  }, [bootReady, splashPhase]);
+  }, [assetsReady, bootReady, splashPhase]);
 
   useEffect(() => {
     if (splashPhase !== "leaving") return;
@@ -3929,7 +3996,7 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [splashPhase]);
 
-  // Страховка: если загрузка зависла, сплэш всё равно уйдёт.
+  // Страховка на случай недоступной сети или зависшего запроса к профилю.
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSplashPhase((phase) => (phase === "active" ? "leaving" : phase));
@@ -3939,6 +4006,13 @@ export default function Home() {
 
   const splashVisible = splashPhase !== "done";
   const contentRevealed = splashPhase !== "active";
+  const splashStatus = !bootReady
+    ? "Подготавливаем профиль…"
+    : !assetsReady
+      ? `Загружаем ресурсы · ${loadedAssetCount}/${BOOT_IMAGE_ASSETS.length}`
+      : assetPreloadTimedOut
+        ? "Почти готово…"
+        : "Игра готова";
 
   return (
     <>
@@ -3956,6 +4030,7 @@ export default function Home() {
               <i />
               <i />
             </div>
+            <p className="boot-splash-status">{splashStatus}</p>
           </div>
         </div>
       )}

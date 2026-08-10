@@ -31,6 +31,24 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /knopik-ear-left\.png/);
   assert.match(html, /knopik-ear-right\.png/);
   assert.match(html, /knopik-warning-earless\.webp/);
+  for (const asset of [
+    "knopik-calm-earless.webp",
+    "knopik-joy-sprite-earless.webp",
+    "knopik-warning-earless.webp",
+    "knopik-rage-sprite-earless.webp",
+    "knopik-ear-left.png",
+    "knopik-ear-right.png",
+    "buffs/food.png",
+    "buffs/zhivchik.png",
+    "buffs/pitbull.png",
+    "buffs/cocoa-cola.png",
+    "buffs/bergamot-tea.png",
+    "buffs/pepsi.png",
+    "hasbik-tubeteika.png",
+    "knopik-mohawk-v2.png",
+  ]) {
+    assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
   assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
   assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
   assert.match(html, /class="saved-balance(?:\s|\")/);
