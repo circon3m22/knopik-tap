@@ -3471,8 +3471,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         </div>
       </section>
 
-      </div>
-
       <footer
         className={`bottom-bar ${miniGame !== null ? "is-locked" : ""}`}
         style={{ "--nav-index": navIndex } as CSSProperties}
@@ -3491,6 +3489,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           <span>Кейсы</span>
         </button>
       </footer>
+      </div>
 
       {miniGame && (
         <MiniGamePanel
