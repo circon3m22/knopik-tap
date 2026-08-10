@@ -361,10 +361,11 @@ function KnopikGame({
   const [hatBounce, setHatBounce] = useState(0);
   const [mohawkSwing, setMohawkSwing] = useState(0);
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
-  const [saveSwipeRatio, setSaveSwipeRatio] = useState(0);
-  const [isSavingSwipe, setIsSavingSwipe] = useState(false);
-  const swipeTrackRef = useRef<HTMLButtonElement | null>(null);
-  const swipeStartRef = useRef<{ clientX: number; trackWidth: number }>({ clientX: 0, trackWidth: 0 });
+  const [bankDragProgress, setBankDragProgress] = useState(0);
+  const [isBankDragging, setIsBankDragging] = useState(false);
+  const bankPlateRef = useRef<HTMLDivElement | null>(null);
+  const bankStartXRef = useRef(0);
+  const bankDraggingRef = useRef(false);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
   const [riskBetAmount, setRiskBetAmount] = useState(0);
@@ -2646,54 +2647,88 @@ function KnopikGame({
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
   const canBuyMohawk = mohawkOwned || coins.walletCoins >= MOHAWK_PRICE;
 
-  const handleSaveSwipeStart = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!canSave || event.button !== 0) return;
-      const track = swipeTrackRef.current;
-      if (!track) return;
-      const rect = track.getBoundingClientRect();
-      swipeStartRef.current = { clientX: event.clientX, trackWidth: rect.width };
-      setIsSavingSwipe(true);
-      setSaveSwipeRatio(0);
-      event.currentTarget.setPointerCapture(event.pointerId);
+  // === New swipe-to-save: свайп от активного баланса к сейфу ===
+  const handleBankPointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!canSave) return;
+      // Только основная кнопка мыши / один палец
+      if (event.button !== 0) return;
+      const plate = bankPlateRef.current;
+      if (!plate) return;
+      bankStartXRef.current = event.clientX;
+      bankDraggingRef.current = true;
+      setIsBankDragging(true);
+      setBankDragProgress(0);
+      try {
+        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      } catch {}
     },
     [canSave],
   );
 
-  const handleSaveSwipeMove = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!isSavingSwipe) return;
-      const deltaX = event.clientX - swipeStartRef.current.clientX;
-      const maxTravel = Math.max(1, swipeStartRef.current.trackWidth - 36);
-      const ratio = Math.max(0, Math.min(1, deltaX / maxTravel));
-      setSaveSwipeRatio(ratio);
-
-      if (ratio >= 0.75) {
-        setIsSavingSwipe(false);
-        setSaveSwipeRatio(0);
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
+  const handleBankPointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!bankDraggingRef.current) return;
+      const plate = bankPlateRef.current;
+      if (!plate) return;
+      const delta = event.clientX - bankStartXRef.current;
+      // Свайп только вправо имеет смысл (от актива к сейфу)
+      if (delta <= 0) {
+        setBankDragProgress(0);
+        return;
+      }
+      const rect = plate.getBoundingClientRect();
+      // Полная дистанция ~ 45% ширины пластины — достаточно, чтобы случайно не триггерить
+      const threshold = rect.width * 0.46;
+      const progress = Math.min(1, delta / threshold);
+      setBankDragProgress(progress);
+      if (progress >= 0.92) {
+        // Порог достигнут — выполняем сохранение
+        bankDraggingRef.current = false;
+        setIsBankDragging(false);
+        setBankDragProgress(0);
+        try {
+          if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+            (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+          }
+        } catch {}
         saveAllToVault();
       }
     },
-    [isSavingSwipe, saveAllToVault],
+    [saveAllToVault],
   );
 
-  const handleSaveSwipeEnd = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!isSavingSwipe) return;
-      setIsSavingSwipe(false);
-      setSaveSwipeRatio(0);
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
+  const handleBankPointerUp = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!bankDraggingRef.current) return;
+      bankDraggingRef.current = false;
+      setIsBankDragging(false);
+      setBankDragProgress(0);
+      try {
+        if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+        }
+      } catch {}
     },
-    [isSavingSwipe],
+    [],
   );
 
-  const handleSaveSwipeKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleBankPointerCancel = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      bankDraggingRef.current = false;
+      setIsBankDragging(false);
+      setBankDragProgress(0);
+      try {
+        if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+        }
+      } catch {}
+    },
+    [],
+  );
+
+  const handleBankKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
       if ((event.key === "Enter" || event.key === " ") && canSave) {
         event.preventDefault();
         saveAllToVault();
@@ -2739,13 +2774,23 @@ function KnopikGame({
   ) / 100;
   const riskMode = riskPhase !== "normal";
   const navIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
-  const anyModalOpen =
+  // Контент (header + игровое поле) должен быть неактивен, когда открыт любой лист/диалог
+  const contentInert =
     tutorialOpen ||
     shopOpen ||
     casesOpen ||
     settingsOpen ||
     miniGame !== null ||
     caseSequence !== null;
+  // Нижняя навигация остаётся активной в магазине и кейсах (persistent nav),
+  // блокируется только когда открыт туториал, настройки, мини-игра или открытие кейса
+  const navInert =
+    tutorialOpen ||
+    settingsOpen ||
+    miniGame !== null ||
+    caseSequence !== null;
+  // Для внешних слоёв, где нужна полная блокировка фона
+  const anyModalOpen = contentInert;
   const currentQuest = questIndex < QUESTS.length ? QUESTS[questIndex] : null;
   const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins;
   const questProgress = currentQuest
@@ -3003,8 +3048,8 @@ function KnopikGame({
           </g>
         </svg>
       </div>
-      <div className="game-motion-layer" inert={anyModalOpen}>
-      <header className="app-header">
+      <div className="game-motion-layer">
+      <header className="app-header" inert={contentInert ? true : undefined}>
         <div className="top-bar">
           <button
               className="header-pill header-avatar"
@@ -3107,6 +3152,7 @@ function KnopikGame({
 
       <section
         className="game-stage"
+        inert={contentInert ? true : undefined}
       >
         <div
           className={`top-buff-row ${riskMode || miniGame !== null ? "is-hidden" : ""}`}
@@ -3437,15 +3483,28 @@ function KnopikGame({
         <div className="game-data">
           {riskMessage && <p className="risk-notice" role="status" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
           <div
-            className={`unified-bank-plate ${canSave ? "can-save" : "is-locked"} ${isSavingSwipe ? "is-swiping" : ""}`}
+            ref={bankPlateRef}
+            className={`unified-bank-plate swipe-plate ${canSave ? "can-save" : "is-locked"} ${isBankDragging ? "is-dragging" : ""}`}
             role="group"
-            aria-label="Баланс и перевод в сейф"
+            aria-label={`Баланс и перевод в сейф — ${coins.walletCoins} активных, ${vaultCoins} в сейфе`}
+            onPointerDown={handleBankPointerDown}
+            onPointerMove={handleBankPointerMove}
+            onPointerUp={handleBankPointerUp}
+            onPointerCancel={handleBankPointerCancel}
+            onKeyDown={handleBankKeyDown}
+            tabIndex={canSave ? 0 : -1}
+            data-drag-progress={bankDragProgress.toFixed(3)}
           >
+            {/* Заполнение фона показывает прогресс свайпа */}
+            <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
+            <div className="bank-swipe-glow" aria-hidden="true" style={{ opacity: bankDragProgress }} />
+
             <div
               ref={walletBalanceRef}
               className={`bank-side bank-wallet ${balanceVariant}`}
               role="group"
               aria-label={`Активные монеты ${coins.walletCoins}`}
+              data-side="wallet"
             >
               <span className="bank-glyph bank-glyph-coin" aria-hidden="true"><i>К</i></span>
               <div className="bank-side-text">
@@ -3456,41 +3515,27 @@ function KnopikGame({
               </div>
             </div>
 
-            <button
-              ref={swipeTrackRef}
-              type="button"
-              className="bank-action"
-              disabled={!canSave}
-              onPointerDown={handleSaveSwipeStart}
-              onPointerMove={handleSaveSwipeMove}
-              onPointerUp={handleSaveSwipeEnd}
-              onPointerCancel={handleSaveSwipeEnd}
-              onKeyDown={handleSaveSwipeKeyDown}
-              onClick={() => {
-                if (canSave && !isSavingSwipe) saveAllToVault();
-              }}
-              aria-label={
-                canSave
-                  ? `Свайп или нажатие: сохранить ${saveAmount.toLocaleString("ru-RU")} монет в сейф`
-                  : "Нужно минимум 2 монеты для перевода"
-              }
-            >
-              <span className="bank-action-shine" aria-hidden="true" />
-              <span className="bank-action-fill" style={{ width: `${Math.round(saveSwipeRatio * 100)}%` }} aria-hidden="true" />
-              <span className="bank-action-label">
-                <small>{canSave ? "СОХРАНИТЬ 50%" : "ОТ 2 МОНЕТ"}</small>
-                <span className="bank-action-arrow" aria-hidden="true">
-                  <i />
-                  <i />
-                </span>
+            <div className="bank-swipe-center" aria-hidden="true">
+              <span className={`bank-swipe-arrow-wrap ${canSave ? "can-animate" : "is-locked"}`}>
+                {/* Минималистичная анимированная стрелка — показывает направление свайпа */}
+                <i className="bank-arrow-line" />
+                <i className="bank-arrow-head" />
+                <i className="bank-arrow-line ghost-1" />
+                <i className="bank-arrow-head ghost-1" />
+                <i className="bank-arrow-line ghost-2" />
+                <i className="bank-arrow-head ghost-2" />
               </span>
-            </button>
+              {canSave && (
+                <small className="bank-swipe-label">{bankDragProgress > 0.12 ? `${Math.round(bankDragProgress * 100)}%` : "→ сейф"}</small>
+              )}
+            </div>
 
             <div
               ref={savedBalanceRef}
               className={`bank-side bank-vault ${saveFlight ? "receiving-coins" : ""}`}
               role="group"
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
+              data-side="vault"
             >
               <span className="bank-glyph bank-glyph-vault" aria-hidden="true"><i /></span>
               <div className="bank-side-text">
@@ -3503,6 +3548,7 @@ function KnopikGame({
       </section>
 
       <footer
+        inert={navInert ? true : undefined}
         className={`bottom-bar ${miniGame !== null ? "is-locked" : ""}`}
         style={{ "--nav-index": navDragIndex ?? navIndex } as CSSProperties}
         role="tablist"
