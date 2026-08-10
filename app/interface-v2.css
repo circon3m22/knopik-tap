@@ -2,7 +2,7 @@
 :root {
   --ui-font: Inter, ui-rounded, "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ui-ink: #102a43;
-  --ui-muted: #63778a;
+  --ui-muted: #5a6d7e;
   --ui-subtle: #8796a5;
   --ui-blue: #0a73e8;
   --ui-blue-strong: #0759ba;
@@ -196,7 +196,9 @@ button {
   padding-inline: 3px;
 }
 
-.brand-lockup strong {
+.brand-lockup strong,
+.brand-lockup h1 {
+  margin: 0;
   color: var(--adaptive-ink) !important;
   font-size: clamp(25px, 7vw, 31px);
   font-weight: 900;
@@ -495,7 +497,7 @@ button {
 }
 
 .sheet-kicker {
-  color: var(--ui-blue);
+  color: var(--ui-blue-strong);
   font-size: 10px;
   font-weight: 820;
   letter-spacing: .13em;
@@ -1743,7 +1745,8 @@ button {
 @media (max-width: 420px) {
   .account-identity > strong,
   .status-cluster > strong { max-width: 66px; font-size: 8px; }
-  .brand-lockup strong { font-size: 23px; letter-spacing: .09em; }
+  .brand-lockup strong,
+  .brand-lockup h1 { font-size: 23px; letter-spacing: .09em; }
 }
 
 @media (max-width: 350px) {
@@ -1959,7 +1962,6 @@ html {
 .game-shell .boost-row .inventory-item,
 .game-shell .boost-row .buff-icon-image,
 .saved-balance,
-.bottom-bar,
 .feed-control,
 .quick-save-button,
 .risk-strip,
@@ -1972,13 +1974,16 @@ html {
   backdrop-filter: none;
 }
 
-/* Глубина остаётся только у «плавающих» слоёв: нижняя панель и шиты */
+/* Глубина и стекло — только у «плавающих» слоёв: нижняя панель и шиты.
+   better-ui (content bleeds, controls float): панель плавает над контентом. */
 .bottom-bar,
 .state-tired .bottom-bar,
 .state-warning .bottom-bar,
 .state-recovering.has-fatigue .bottom-bar {
-  background: rgb(250 252 254 / 92%);
-  box-shadow: 0 10px 26px rgb(18 43 62 / 10%);
+  background: rgb(250 252 254 / 68%);
+  box-shadow: 0 10px 26px rgb(18 43 62 / 12%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
 }
 .nav-thumb {
   box-shadow: none;
@@ -2163,4 +2168,132 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+}
+
+/* better-accessibility: зоны ушей/шапки — настоящие кнопки поверх Кнопика.
+   Слой совпадает с `.dog-button` (древняя геометрия .ear-hit сохранена),
+   шапочные зоны пересчитаны из старого контейнера `.dog-ears` (inset 3.2%). */
+.dog-accessory-zones {
+  grid-area: 1 / 1;
+  z-index: 5;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dog-accessory-zones .ear-hit,
+.dog-accessory-zones .hat-hit-zone,
+.dog-accessory-zones .mohawk-hit-zone {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.dog-accessory-zones .hat-hit-zone {
+  top: -1.5%;
+  left: 30.3%;
+  width: 39.3%;
+  height: 23.4%;
+}
+
+.dog-accessory-zones .mohawk-hit-zone {
+  top: -10.8%;
+  left: 40.2%;
+  width: 24.3%;
+  height: 44.9%;
+}
+
+/* ============ Декомпрессия главного экрана (проход 2) ============
+   better-layout: иерархия — Кнопик главное, вторичное раскрывается
+   по требованию; статусы сгруппированы, одно первичное действие. */
+
+/* Уровень — тонкая статусная строка */
+.game-shell .level-strip {
+  min-height: 40px;
+  padding: 5px 10px;
+  gap: 10px;
+  border-radius: 14px;
+}
+.game-shell .level-track { height: 9px; padding: 2px; }
+.game-shell .level-track > span { height: 5px; }
+
+/* Задание на главном экране — только действенный призыв «забрать»;
+   прогресс заданий живёт во вкладке «Кейсы» */
+.quest-claim-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--ui-blue);
+  box-shadow: 0 8px 20px rgb(5 92 190 / 22%);
+  font-size: 12px;
+  font-weight: 780;
+}
+.quest-claim-pill > span { font-weight: 900; }
+
+/* Ряд предметов: когда действовать нечем — спокойная ссылка на магазин */
+.boost-shop-hint {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  border: 1px dashed var(--adaptive-border);
+  border-radius: 14px;
+  color: var(--adaptive-muted);
+  background: var(--adaptive-surface);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+/* «Банк»: пара статусов в одной строке + одно первичное действие */
+.game-data .bank-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.game-shell .wallet-balance,
+.game-shell .saved-balance {
+  min-width: 0;
+  min-height: 54px;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 6px 12px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 16px;
+  background: var(--adaptive-surface);
+}
+.game-shell .wallet-balance > div,
+.game-shell .saved-balance > span:last-child {
+  min-width: 0;
+}
+.game-shell .wallet-balance strong,
+.game-shell .saved-balance strong {
+  white-space: nowrap;
+  font-size: clamp(18px, 5vw, 23px);
+  line-height: 1.1;
+}
+.game-shell .wallet-balance small,
+.game-shell .saved-balance small {
+  white-space: nowrap;
+  font-size: 8px;
+  letter-spacing: .09em;
+}
+.game-shell .quick-save-button {
+  width: 100%;
+  min-height: 50px;
+  justify-self: stretch;
+}
+
+@media (max-width: 370px) {
+  .game-shell .wallet-balance strong,
+  .game-shell .saved-balance strong { font-size: 16px; }
+  .game-shell .wallet-balance,
+  .game-shell .saved-balance { gap: 7px; padding: 6px 9px; }
 }

@@ -85,6 +85,7 @@ import {
 } from "./mini-game-panel";
 import { resolveMiniGameBet } from "./mini-game-engine";
 import { BOOT_IMAGE_ASSETS } from "./boot-assets";
+import { useDialogA11y } from "./use-dialog-a11y";
 
 type TapParticle = {
   id: number;
@@ -449,6 +450,11 @@ function KnopikGame({
   const savedBalanceRef = useRef<HTMLDivElement | null>(null);
   const navDragStartRef = useRef(0);
   const navDidDragRef = useRef(false);
+  const tutorialSheetRef = useRef<HTMLElement | null>(null);
+  const shopSheetRef = useRef<HTMLElement | null>(null);
+  const casesSheetRef = useRef<HTMLElement | null>(null);
+  const settingsSheetRef = useRef<HTMLElement | null>(null);
+  const caseOpeningRef = useRef<HTMLDivElement | null>(null);
   const earTapStateRef = useRef({
     left: { count: 0, lastAt: 0 },
     right: { count: 0, lastAt: 0 },
@@ -1492,7 +1498,7 @@ function KnopikGame({
       !settingsRef.current.yellow &&
       (dogStateRef.current === "tired" || fatigueUntilRef.current > Date.now());
     if (tiredNow) {
-      showRiskNotice("Сиба устала");
+      showRiskNotice("Кнопик устал");
       vibrate([12, 26, 12], settingsRef.current.vibration);
       return;
     }
@@ -2123,17 +2129,13 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     getSound().safe();
   }, [cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo, updateCoins]);
 
-  const bounceHat = useCallback((event: PointerEvent<HTMLSpanElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const playHatBounce = useCallback(() => {
     setHatBounce((current) => current + 1);
     setHatInteractionCount((current) => current + 1);
     registerTap(50, 16);
   }, [registerTap]);
 
-  const swingMohawk = useCallback((event: PointerEvent<HTMLSpanElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const playMohawkSwing = useCallback(() => {
     setMohawkSwing((current) => current + 1);
     setMohawkInteractionCount((current) => current + 1);
     registerTap(50, 14);
@@ -2634,11 +2636,35 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     vitaPowerQuantity <= remainingVitaPowerSlots &&
     coins.walletCoins >= vitaPowerTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
+  // Главный экран показывает только актуальные предметы (прогрессивное раскрытие);
+  // полный ассортимент живёт в магазине.
+  const showFoodItem = canFeedDog || canQuickBuyFood;
+  const showDrinkItem =
+    drinkCount > 0 || boostSeconds > 0 || canQuickBuyDrink;
+  const showPitbullItem = pitbullCount > 0 || canQuickBuyPitbull;
+  const showColaItem = colaCount > 0 || canQuickBuyCola;
+  const showTeaItem = teaCount > 0 || canQuickBuyTea;
+  const showVitaItem =
+    vitaPowerShield || vitaPowerCount > 0 || canQuickBuyVitaPower;
+  const boostRowEmpty =
+    !showFoodItem &&
+    !showDrinkItem &&
+    !showPitbullItem &&
+    !showColaItem &&
+    !showTeaItem &&
+    !showVitaItem;
   const selectedRiskMultiplier = Math.round(
     riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1) * 100,
   ) / 100;
   const riskMode = riskPhase !== "normal";
   const navIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
+  const anyModalOpen =
+    tutorialOpen ||
+    shopOpen ||
+    casesOpen ||
+    settingsOpen ||
+    miniGame !== null ||
+    caseSequence !== null;
   const currentQuest = questIndex < QUESTS.length ? QUESTS[questIndex] : null;
   const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins;
   const questProgress = currentQuest
@@ -2664,6 +2690,25 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     getSound().levelUp();
     vibrate([18, 24, 48], settingsRef.current.vibration);
   };
+
+  const closeSheetsToHome = useCallback(
+    () => selectNavigation(1),
+    [selectNavigation],
+  );
+  const closeSettingsSheet = useCallback(() => setSettingsOpen(false), []);
+  const dismissCaseOpening = useCallback(() => {
+    if (caseSequence?.phase === "reward") {
+      advanceCaseReward();
+      return;
+    }
+    setCaseSequence(null);
+  }, [advanceCaseReward, caseSequence?.phase]);
+
+  useDialogA11y(tutorialOpen, tutorialSheetRef, finishTutorial);
+  useDialogA11y(shopOpen, shopSheetRef, closeSheetsToHome);
+  useDialogA11y(casesOpen, casesSheetRef, closeSheetsToHome);
+  useDialogA11y(settingsOpen, settingsSheetRef, closeSettingsSheet);
+  useDialogA11y(caseSequence !== null, caseOpeningRef, dismissCaseOpening);
 
   const tempoRatio =
     seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
@@ -2774,7 +2819,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     riskMode
       ? "#25272b"
       : dogState === "angry"
-      ? "#ec5148"
+      ? "#d13a32"
       : dogState === "tired"
         ? "#e8c65d"
         : dogState === "warning" ||
@@ -2885,7 +2930,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           </g>
         </svg>
       </div>
-      <div className="game-motion-layer">
+      <div className="game-motion-layer" inert={anyModalOpen}>
       <header className="app-header">
         <div className="top-bar">
           <button
@@ -2901,8 +2946,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               <span className="account-shortcut" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
               <strong>{account.username}</strong>
           </button>
-          <div className="wordmark brand-lockup" aria-label="Knopik Tap"><strong>KNOPIK</strong></div>
-          <div className="status-cluster" aria-label={`Статус Кнопика: ${moodLabel}`}>
+          <div className="wordmark brand-lockup"><h1>KNOPIK</h1></div>
+          <div className="status-cluster" role="group" aria-label={`Статус Кнопика: ${moodLabel}`}>
             <strong>{moodLabel}</strong>
             <span className={`mood-indicator mood-${dogState}`} aria-hidden="true"><i /></span>
           </div>
@@ -2910,6 +2955,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         {!riskMode ? (
           <div
             className="level-strip"
+            role="group"
             aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
           >
             <div className="level-title">
@@ -2929,7 +2975,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             </div>
           </div>
         ) : (
-          <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
+          <div className="risk-strip" role="group" aria-label={`Шанс выигрыша ${riskChance}%`}>
             <span className="risk-strip-label">СЕКТОР {riskChance}%</span>
             <input
               type="range"
@@ -2948,22 +2994,18 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
         )}
-        {!riskMode && (
-          <div className={`quest-strip ${questComplete ? "is-complete" : ""}`}>
-            <span className="quest-symbol" aria-hidden="true">✓</span>
-            <span className="quest-copy">
-              <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ВСЕ ЗАДАНИЯ ВЫПОЛНЕНЫ"}</small>
-              <strong>{currentQuest?.title ?? "Новые задания появятся позже"}</strong>
-            </span>
-            {currentQuest && (
-              questComplete
-                ? <button type="button" onClick={claimQuestReward}>Забрать кейс</button>
-                : <b>{Math.min(questProgress, currentQuest.target).toLocaleString("ru-RU")}/{currentQuest.target.toLocaleString("ru-RU")}</b>
-            )}
-          </div>
+        {!riskMode && questComplete && currentQuest && (
+          <button
+            className="quest-claim-pill"
+            type="button"
+            onClick={claimQuestReward}
+          >
+            <span aria-hidden="true">✓</span>
+            {`Задание ${questIndex + 1} выполнено · Забрать кейс`}
+          </button>
         )}
         {riskPhase === "selecting" && mohawkEquipped && (
-          <div className="risk-bet-control" aria-label="Размер ставки рулетки">
+          <div className="risk-bet-control" role="group" aria-label="Размер ставки рулетки">
             <span><small>СТАВКА</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
             <input
               type="range"
@@ -2977,37 +3019,54 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             <button type="button" onClick={() => setRiskBetAmount(coins.walletCoins)}>ВСЁ</button>
           </div>
         )}
-        <div className="boost-row" aria-label="Предметы Кнопика">
-          <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
-            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{canQuickBuyFood ? null : foodCount}</b>
-          </button>
-          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
-            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{canQuickBuyDrink ? null : drinkCount}</b>
-          </button>
-          <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
-            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{canQuickBuyPitbull ? null : pitbullCount}</b>
-          </button>
-          <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
-            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{canQuickBuyCola ? null : colaCount}</b>
-          </button>
-          <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
-            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{canQuickBuyTea ? null : teaCount}</b>
-          </button>
-          <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
-            <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? null : vitaPowerCount}</b>
-          </button>
+        <div className="boost-row" role="group" aria-label="Предметы Кнопика">
+          {showFoodItem && (
+            <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
+              <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
+              <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
+              <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{canQuickBuyFood ? null : foodCount}</b>
+            </button>
+          )}
+          {showDrinkItem && (
+            <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
+              <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
+              <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
+              <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{canQuickBuyDrink ? null : drinkCount}</b>
+            </button>
+          )}
+          {showPitbullItem && (
+            <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
+              <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
+              <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
+              <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{canQuickBuyPitbull ? null : pitbullCount}</b>
+            </button>
+          )}
+          {showColaItem && (
+            <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
+              <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
+              <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
+              <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{canQuickBuyCola ? null : colaCount}</b>
+            </button>
+          )}
+          {showTeaItem && (
+            <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
+              <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
+              <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
+              <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{canQuickBuyTea ? null : teaCount}</b>
+            </button>
+          )}
+          {showVitaItem && (
+            <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
+              <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
+              <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
+              <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? null : vitaPowerCount}</b>
+            </button>
+          )}
+          {boostRowEmpty && (
+            <button className="boost-shop-hint" type="button" onClick={() => selectNavigation(0)}>
+              Все предметы — в магазине
+            </button>
+          )}
         </div>
       </header>
 
@@ -3119,12 +3178,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                     aria-hidden="true"
                     draggable={false}
                   />
-                  <span
-                    className="hat-hit-zone"
-                    onPointerDown={bounceHat}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
                 </>
               )}
               {mohawkOwned && mohawkEquipped && (
@@ -3137,29 +3190,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                     aria-hidden="true"
                     draggable={false}
                   />
-                  <span
-                    className="mohawk-hit-zone"
-                    onPointerDown={swingMohawk}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    onPointerCancel={(event) => event.stopPropagation()}
-                  />
                 </>
               )}
-            </span>
-            <span className="ear-hit-zones" aria-hidden="true">
-              {(["left", "right"] as const).map((ear) => (
-                <span
-                  className={`ear-hit ear-hit-${ear}`}
-                  key={ear}
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handleEarTap(ear);
-                  }}
-                  onPointerUp={(event) => event.stopPropagation()}
-                  onPointerCancel={(event) => event.stopPropagation()}
-                />
-              ))}
             </span>
             <span className="tap-particles" aria-hidden="true">
               {particles.map((particle) => (
@@ -3236,45 +3268,79 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               </span>
             )}
           </button>
+          <div className="dog-accessory-zones">
+            {(["left", "right"] as const).map((ear) => (
+              <button
+                className={`ear-hit ear-hit-${ear}`}
+                key={ear}
+                type="button"
+                disabled={dogDisabled || riskPhase !== "normal"}
+                aria-label={
+                  ear === "left"
+                    ? "Коснуться левого уха Кнопика"
+                    : "Коснуться правого уха Кнопика"
+                }
+                onClick={() => handleEarTap(ear)}
+              />
+            ))}
+            {hatOwned && hatEquipped && (
+              <button
+                className="hat-hit-zone"
+                type="button"
+                aria-label="Постучать по тюбетейке"
+                onClick={playHatBounce}
+              />
+            )}
+            {mohawkOwned && mohawkEquipped && (
+              <button
+                className="mohawk-hit-zone"
+                type="button"
+                aria-label="Потрепать эрокез"
+                onClick={playMohawkSwing}
+              />
+            )}
+          </div>
           </div>
         </div>
 
         <div className="game-data">
-          <div
-            ref={walletBalanceRef}
-            className={`wallet-balance ${balanceVariant}`}
-            aria-label={`Активные монеты ${coins.walletCoins}`}
-          >
-            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
-            <div>
-              <small>АКТИВНЫЕ МОНЕТЫ</small>
-              <strong className="balance-number" key={`balance-${balancePulse}`}>
-                {coins.walletCoins.toLocaleString("ru-RU")}
-              </strong>
-            </div>
-          </div>
-          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
-          <div className="vault-row">
-            <button
-              className="quick-save-button"
-              type="button"
-              disabled={!canSave}
-              aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
-              onClick={saveAllToVault}
+          {riskMessage && <p className="risk-notice" role="status" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
+          <div className="bank-row">
+            <div
+              ref={walletBalanceRef}
+              className={`wallet-balance ${balanceVariant}`}
+              role="group"
+              aria-label={`Активные монеты ${coins.walletCoins}`}
             >
-              <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span>ПЕРЕНЕСТИ В СЕЙФ</span>
-              <small>50% БАЛАНСА</small>
-            </button>
+              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+              <div>
+                <small>АКТИВНЫЕ МОНЕТЫ</small>
+                <strong className="balance-number" key={`balance-${balancePulse}`}>
+                  {coins.walletCoins.toLocaleString("ru-RU")}
+                </strong>
+              </div>
+            </div>
             <div
               ref={savedBalanceRef}
               className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
+              role="group"
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
               <span className="safe-icon" aria-hidden="true"><i /></span>
               <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
             </div>
           </div>
+          <button
+            className="quick-save-button"
+            type="button"
+            disabled={!canSave}
+            aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
+            onClick={saveAllToVault}
+          >
+            <span className="safe-icon" aria-hidden="true"><i /></span>
+            <span>ПЕРЕНЕСТИ В СЕЙФ</span>
+            <small>50% БАЛАНСА</small>
+          </button>
         </div>
       </section>
 
@@ -3371,7 +3437,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet cases-sheet" role="dialog" aria-modal="true" aria-labelledby="cases-title">
+          <section className="sheet cases-sheet" role="dialog" aria-modal="true" aria-labelledby="cases-title" ref={casesSheetRef} tabIndex={-1}>
             <div className="cases-heading">
               <div><p className="sheet-kicker">НАГРАДЫ</p><h2 id="cases-title">Кейсы</h2></div>
               <span><strong>{commonCases + bigCases}</strong><small>доступно</small></span>
@@ -3399,7 +3465,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               <div>
                 <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ЦЕПОЧКА ЗАВЕРШЕНА"}</small>
                 <strong>{currentQuest?.title ?? "Все задания выполнены"}</strong>
-                {currentQuest && <progress max={currentQuest.target} value={Math.min(questProgress, currentQuest.target)} />}
+                {currentQuest && <progress max={currentQuest.target} value={Math.min(questProgress, currentQuest.target)} aria-label={`Прогресс задания: ${Math.min(questProgress, currentQuest.target)} из ${currentQuest.target}`} />}
               </div>
               {currentQuest && (
                 questComplete
@@ -3413,7 +3479,14 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       )}
 
       {caseSequence && (
-        <div className={`case-opening case-${caseSequence.kind} phase-${caseSequence.phase}`}>
+        <div
+          className={`case-opening case-${caseSequence.kind} phase-${caseSequence.phase}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Открытие кейса"
+          ref={caseOpeningRef}
+          tabIndex={-1}
+        >
           {caseSequence.phase === "reward" ? (
             <button className="case-reward-screen" type="button" onClick={advanceCaseReward}>
               <small>НАГРАДА {caseSequence.rewardIndex + 1} ИЗ {caseSequence.rewards.length}</small>
@@ -3460,6 +3533,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             role="dialog"
             aria-modal="true"
             aria-labelledby="tutorial-title"
+            ref={tutorialSheetRef}
+            tabIndex={-1}
           >
             <div className="tutorial-visual" aria-hidden="true">
               <span>{tutorialSlides[tutorialStep].symbol}</span>
@@ -3468,7 +3543,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             <p className="sheet-kicker">{tutorialSlides[tutorialStep].eyebrow}</p>
             <h2 id="tutorial-title">{tutorialSlides[tutorialStep].title}</h2>
             <p>{tutorialSlides[tutorialStep].copy}</p>
-            <div className="tutorial-dots" aria-label={`Шаг ${tutorialStep + 1} из ${tutorialSlides.length}`}>
+            <div className="tutorial-dots" role="group" aria-label={`Шаг ${tutorialStep + 1} из ${tutorialSlides.length}`}>
               {tutorialSlides.map((_, index) => (
                 <span className={index === tutorialStep ? "active" : ""} key={index} />
               ))}
@@ -3495,7 +3570,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title" ref={shopSheetRef} tabIndex={-1}>
             <div className="shop-hero-row">
               <div className="sheet-heading"><h2 id="shop-title">Магазин</h2></div>
               <div className="shop-wallet">
@@ -3689,7 +3764,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" ref={settingsSheetRef} tabIndex={-1}>
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
             </div>
@@ -3835,7 +3910,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               </form>
               {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
               {account.isAdmin && (
-                <div className="promo-list" aria-label="Созданные промокоды">
+                <div className="promo-list" role="group" aria-label="Созданные промокоды">
                   <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
                   {promoCodes.length === 0 ? (
                     <p className="promo-empty">Пока нет созданных промокодов.</p>
