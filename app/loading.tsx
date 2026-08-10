@@ -8,6 +8,7 @@ export default function Loading() {
           <i />
           <i />
         </div>
+        <p className="boot-splash-status">Подготавливаем игру…</p>
       </div>
     </div>
   );

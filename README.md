@@ -1,8 +1,9 @@
-# vinext-starter
+# Knopik Tap
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Интерактивная игра «Кнопик Тап»: тапай Кнопика, собирай монеты, покупай напитки
+и испытывай удачу в рулетке. Проект работает на
+[vinext](https://github.com/cloudflare/vinext), с опциональной поддержкой
+Cloudflare D1 и Drizzle.
 
 ## Prerequisites
 
