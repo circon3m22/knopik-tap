@@ -1894,3 +1894,273 @@ button {
   .boot-splash { display: none !important; }
   .boot-content.is-revealed { animation: none !important; }
 }
+
+/* ==========================================================================
+   Минималистичный пасс — принципы набора better-* (jakubkrehel/skills)
+   Плоские поверхности вместо «стекла», один акцент, меньше декора.
+   Игровая обратная связь (частицы, ультра-тап, выигрыши) сохранена.
+   ========================================================================== */
+
+/* better-typography: сглаживание шрифта на корне, аккуратные переносы */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.sheet-heading h2,
+.tutorial-sheet h2,
+.cases-heading h2,
+.case-card h3,
+.case-reward-screen h2,
+.food-copy h3,
+.mini-game-topline h2,
+.shop-showcase-card .food-copy h3 {
+  text-wrap: balance;
+}
+
+.food-copy p,
+.case-card p,
+.case-hint,
+.tutorial-sheet > p:not(.sheet-kicker),
+.mine-hint,
+.mini-stats,
+.shop-showcase-card .food-copy p {
+  text-wrap: pretty;
+}
+
+.quest-strip > b,
+.case-quest-card > b,
+.cases-heading > span strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* better-colors: плоский фон сцены и экрана входа, без декоративных градиентов */
+.game-shell {
+  background-image: none;
+}
+.game-shell::before {
+  display: none;
+}
+.game-shell.risk-mode {
+  background-image: none;
+}
+.game-shell.risk-mode::before {
+  display: none;
+}
+.auth-screen {
+  background: #f3f7fa;
+}
+
+/* better-ui: убираем «стекло» (blur/saturate) и хром-блики со всех поверхностей */
+.mood-chip,
+.account-shortcut,
+.quest-strip,
+.game-shell .level-strip,
+.game-shell .boost-row .inventory-item,
+.game-shell .boost-row .buff-icon-image,
+.saved-balance,
+.bottom-bar,
+.feed-control,
+.quick-save-button,
+.risk-strip,
+.risk-bet-control,
+.auth-card,
+.modal-backdrop,
+.mini-game-backdrop,
+.shop-product-grid .shop-product-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Глубина остаётся только у «плавающих» слоёв: нижняя панель и шиты */
+.bottom-bar,
+.state-tired .bottom-bar,
+.state-warning .bottom-bar,
+.state-recovering.has-fatigue .bottom-bar {
+  background: rgb(250 252 254 / 92%);
+  box-shadow: 0 10px 26px rgb(18 43 62 / 10%);
+}
+.nav-thumb {
+  box-shadow: none;
+}
+
+.level-strip,
+.game-shell .level-strip,
+.saved-balance,
+.quick-save-button,
+.feed-control,
+.risk-strip,
+.risk-bet-control,
+.game-shell .boost-row .inventory-item,
+.game-shell.state-calm.pale-calm .boost-row .inventory-item,
+.game-shell.state-tired .boost-row .inventory-item,
+.game-shell.state-warning .boost-row .inventory-item,
+.game-shell.state-recovering.has-fatigue .boost-row .inventory-item,
+.game-shell .boost-row .buff-icon-image,
+.game-shell .level-track,
+.game-shell .level-track > span {
+  box-shadow: none;
+}
+.game-shell.state-calm.pale-calm .boost-row .inventory-item,
+.game-shell.state-tired .boost-row .inventory-item,
+.game-shell.state-warning .boost-row .inventory-item,
+.game-shell.state-recovering.has-fatigue .boost-row .inventory-item {
+  background: var(--adaptive-surface);
+}
+.state-calm.pale-calm .level-strip,
+.state-calm.pale-calm .saved-balance,
+.state-calm.pale-calm .bottom-bar {
+  box-shadow: 0 8px 20px rgb(32 62 91 / 6%);
+}
+/* Пульсация «быстрой покупки» — лишнее движение, цена и так видна */
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  animation: none;
+}
+.game-shell .boost-row .inventory-count.is-price {
+  background: #f2b820;
+  box-shadow: none;
+}
+
+.sheet,
+.tutorial-sheet {
+  background: #f6f8fa;
+  box-shadow: 0 -14px 44px rgb(10 30 46 / 14%);
+}
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet {
+  background: #f6f8fa;
+}
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-wallet {
+  background: var(--ui-blue);
+}
+.mini-game-panel {
+  box-shadow: 0 24px 60px rgb(0 0 0 / 30%);
+}
+.slot-machine {
+  box-shadow: 0 14px 28px rgb(0 0 0 / 22%);
+}
+.slot-machine::before,
+.slot-machine::after {
+  box-shadow: none;
+}
+
+/* better-colors: кнопки плоские, без цветных свечений — один акцент */
+.primary-button,
+.mini-primary,
+.shop-buy-button,
+.shop-card > .shop-buy-button,
+.clothing-actions .clothing-upgrade-button,
+.settings-sheet .password-form button,
+.settings-sheet .promo-form button,
+.settings-sheet .cheat-row label button,
+.settings-sheet .difficulty-save,
+.quest-strip > button,
+.feed-control button,
+.case-card > button,
+.case-card-actions button,
+.case-quest-card > button {
+  box-shadow: none;
+}
+.shop-buy-button.hat-action,
+.shop-buy-button.drink-action {
+  box-shadow: none !important;
+}
+.shop-product-card > .shop-buy-button {
+  box-shadow: none !important;
+}
+
+/* Карточки: структура через тонкую границу, без теней */
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card,
+.case-card,
+.settings-sheet .account-settings,
+.settings-sheet .setting-row,
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row,
+.settings-sheet .settings-action,
+.settings-sheet .reset-confirm,
+.settings-sheet .stats-line {
+  box-shadow: none;
+}
+.shop-product-grid .shop-product-card {
+  border-color: var(--ui-line);
+  background: #fff;
+}
+.case-quest-card {
+  background: #fff;
+}
+
+/* better-ui: плоская витрина магазина вместо 3D-карусели (если используется) */
+.shop-showcase-carousel {
+  perspective: none;
+}
+.shop-showcase-carousel .shop-showcase-card {
+  border-color: var(--ui-line);
+  background: #fff;
+  box-shadow: 0 14px 30px rgb(22 48 69 / 8%);
+}
+.shop-showcase-card::before,
+.shop-showcase-card::after {
+  display: none;
+}
+.shop-showcase-card.is-before {
+  transform: translateX(-12px) scale(.94);
+}
+.shop-showcase-card.is-after {
+  transform: translateX(12px) scale(.94);
+}
+.shop-showcase-card.is-active {
+  transform: scale(1);
+}
+.shop-showcase-card > .food-pack,
+.shop-showcase-card > .drink-pack,
+.shop-showcase-card > .hat-preview,
+.shop-showcase-card > .mohawk-preview {
+  filter: none;
+  transform: none;
+}
+.shop-showcase-controls button {
+  border-color: var(--ui-line);
+  background: #fff;
+  box-shadow: none;
+}
+
+/* Плоские плитки: убираем блики и градиенты-подложки там, где это безопасно */
+.food-pack,
+.drink-pack,
+.hat-preview,
+.case-miniature,
+.coin-mark {
+  box-shadow: none;
+}
+.case-miniature {
+  background: #1478ed;
+}
+.case-big-card .case-miniature {
+  background: #f0a92e;
+}
+
+/* Убираем лишние свечения, оставляем мягкие */
+.fatigue-countdown-ring {
+  filter: drop-shadow(0 0 6px rgb(255 255 255 / 50%));
+}
+.risk-scale-values span.selected {
+  filter: none;
+}
+.portrait-surface {
+  box-shadow: 0 14px 30px rgb(0 0 0 / 14%);
+}
+.boost-row .inventory-item::after {
+  display: none;
+}
+
+/* better-accessibility: движение отключается по предпочтению системы */
+@media (prefers-reduced-motion: reduce) {
+  .game-shell *,
+  .game-shell *::before,
+  .game-shell *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
