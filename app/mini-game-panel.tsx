@@ -184,6 +184,7 @@ export function MiniGamePanel({
   const canClose = !committedRef.current || finished;
   const panelRef = useRef<HTMLElement | null>(null);
   useDialogA11y(true, panelRef, () => {
+    // Крестика нет, но на всякий случай блокируем выход во время активной партии
     if (canClose) onClose();
   });
 
@@ -196,7 +197,6 @@ export function MiniGamePanel({
             <small>{kind === "slots" ? "КАКАО-КОЛА" : "ЧАЙ С БЕРГАМОТОМ"}</small>
             <h2 id="mini-game-title">{kind === "slots" ? "Три барабана" : "Пять кнопок"}</h2>
           </div>
-          {canClose && <button className="mini-close" type="button" aria-label="Закрыть мини-игру" onClick={onClose}>×</button>}
         </div>
 
         <div className="mini-bet-card">

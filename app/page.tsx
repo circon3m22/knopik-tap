@@ -362,7 +362,7 @@ function KnopikGame({
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
   const [saveSwipeRatio, setSaveSwipeRatio] = useState(0);
   const [isSavingSwipe, setIsSavingSwipe] = useState(false);
-  const swipeTrackRef = useRef<HTMLDivElement | null>(null);
+  const swipeTrackRef = useRef<HTMLButtonElement | null>(null);
   const swipeStartRef = useRef<{ clientX: number; trackWidth: number }>({ clientX: 0, trackWidth: 0 });
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
@@ -2696,23 +2696,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     vitaPowerQuantity <= remainingVitaPowerSlots &&
     coins.walletCoins >= vitaPowerTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
-  // Главный экран показывает только актуальные предметы (прогрессивное раскрытие);
-  // полный ассортимент живёт в магазине.
-  const showFoodItem = canFeedDog || canQuickBuyFood;
-  const showDrinkItem =
-    drinkCount > 0 || boostSeconds > 0 || canQuickBuyDrink;
-  const showPitbullItem = pitbullCount > 0 || canQuickBuyPitbull;
-  const showColaItem = colaCount > 0 || canQuickBuyCola;
-  const showTeaItem = teaCount > 0 || canQuickBuyTea;
-  const showVitaItem =
-    vitaPowerShield || vitaPowerCount > 0 || canQuickBuyVitaPower;
-  const boostRowEmpty =
-    !showFoodItem &&
-    !showDrinkItem &&
-    !showPitbullItem &&
-    !showColaItem &&
-    !showTeaItem &&
-    !showVitaItem;
+  // Ряд бафов всегда показывает все 6 кнопок; недоступные — disabled, быстрая покупка — «+».
   const selectedRiskMultiplier = Math.round(
     riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1) * 100,
   ) / 100;
@@ -2994,22 +2978,28 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       <header className="app-header">
         <div className="top-bar">
           <button
-              className="account-identity"
+              className="header-pill header-avatar"
               type="button"
-              aria-label="Открыть аккаунт и настройки"
+              aria-label={`Открыть настройки аккаунта ${account.username}`}
               onClick={() => {
                 setShopOpen(false);
                 setCasesOpen(false);
                 setSettingsOpen(true);
               }}
             >
-              <span className="account-shortcut" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
-              <strong>{account.username}</strong>
+              <span className="header-avatar-glyph" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+              <span className="header-avatar-meta">
+                <small>АККАУНТ</small>
+                <strong>{account.username}</strong>
+              </span>
           </button>
-          <div className="wordmark brand-lockup"><h1>KNOPIK</h1></div>
-          <div className="status-cluster" role="group" aria-label={`Статус Кнопика: ${moodLabel}`}>
-            <strong>{moodLabel}</strong>
+          <div className="wordmark brand-lockup" aria-hidden="true"><h1>KNOPIK</h1></div>
+          <div className="header-pill header-mood" role="group" aria-label={`Статус Кнопика: ${moodLabel}`}>
             <span className={`mood-indicator mood-${dogState}`} aria-hidden="true"><i /></span>
+            <span className="header-mood-meta">
+              <small>НАСТРОЕНИЕ</small>
+              <strong>{moodLabel}</strong>
+            </span>
           </div>
         </div>
         {!riskMode ? (
@@ -3088,69 +3078,103 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       <section
         className="game-stage"
       >
+        <div
+          className={`top-buff-row ${riskMode || miniGame !== null ? "is-hidden" : ""}`}
+          role="group"
+          aria-label="Быстрые бафы"
+        >
+          {/* 1. Корм — снятие усталости */}
+          <button
+            className={`buff-plate ${foodCount === 0 && canQuickBuyFood ? "is-quick-buy" : ""}`}
+            type="button"
+            disabled={!canFeedDog && !canQuickBuyFood}
+            aria-label={`Корм: ${foodCount} шт.${canQuickBuyFood ? ` (купить за ${DOG_FOOD_PRICE})` : ""}`}
+            title="Корм"
+            onClick={handleFoodItem}
+          >
+            <img className="buff-plate-img" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
+            <span className={`buff-plate-badge ${canQuickBuyFood && foodCount === 0 ? "is-price" : ""}`}>
+              {foodCount > 0 ? foodCount : canQuickBuyFood ? "+" : 0}
+            </span>
+          </button>
+
+          {/* 2. Пепси — щит от потери монет */}
+          <button
+            className={`buff-plate ${vitaPowerShield ? "is-active" : ""} ${vitaPowerCount === 0 && canQuickBuyVitaPower ? "is-quick-buy" : ""}`}
+            type="button"
+            disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower)}
+            aria-label={`Пепси (щит): ${vitaPowerShield ? "активен" : `${vitaPowerCount} шт.`}${canQuickBuyVitaPower ? ` (купить за ${VITA_POWER_PRICE})` : ""}`}
+            title="Пепси"
+            onClick={handleVitaPowerItem}
+          >
+            <img className="buff-plate-img" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
+            <span className={`buff-plate-badge ${canQuickBuyVitaPower && vitaPowerCount === 0 ? "is-price" : ""}`}>
+              {vitaPowerShield ? "ON" : vitaPowerCount > 0 ? vitaPowerCount : canQuickBuyVitaPower ? "+" : 0}
+            </span>
+          </button>
+
+          {/* 3. Живчик — буст ×4 на минуту */}
+          <button
+            className={`buff-plate ${boostSeconds > 0 ? "is-active" : drinkCount === 0 && canQuickBuyDrink ? "is-quick-buy" : ""}`}
+            type="button"
+            disabled={(drinkCount < 1 && !canQuickBuyDrink && boostSeconds === 0) || riskMode}
+            aria-label={`Живчик ×4: ${boostSeconds > 0 ? `${boostSeconds} сек.` : `${drinkCount} шт.`}${canQuickBuyDrink ? ` (купить за ${ZHIVCHIK_PRICE})` : ""}`}
+            title="Живчик"
+            onClick={handleDrinkItem}
+          >
+            <img className="buff-plate-img" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
+            <span className={`buff-plate-badge ${boostSeconds > 0 ? "is-timer" : canQuickBuyDrink && drinkCount === 0 ? "is-price" : ""}`}>
+              {boostSeconds > 0 ? `${boostSeconds}с` : drinkCount > 0 ? drinkCount : canQuickBuyDrink ? "+" : 0}
+            </span>
+          </button>
+
+          {/* 4. Питбуль — открывает рулетку */}
+          <button
+            className={`buff-plate ${pitbullCount === 0 && canQuickBuyPitbull ? "is-quick-buy" : ""}`}
+            type="button"
+            disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"}
+            aria-label={`Питбуль (рулетка): ${pitbullCount} шт.${canQuickBuyPitbull ? ` (купить за ${PITBULL_PRICE})` : ""}`}
+            title="Питбуль"
+            onClick={handlePitbullItem}
+          >
+            <img className="buff-plate-img" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
+            <span className={`buff-plate-badge ${canQuickBuyPitbull && pitbullCount === 0 ? "is-price" : ""}`}>
+              {pitbullCount > 0 ? pitbullCount : canQuickBuyPitbull ? "+" : 0}
+            </span>
+          </button>
+
+          {/* 5. Какао-Кола — слот-машина */}
+          <button
+            className={`buff-plate ${colaCount === 0 && canQuickBuyCola ? "is-quick-buy" : ""}`}
+            type="button"
+            disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null}
+            aria-label={`Какао-Кола (слоты): ${colaCount} шт.${canQuickBuyCola ? ` (купить за ${COCOA_COLA_PRICE})` : ""}`}
+            title="Какао-Кола"
+            onClick={() => handleMiniGameItem("slots")}
+          >
+            <img className="buff-plate-img" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
+            <span className={`buff-plate-badge ${canQuickBuyCola && colaCount === 0 ? "is-price" : ""}`}>
+              {colaCount > 0 ? colaCount : canQuickBuyCola ? "+" : 0}
+            </span>
+          </button>
+
+          {/* 6. Чай с бергамотом — игра с 5 кнопками */}
+          <button
+            className={`buff-plate ${teaCount === 0 && canQuickBuyTea ? "is-quick-buy" : ""}`}
+            type="button"
+            disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null}
+            aria-label={`Чай с бергамотом (5 кнопок): ${teaCount} шт.${canQuickBuyTea ? ` (купить за ${BERGAMOT_TEA_PRICE})` : ""}`}
+            title="Бергамот"
+            onClick={() => handleMiniGameItem("mines")}
+          >
+            <img className="buff-plate-img" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
+            <span className={`buff-plate-badge ${canQuickBuyTea && teaCount === 0 ? "is-price" : ""}`}>
+              {teaCount > 0 ? teaCount : canQuickBuyTea ? "+" : 0}
+            </span>
+          </button>
+        </div>
+
         <div className="dog-stage">
-          <div className="corner-buffs" role="group" aria-label="Быстрые бафы">
-            {/* Top-Left: Корм */}
-            <button
-              className={`corner-buff-plate corner-buff-tl ${foodCount === 0 && canQuickBuyFood ? "is-quick-buy" : ""}`}
-              type="button"
-              disabled={!canFeedDog && !canQuickBuyFood}
-              aria-label={`Корм: ${foodCount} шт.${canQuickBuyFood ? ` (купить за ${DOG_FOOD_PRICE})` : ""}`}
-              title="Корм"
-              onClick={handleFoodItem}
-            >
-              <img className="corner-buff-img" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
-              <span className={`corner-buff-badge ${canQuickBuyFood && foodCount === 0 ? "is-price" : ""}`}>
-                {foodCount > 0 ? foodCount : canQuickBuyFood ? "+" : 0}
-              </span>
-            </button>
-
-            {/* Top-Right: Живчик */}
-            <button
-              className={`corner-buff-plate corner-buff-tr ${boostSeconds > 0 ? "is-active" : drinkCount === 0 && canQuickBuyDrink ? "is-quick-buy" : ""}`}
-              type="button"
-              disabled={(drinkCount < 1 && !canQuickBuyDrink && boostSeconds === 0) || riskMode}
-              aria-label={`Живчик ×4: ${boostSeconds > 0 ? `${boostSeconds} сек.` : `${drinkCount} шт.`}`}
-              title="Живчик"
-              onClick={handleDrinkItem}
-            >
-              <img className="corner-buff-img" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
-              <span className={`corner-buff-badge ${boostSeconds > 0 ? "is-timer" : canQuickBuyDrink && drinkCount === 0 ? "is-price" : ""}`}>
-                {boostSeconds > 0 ? `${boostSeconds}с` : drinkCount > 0 ? drinkCount : canQuickBuyDrink ? "+" : 0}
-              </span>
-            </button>
-
-            {/* Bottom-Left: Питбуль */}
-            <button
-              className={`corner-buff-plate corner-buff-bl ${pitbullCount === 0 && canQuickBuyPitbull ? "is-quick-buy" : ""}`}
-              type="button"
-              disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"}
-              aria-label={`Питбуль (рулетка): ${pitbullCount} шт.`}
-              title="Питбуль"
-              onClick={handlePitbullItem}
-            >
-              <img className="corner-buff-img" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
-              <span className={`corner-buff-badge ${canQuickBuyPitbull && pitbullCount === 0 ? "is-price" : ""}`}>
-                {pitbullCount > 0 ? pitbullCount : canQuickBuyPitbull ? "+" : 0}
-              </span>
-            </button>
-
-            {/* Bottom-Right: Чай с бергамотом */}
-            <button
-              className={`corner-buff-plate corner-buff-br ${teaCount === 0 && canQuickBuyTea ? "is-quick-buy" : ""}`}
-              type="button"
-              disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null}
-              aria-label={`Чай с бергамотом (5 кнопок): ${teaCount} шт.`}
-              title="Бергамот"
-              onClick={() => handleMiniGameItem("mines")}
-            >
-              <img className="corner-buff-img" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
-              <span className={`corner-buff-badge ${canQuickBuyTea && teaCount === 0 ? "is-price" : ""}`}>
-                {teaCount > 0 ? teaCount : canQuickBuyTea ? "+" : 0}
-              </span>
-            </button>
-          </div>
-
           <div className={`dog-orbit ${vitaPowerShield ? "has-vita-shield" : ""}`}>
           {isDogResting && (
             <svg className="fatigue-countdown-ring" viewBox="0 0 120 120" aria-hidden="true">
@@ -3382,14 +3406,18 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
 
         <div className="game-data">
           {riskMessage && <p className="risk-notice" role="status" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
-          <div className="unified-bank-plate" role="group" aria-label="Баланс и перевод в сейф">
+          <div
+            className={`unified-bank-plate ${canSave ? "can-save" : "is-locked"} ${isSavingSwipe ? "is-swiping" : ""}`}
+            role="group"
+            aria-label="Баланс и перевод в сейф"
+          >
             <div
               ref={walletBalanceRef}
               className={`bank-side bank-wallet ${balanceVariant}`}
               role="group"
               aria-label={`Активные монеты ${coins.walletCoins}`}
             >
-              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+              <span className="bank-glyph bank-glyph-coin" aria-hidden="true"><i>К</i></span>
               <div className="bank-side-text">
                 <small>АКТИВ</small>
                 <strong className="balance-number" key={`balance-${balancePulse}`}>
@@ -3398,36 +3426,34 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               </div>
             </div>
 
-            <div
+            <button
               ref={swipeTrackRef}
-              className={`bank-swipe-track ${canSave ? "can-save" : "is-locked"} ${isSavingSwipe ? "is-swiping" : ""}`}
+              type="button"
+              className="bank-action"
+              disabled={!canSave}
               onPointerDown={handleSaveSwipeStart}
               onPointerMove={handleSaveSwipeMove}
               onPointerUp={handleSaveSwipeEnd}
               onPointerCancel={handleSaveSwipeEnd}
+              onClick={() => {
+                if (canSave && !isSavingSwipe) saveAllToVault();
+              }}
+              aria-label={
+                canSave
+                  ? `Свайп или нажатие: сохранить ${saveAmount.toLocaleString("ru-RU")} монет в сейф`
+                  : "Нужно минимум 2 монеты для перевода"
+              }
             >
-              <div
-                className="bank-swipe-fill"
-                style={{ width: `${Math.round(saveSwipeRatio * 100)}%` }}
-                aria-hidden="true"
-              />
-              <span className="bank-swipe-hint" aria-hidden="true">
-                {canSave ? (saveSwipeRatio > 0.1 ? "Отпустите" : "Свайп в сейф 50% →") : "От 2 монет"}
+              <span className="bank-action-shine" aria-hidden="true" />
+              <span className="bank-action-fill" style={{ width: `${Math.round(saveSwipeRatio * 100)}%` }} aria-hidden="true" />
+              <span className="bank-action-label">
+                <small>{canSave ? "СОХРАНИТЬ 50%" : "ОТ 2 МОНЕТ"}</small>
+                <span className="bank-action-arrow" aria-hidden="true">
+                  <i />
+                  <i />
+                </span>
               </span>
-              <button
-                className="bank-swipe-thumb"
-                type="button"
-                disabled={!canSave}
-                aria-label={`Свайп вправо: перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
-                style={{
-                  transform: `translate3d(${saveSwipeRatio * ((swipeTrackRef.current?.offsetWidth ?? 110) - 36)}px, 0, 0)`,
-                  transition: isSavingSwipe ? "none" : "transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-                }}
-                onKeyDown={handleSaveSwipeKeyDown}
-              >
-                <span className="safe-thumb-icon" aria-hidden="true"><i /></span>
-              </button>
-            </div>
+            </button>
 
             <div
               ref={savedBalanceRef}
@@ -3435,7 +3461,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               role="group"
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
-              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span className="bank-glyph bank-glyph-vault" aria-hidden="true"><i /></span>
               <div className="bank-side-text">
                 <small>В СЕЙФЕ</small>
                 <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
@@ -3445,25 +3471,26 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         </div>
       </section>
 
+      </div>
+
       <footer
-        className="bottom-bar"
+        className={`bottom-bar ${miniGame !== null ? "is-locked" : ""}`}
         style={{ "--nav-index": navIndex } as CSSProperties}
       >
         <span className="nav-thumb" aria-hidden="true" />
-        <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => { getSound().nav(-1); selectNavigation(0); }}>
+        <button className={navIndex === 0 ? "active" : ""} type="button" disabled={miniGame !== null} onClick={() => { getSound().nav(-1); selectNavigation(0); }}>
           <span className="shop-icon" aria-hidden="true"><i /></span>
           <span>Магазин</span>
         </button>
-        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => { getSound().nav(0); selectNavigation(1); }}>
+        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" disabled={miniGame !== null} onClick={() => { getSound().nav(0); selectNavigation(1); }}>
           <span className="home-icon" aria-hidden="true"><i /></span>
           <span>Играть</span>
         </button>
-        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => { getSound().nav(1); selectNavigation(2); }}>
+        <button className={navIndex === 2 ? "active" : ""} type="button" disabled={miniGame !== null} onClick={() => { getSound().nav(1); selectNavigation(2); }}>
           <span className="case-nav-icon" aria-hidden="true"><i /></span>
           <span>Кейсы</span>
         </button>
       </footer>
-      </div>
 
       {miniGame && (
         <MiniGamePanel
@@ -3616,7 +3643,15 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           )}
           <span className="case-burst-flash" aria-hidden="true" />
           <span className="case-burst-rays" aria-hidden="true" />
-          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 10}deg`, "--case-distance": `${190 + (index % 5) * 34}px`, "--case-delay": `${(index % 6) * 18}ms` } as CSSProperties} />)}</span>
+          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 48 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 7.5}deg`, "--case-distance": `${220 + (index % 6) * 38}px`, "--case-delay": `${(index % 7) * 14}ms` } as CSSProperties} />)}</span>
+          <span className="case-burst-confetti" aria-hidden="true">{Array.from({ length: 28 }, (_, index) => <i key={index} style={{
+            "--case-angle": `${(index * (360 / 28))}deg`,
+            "--case-distance": `${260 + (index % 5) * 50}px`,
+            "--case-delay": `${(index % 6) * 22}ms`,
+            background: ["#ff5277", "#ffd84d", "#5ad6ff", "#5cff8a", "#ff7d3a", "#a26bff", "#ff4f8a"][index % 7],
+          } as CSSProperties} />)}</span>
+          <span className="case-shockwave" aria-hidden="true" />
+          <span className="case-light-leak" aria-hidden="true" />
         </div>
       )}
 
@@ -3762,6 +3797,20 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               </button>
             </article>
 
+            <article className="shop-card shop-product-card cola-card">
+              <span className="drink-pack cola-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} /></span>
+              <div className="food-copy">
+                <small>ЗАПАС {colaCount}/{INVENTORY_LIMIT}</small>
+                <h3>Какао-Кола</h3>
+                <p>Открывает мини-игру «Три барабана».</p>
+              </div>
+              <button className={`shop-buy-button cola-action ${bulkBuyHolding === "cola" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyCola} onPointerDown={() => beginBulkBuy("cola")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyCola)}>
+                <span>{remainingColaSlots === 0
+                  ? "Запас заполнен"
+                  : `Купить · ${COCOA_COLA_PRICE}`}</span>
+              </button>
+            </article>
+
             <article className="shop-card shop-product-card tea-card">
               <span className="drink-pack tea-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
@@ -3773,6 +3822,20 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 <span>{remainingTeaSlots === 0
                   ? "Запас заполнен"
                   : `Купить · ${BERGAMOT_TEA_PRICE}`}</span>
+              </button>
+            </article>
+
+            <article className="shop-card shop-product-card vita-card">
+              <span className="drink-pack vita-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} /></span>
+              <div className="food-copy">
+                <small>ЗАПАС {vitaPowerCount}/{INVENTORY_LIMIT}</small>
+                <h3>Пепси</h3>
+                <p>Активирует щит и спасает монеты при укусе.</p>
+              </div>
+              <button className={`shop-buy-button vita-action ${bulkBuyHolding === "vita" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyVitaPower} onPointerDown={() => beginBulkBuy("vita")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyVitaPower)}>
+                <span>{remainingVitaPowerSlots === 0
+                  ? "Запас заполнен"
+                  : `Купить · ${VITA_POWER_PRICE}`}</span>
               </button>
             </article>
             </div>}
