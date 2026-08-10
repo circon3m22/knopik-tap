@@ -2445,99 +2445,117 @@ html {
   backdrop-filter: none;
 }
 
-/* iOS 26 Liquid Glass — bottom navigation bar.
-   Многослойный blur с лёгкой dispersion + specular highlight сверху,
-   цветной rim-shadow и неоновый edge. */
-.bottom-bar,
-.state-tired .bottom-bar,
-.state-warning .bottom-bar,
-.state-recovering.has-fatigue .bottom-bar {
+/* iOS 26 Liquid Glass — bottom navigation bar (final spec).
+   Плавающая капсула «жидкого стекла»: плотный blur + saturate, crisp
+   specular-кромка сверху, цветной rim-glow, анимированный iridescent-sheen
+   и стеклянная «линза» активного таба, которая скользит между разделами. */
+.game-shell .bottom-bar {
+  --nav-pad: 8px;
   position: relative;
+  z-index: 80;
   isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  min-height: 78px;
+  margin: 0 2px 9px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 85%);
+  border-radius: 999px;
   background:
     linear-gradient(
-      155deg,
-      rgb(255 255 255 / 78%) 0%,
-      rgb(255 255 255 / 52%) 40%,
-      rgb(245 250 255 / 38%) 100%
+      160deg,
+      rgb(255 255 255 / 90%) 0%,
+      rgb(244 251 255 / 64%) 42%,
+      rgb(229 242 253 / 48%) 100%
     );
-  border: 1px solid rgb(255 255 255 / 80%);
   box-shadow:
     /* primary drop */
-    0 24px 60px -8px rgb(8 28 50 / 28%),
-    0 8px 22px rgb(8 28 50 / 18%),
+    0 26px 60px -10px rgb(8 28 50 / 30%),
+    0 10px 24px rgb(8 28 50 / 16%),
     /* colored rim glow — soft blue aura */
-    0 0 0 1px rgb(10 90 200 / 6%),
-    0 0 24px 0 rgb(10 120 230 / 14%),
+    0 0 0 1px rgb(10 90 200 / 7%),
+    0 0 26px 0 rgb(10 120 230 / 16%),
     /* specular top highlight + soft inner bottom */
-    inset 0 1.5px 0 rgb(255 255 255 / 92%),
-    inset 0 -1px 0 rgb(20 50 90 / 8%);
+    inset 0 1.5px 0 rgb(255 255 255 / 95%),
+    inset 0 -1px 0 rgb(20 50 90 / 10%);
   -webkit-backdrop-filter:
-    blur(40px) saturate(200%) brightness(1.04);
+    blur(44px) saturate(210%) brightness(1.06);
   backdrop-filter:
-    blur(40px) saturate(200%) brightness(1.04);
+    blur(44px) saturate(210%) brightness(1.06);
+  /* Вертикальный скролл страницы остаётся за браузером, горизонтальный
+     свайп по меню обрабатываем сами (pointer events). */
+  touch-action: pan-y;
+  transition: opacity 220ms ease, filter 220ms ease;
 }
 
-.bottom-bar::before {
+.game-shell .bottom-bar::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background:
+    /* crisp specular top edge — фирменная кромка Liquid Glass */
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 92%) 0%,
+      rgb(255 255 255 / 0%) 1.5px
+    ),
     /* animated iridescent sheen — like iOS 26 control glass */
     radial-gradient(
       120% 180% at 18% -20%,
-      rgb(255 255 255 / 35%) 0%,
-      transparent 38%
+      rgb(255 255 255 / 38%) 0%,
+      transparent 40%
     ),
     radial-gradient(
       120% 180% at 82% 120%,
-      rgb(120 180 255 / 12%) 0%,
-      transparent 50%
+      rgb(120 180 255 / 14%) 0%,
+      transparent 52%
     ),
     linear-gradient(
       100deg,
       transparent 0%,
       transparent 30%,
-      rgb(255 255 255 / 22%) 50%,
+      rgb(255 255 255 / 24%) 50%,
       transparent 70%,
       transparent 100%
     );
-  background-size: 200% 200%, 200% 200%, 220% 100%;
-  background-position: 0% 0%, 100% 100%, 0% 50%;
-  animation: liquid-glass-drift 7s ease-in-out infinite;
+  background-size: 100% 100%, 200% 200%, 200% 200%, 240% 100%;
+  background-position: 0% 0%, 0% 0%, 100% 100%, 0% 50%;
+  animation: liquid-glass-drift 8s ease-in-out infinite;
   pointer-events: none;
   z-index: 0;
   mix-blend-mode: screen;
 }
 
-.bottom-bar::after {
+.game-shell .bottom-bar::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgb(255 255 255 / 28%) 0%,
-    transparent 26%,
-    transparent 74%,
-    rgb(0 30 60 / 8%) 100%
+    rgb(255 255 255 / 30%) 0%,
+    transparent 30%,
+    transparent 72%,
+    rgb(0 30 60 / 9%) 100%
   );
   pointer-events: none;
   z-index: 0;
 }
 
-.bottom-bar > * {
+.game-shell .bottom-bar > * {
   position: relative;
   z-index: 1;
 }
 
 @keyframes liquid-glass-drift {
-  0%, 100% { background-position: 0% 0%, 100% 100%, -120% 50%; }
-  50% { background-position: 18% 22%, 82% 78%, 30% 50%; }
+  0%, 100% { background-position: 0% 0%, 0% 0%, 100% 100%, -120% 50%; }
+  50% { background-position: 0% 0%, 18% 22%, 82% 78%, 30% 50%; }
 }
 
-.bottom-bar.is-locked {
+.game-shell .bottom-bar.is-locked {
   opacity: 0.55;
   filter: saturate(0.55);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
@@ -2545,10 +2563,216 @@ html {
   pointer-events: none;
 }
 
-.nav-thumb {
+/* Во время рулетки навигация временно заблокирована, но меню остаётся видимым. */
+.game-shell.risk-mode .bottom-bar {
+  opacity: 0.42;
+  filter: saturate(0.82);
+  pointer-events: none;
+}
+
+/* Спокойное состояние — то же стекло, чуть воздушнее (перекрывает старый
+   «плоский» фон pale-calm из globals.css). */
+.game-shell.state-calm.pale-calm .bottom-bar {
+  border-color: rgb(255 255 255 / 88%);
+  background:
+    linear-gradient(
+      160deg,
+      rgb(255 255 255 / 92%) 0%,
+      rgb(244 251 255 / 66%) 42%,
+      rgb(229 242 253 / 50%) 100%
+    );
   box-shadow:
-    0 6px 18px rgb(28 70 102 / 16%),
-    inset 0 1px 0 rgb(255 255 255 / 92%);
+    0 22px 52px -10px rgb(8 28 50 / 22%),
+    0 8px 20px rgb(8 28 50 / 10%),
+    0 0 0 1px rgb(10 90 200 / 6%),
+    inset 0 1.5px 0 rgb(255 255 255 / 95%),
+    inset 0 -1px 0 rgb(20 50 90 / 8%);
+}
+
+/* Стеклянная «линза» активного таба. */
+.game-shell .nav-thumb {
+  position: absolute;
+  z-index: 0;
+  top: var(--nav-pad);
+  bottom: var(--nav-pad);
+  left: var(--nav-pad);
+  width: calc((100% - 2 * var(--nav-pad)) / 3);
+  border: 1px solid rgb(255 255 255 / 94%);
+  border-radius: 999px;
+  background:
+    radial-gradient(
+      120% 150% at 50% -35%,
+      rgb(255 255 255 / 98%) 0%,
+      rgb(255 255 255 / 0%) 56%
+    ),
+    linear-gradient(
+      160deg,
+      rgb(255 255 255 / 97%) 0%,
+      rgb(223 241 255 / 90%) 100%
+    );
+  box-shadow:
+    0 10px 26px rgb(30 72 108 / 20%),
+    0 0 0 1px rgb(10 115 232 / 8%),
+    0 0 20px rgb(10 120 230 / 16%),
+    inset 0 1px 0 rgb(255 255 255 / 98%),
+    inset 0 -1px 0 rgb(20 50 90 / 6%);
+  transform: translateX(calc(var(--nav-index) * 100%));
+  transition: transform 420ms cubic-bezier(0.2, 0.9, 0.24, 1);
+  pointer-events: none;
+  forced-color-adjust: none;
+}
+
+.game-shell .bottom-bar button {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 62px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 999px;
+  color: rgb(90 110 127 / 80%);
+  background: transparent;
+  box-shadow: none;
+  font-size: 9.5px;
+  font-weight: 640;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 1;
+  touch-action: manipulation;
+  transition:
+    color 200ms ease,
+    opacity 200ms ease,
+    transform 200ms var(--ui-ease);
+}
+
+.game-shell .bottom-bar button.active {
+  color: var(--ui-blue);
+  opacity: 1;
+  /* Глобальная «пульсация» из старых слоёв не нужна — работает линза. */
+  animation: none;
+}
+
+/* Иконки табов в стиле SF Symbols: чуть крупнее и с мягким «поп» при выборе. */
+.game-shell .bottom-bar button.active .shop-icon,
+.game-shell .bottom-bar button.active .home-icon,
+.game-shell .bottom-bar button.active .case-nav-icon {
+  animation: nav-icon-pop 420ms var(--ui-ease);
+  transform: translateY(-1px) scale(1.05);
+  filter: drop-shadow(0 2px 6px rgb(10 115 232 / 30%));
+}
+
+@keyframes nav-icon-pop {
+  0% { transform: translateY(0) scale(0.92); }
+  55% { transform: translateY(-1px) scale(1.12); }
+  100% { transform: translateY(-1px) scale(1.05); }
+}
+
+.game-shell .bottom-bar .shop-icon,
+.game-shell .bottom-bar .home-icon {
+  width: 24px;
+  height: 23px;
+}
+
+.game-shell .bottom-bar .shop-icon {
+  border-width: 1.9px;
+  border-radius: 6px 6px 8px 8px;
+}
+
+.game-shell .bottom-bar .shop-icon::before {
+  top: -6px;
+  left: 6px;
+  width: 10px;
+  height: 7px;
+  border-width: 1.9px;
+  border-radius: 8px 8px 0 0;
+}
+
+.game-shell .bottom-bar .shop-icon i {
+  top: 8px;
+  right: 5px;
+  left: 5px;
+  height: 1.7px;
+}
+
+.game-shell .bottom-bar .home-icon::before {
+  top: 1.5px;
+  left: 3.5px;
+  width: 17px;
+  height: 17px;
+  border-width: 2px;
+  border-radius: 6px;
+}
+
+.game-shell .bottom-bar .home-icon::after {
+  bottom: 1px;
+  left: 8px;
+  width: 8px;
+  height: 13px;
+  border-radius: 6px 6px 2px 2px;
+}
+
+.game-shell .bottom-bar .case-nav-icon {
+  width: 27px;
+  height: 22px;
+  border-width: 2px;
+  border-radius: 6px 6px 8px 8px;
+}
+
+.game-shell .bottom-bar .case-nav-icon::before {
+  top: -7px;
+  left: 4px;
+  width: 16px;
+  height: 6px;
+  border-width: 2px;
+}
+
+.game-shell .bottom-bar .case-nav-icon i {
+  inset: 6px 9px;
+}
+
+/* Компактные экраны */
+@media (max-height: 740px) {
+  .game-shell .bottom-bar {
+    --nav-pad: 6px;
+    min-height: 66px;
+    padding: 6px;
+  }
+  .game-shell .bottom-bar button {
+    min-height: 54px;
+    gap: 3px;
+    font-size: 8.5px;
+  }
+}
+
+@media (max-width: 355px) {
+  .game-shell .bottom-bar {
+    --nav-pad: 6px;
+    padding: 6px;
+  }
+  .game-shell .bottom-bar button {
+    gap: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .bottom-bar::before {
+    animation: none;
+  }
+  .game-shell .nav-thumb {
+    transition: none;
+  }
+  .game-shell .bottom-bar button.active .shop-icon,
+  .game-shell .bottom-bar button.active .home-icon,
+  .game-shell .bottom-bar button.active .case-nav-icon {
+    animation: none;
+    transform: none;
+  }
 }
 
 .level-strip,
