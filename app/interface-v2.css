@@ -1333,10 +1333,10 @@ button {
   border-radius: 30px 30px 0 0;
 }
 .cases-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.cases-heading h2 { margin: 2px 0 0; color: var(--ui-ink); font-size: 30px; letter-spacing: -.04em; }
+.cases-heading h2 { margin: 2px 0 0; color: var(--ui-ink); font-size: 30px; font-weight: 900; letter-spacing: -.04em; }
 .cases-heading p { margin: 0; }
 .cases-heading > span { display: grid; min-width: 94px; padding: 9px 13px; border-radius: 17px; color: #fff; background: var(--ui-blue); text-align: right; }
-.cases-heading > span strong { font-size: 20px; line-height: 1; }
+.cases-heading > span strong { font-size: 20px; font-weight: 880; line-height: 1; }
 .cases-heading > span small { margin-top: 3px; font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .case-list { display: grid; gap: 11px; }
 .case-card {
@@ -1351,7 +1351,7 @@ button {
 }
 .case-card > div:nth-child(2) { min-width: 0; align-self: center; }
 .case-card small { color: var(--ui-blue); font-size: 8px; font-weight: 850; letter-spacing: .07em; }
-.case-card h3 { margin: 3px 0 4px; color: var(--ui-ink); font-size: 18px; }
+.case-card h3 { margin: 3px 0 4px; color: var(--ui-ink); font-size: 18px; font-weight: 900; }
 .case-card p { margin: 0; color: var(--ui-muted); font-size: 11px; line-height: 1.35; }
 .case-card > button { min-height: 44px; grid-column: 1 / -1; border: 0; border-radius: 14px; color: #fff; background: var(--ui-blue); font-size: 12px; font-weight: 820; }
 .case-card > button:disabled { color: var(--ui-subtle); background: #e9eef2; }
@@ -1359,7 +1359,7 @@ button {
 .case-big-card .case-miniature { background: linear-gradient(145deg, #ffe77b, #f18d17); }
 .case-miniature::before { width: 55px; height: 43px; border: 3px solid rgb(255 255 255 / 75%); border-radius: 8px; background: rgb(0 51 105 / 25%); content: ""; }
 .case-miniature i { position: absolute; top: 19px; width: 62px; height: 13px; border-radius: 5px; background: rgb(255 255 255 / 82%); box-shadow: 0 4px 7px rgb(0 0 0 / 15%); }
-.case-miniature b { position: absolute; color: #fff; font-size: 19px; text-shadow: 0 2px 4px rgb(0 0 0 / 24%); }
+.case-miniature b { position: absolute; color: #fff; font-size: 19px; font-weight: 900; text-shadow: 0 2px 4px rgb(0 0 0 / 24%); }
 .case-quest-card { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid var(--ui-line); border-radius: 19px; background: #eaf0f4; }
 .case-quest-card > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px; color: #fff; background: var(--ui-blue); font-weight: 900; }
 .case-quest-card div { min-width: 0; }
@@ -1391,7 +1391,7 @@ button {
 .phase-burst .case-burst-particles i { animation: case-particle 620ms ease-out both; }
 .case-reward-screen { display: grid; width: min(100%, 520px); place-items: center; border: 0; color: #fff; background: transparent; text-align: center; }
 .case-reward-screen small { font-size: 11px; font-weight: 850; letter-spacing: .12em; }
-.case-reward-screen h2 { max-width: 90%; margin: 18px 0 8px; color: #fff; font-size: clamp(28px, 9vw, 44px); letter-spacing: -.045em; }
+.case-reward-screen h2 { max-width: 90%; margin: 18px 0 8px; color: #fff; font-size: clamp(28px, 9vw, 44px); font-weight: 880; letter-spacing: -.045em; }
 .case-reward-screen p { margin: 0; color: rgb(255 255 255 / 73%); font-size: 13px; }
 .case-reward-icon { display: grid; width: 140px; height: 140px; margin-top: 24px; place-items: center; border: 7px solid rgb(255 255 255 / 74%); border-radius: 38px; background: linear-gradient(145deg, #fff2a1, #ffab13); box-shadow: 0 24px 48px rgb(0 0 0 / 27%), inset 0 4px 0 rgb(255 255 255 / 58%); font-size: 61px; font-weight: 950; animation: case-reward-in 480ms cubic-bezier(.16,1.2,.3,1) both; }
 
@@ -1542,7 +1542,7 @@ button {
 .fatigue-countdown-ring circle {
   fill: none;
   stroke: #ffffff;
-  stroke-width: 4.5;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 100;
   transition: stroke-dashoffset 900ms linear;
