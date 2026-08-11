@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -66,7 +65,7 @@ export type CloudAccount = {
   userId: string;
   username: string;
   isAdmin: boolean;
-  /** Локальный офлайн-профиль: без Supabase и облачной синхронизации. */
+  /** Локальный офлайн-профиль (гость): без Supabase и облачной синхронизации. */
   isLocal: boolean;
 };
 
@@ -100,8 +99,12 @@ type CloudGameSession = {
   redeemPromoCode: (code: string) => Promise<PromoResult>;
   changePassword: (password: string) => Promise<string>;
   signOut: () => Promise<void>;
+  /** Показана ли форма входа в облачный аккаунт в настройках. */
+  cloudLoginVisible: boolean;
   /** Показать форму входа в облако из настроек. */
   showCloudLoginForm: () => void;
+  /** Скрыть форму входа в облако. */
+  hideCloudLoginForm: () => void;
   /** Начать вход в облачный аккаунт. */
   startCloudLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 };
@@ -114,6 +117,8 @@ type CloudAccountGateProps = {
 
 const SAVE_DELAY_MS = 4_000;
 const MAX_PROMO_AMOUNT = 1_000_000_000;
+/** Сколько ждём восстановление облачной сессии, прежде чем стартовать локально. */
+const SESSION_BOOT_TIMEOUT_MS = 2_500;
 const CLOUD_SOURCE_ID =
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -172,15 +177,10 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
   const [account, setAccount] = useState<CloudAccount | null>(null);
   const [initialSave, setInitialSave] = useState<SaveData | null>(null);
   const [gameRevision, setGameRevision] = useState(0);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loginPending, setLoginPending] = useState(false);
   const [syncState, setSyncState] = useState<CloudSyncState>("saved");
   const [difficulty, setDifficulty] = useState(DEFAULT_DIFFICULTY);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
-  const [localMode, setLocalMode] = useState(false);
-  const [showCloudLoginForm, setShowCloudLoginForm] = useState(false);
+  const [cloudLoginVisible, setCloudLoginVisible] = useState(false);
   const localPromosRef = useRef<LocalPromoCode[]>([]);
   const accountRef = useRef<CloudAccount | null>(null);
   const latestSaveRef = useRef<SaveData | null>(null);
@@ -194,8 +194,16 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     onBootReady?.();
   }, [authLoading, onBootReady]);
 
-  /** Поднимает офлайн-сессию: никаких запросов к Supabase, всё из localStorage. */
-  const startLocalSession = useCallback(() => {
+  /**
+   * Гостевая сессия: игра идёт сразу, без входа и без запросов к Supabase —
+   * прогресс, сложность и промокоды живут в localStorage (кэш браузера).
+   *
+   * `persist: true` (по умолчанию) запоминает локальный режим, и следующий
+   * запуск не трогает сеть вообще. `persist: false` используется при
+   * офлайн-фолбэке, чтобы при следующем запуске снова попробовать облако.
+   */
+  const startLocalSession = useCallback((options?: { persist?: boolean }) => {
+    const persist = options?.persist ?? true;
     const localSave = readLocalGameSave();
     const nextAccount: CloudAccount = {
       userId: LOCAL_USER_ID,
@@ -208,9 +216,9 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     latestSaveRef.current = localSave;
     saveVersionRef.current = 0;
     flushedVersionRef.current = 0;
-    enableLocalMode();
+    if (persist) enableLocalMode();
+    else disableLocalMode();
     writeLocalGameSave(localSave);
-    setLocalMode(true);
     setUser(null);
     setAccount(nextAccount);
     setInitialSave(localSave);
@@ -218,9 +226,8 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     setSyncState("saved");
     setDifficulty(readLocalDifficulty());
     setPromoCodes(localPromosRef.current.map(mapLocalPromoCode));
-    setLoginError("");
     setAuthLoading(false);
-    setShowCloudLoginForm(false);
+    setCloudLoginVisible(false);
   }, []);
 
   const refreshPromoCodes = useCallback(async () => {
@@ -239,44 +246,66 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     if (!error) setPromoCodes((data ?? []).map(mapPromoCode));
   }, []);
 
+  /**
+   * Первый запуск: вход не требуется — игра стартует локально.
+   * Облачную сессию восстанавливаем, только если игрок уже входил
+   * через настройки и локальный режим после этого не включался.
+   */
   useEffect(() => {
-    if (localMode) return;
+    let active = true;
 
-    // По умолчанию запускаем локальную сессию без экрана входа.
-    // Пользователь может войти в аккаунт позже через настройки.
     if (isLocalModeActive()) {
-      let restored = true;
+      // Откладываем на микротаск, чтобы не обновлять состояние синхронно в эффекте.
       void Promise.resolve().then(() => {
-        if (restored) startLocalSession();
+        if (active) startLocalSession();
       });
       return () => {
-        restored = false;
+        active = false;
       };
     }
 
-    // Локальный режим по умолчанию — сразу запускаем без запросов к Supabase.
-    // Экран входа не показываем, чтобы играть можно было сразу.
-    let started = false;
-    void Promise.resolve().then(() => {
-      if (!started) {
-        started = true;
-        startLocalSession();
+    const restoreCloudSession = async () => {
+      type BootResult = { user: User | null; timedOut: boolean };
+      const sessionLookup: Promise<BootResult> = getSupabaseClient().auth
+        .getSession()
+        .then(({ data }) => ({ user: data.session?.user ?? null, timedOut: false }))
+        .catch(() => ({ user: null, timedOut: true }));
+      const timeout: Promise<BootResult> = new Promise((resolve) => {
+        setTimeout(
+          () => resolve({ user: null, timedOut: true }),
+          SESSION_BOOT_TIMEOUT_MS,
+        );
+      });
+
+      const boot = await Promise.race([sessionLookup, timeout]);
+      if (!active) return;
+
+      if (boot.user) {
+        // Облачный вход из прошлого визита — подтягиваем профиль и сохранение.
+        disableLocalMode();
+        setUser(boot.user);
+        return;
       }
-    });
 
-    return () => {
-      started = false;
+      // Нет сессии — играем локально. При таймауте/ошибке (офлайн) флаг не
+      // запоминаем: при следующем запуске снова попробуем облако.
+      startLocalSession({ persist: !boot.timedOut });
     };
-  }, [localMode, startLocalSession]);
 
+    void restoreCloudSession();
+    return () => {
+      active = false;
+    };
+  }, [startLocalSession]);
+
+  /** Загружает профиль, сохранение и настройки облачного аккаунта. */
   useEffect(() => {
-    if (!user || localMode) return;
+    if (!user) return;
     const supabase = getSupabaseClient();
     let active = true;
 
     async function loadCloudAccount() {
       setAuthLoading(true);
-      setLoginError("");
       const [
         { data: profile, error: profileError },
         { data: cloudSave, error: saveError },
@@ -302,20 +331,27 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
 
       if (!active) return;
       if (profileError || !profile) {
-        setLoginError("Профиль игрока не найден.");
+        // Аккаунт без профиля непригоден — выходим и продолжаем локально.
         await supabase.auth.signOut();
-        setAuthLoading(false);
+        if (!active) return;
+        setUser(null);
+        startLocalSession();
         return;
       }
       if (saveError) {
-        setLoginError("Не удалось загрузить сохранение.");
-        setAuthLoading(false);
+        // Сохранение не загрузилось (например, нет сети): играем локально,
+        // но облачную сессию не сбрасываем — повторим при следующем запуске.
+        setUser(null);
+        startLocalSession({ persist: false });
         return;
       }
 
+      // Облачного сохранения ещё нет (первый вход) — переносим в облако
+      // текущий локальный прогресс гостя, чтобы ничего не потерять.
+      const guestSave = latestSaveRef.current;
       const loadedSave = cloudSave
         ? sanitizeSave(cloudSave.save)
-        : readLocalSave(user!.id);
+        : sanitizeSave(guestSave ?? readLocalSave(user!.id));
 
       if (!cloudSave) {
         const { error } = await supabase.from("game_saves").insert({
@@ -324,8 +360,9 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
           source_id: CLOUD_SOURCE_ID,
         });
         if (error) {
-          setLoginError("Не удалось создать облачное сохранение.");
-          setAuthLoading(false);
+          if (!active) return;
+          setUser(null);
+          startLocalSession({ persist: false });
           return;
         }
       }
@@ -364,7 +401,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     return () => {
       active = false;
     };
-  }, [localMode, user]);
+  }, [startLocalSession, user]);
 
   const flushProgress = useCallback(async (): Promise<void> => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -506,7 +543,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
 
   const redeemPromoCode = useCallback(async (code: string): Promise<PromoResult> => {
     const currentAccount = accountRef.current;
-    if (!currentAccount) return { message: "Сначала войди в аккаунт." };
+    if (!currentAccount) return { message: "Играй локально или войди в аккаунт через настройки." };
     if (currentAccount.isAdmin && !currentAccount.isLocal) {
       return { message: "Промокоды предназначены для другого игрока." };
     }
@@ -568,29 +605,6 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     };
   }, [flushProgress]);
 
-  async function submitLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    // Зарезервированная пара wolf / 123456 включает локальный режим без облака.
-    if (isLocalCredentials(username, password)) {
-      setLoginPending(false);
-      startLocalSession();
-      return;
-    }
-    const email = usernameToEmail(username);
-    if (!email) {
-      setLoginError("Логин должен содержать от 3 до 32 латинских букв или цифр.");
-      return;
-    }
-    setLoginPending(true);
-    setLoginError("");
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setLoginError("Неверный логин или пароль.");
-    setLoginPending(false);
-  }
-
   const changePassword = useCallback(async (nextPassword: string) => {
     if (nextPassword.length < 6) return "Пароль должен содержать минимум 6 символов.";
     if (accountRef.current?.isLocal) {
@@ -603,151 +617,66 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     return error ? "Не удалось изменить пароль." : "Пароль изменён.";
   }, []);
 
-  /** Переключиться на локальный режим после выхода из облака. */
-  const switchToLocalMode = useCallback(() => {
-    disableLocalMode();
-    accountRef.current = null;
-    localPromosRef.current = [];
-    setLocalMode(false);
-    setAccount(null);
-    setInitialSave(null);
-    setPromoCodes([]);
-    setDifficulty(DEFAULT_DIFFICULTY);
-    setUsername("");
-    setPassword("");
-    setSyncState("saved");
-    setShowCloudLoginForm(false);
-    // Запускаем локальную сессию
-    const localSave = readLocalGameSave();
-    const nextAccount: CloudAccount = {
-      userId: LOCAL_USER_ID,
-      username: LOCAL_USERNAME,
-      isAdmin: true,
-      isLocal: true,
-    };
-    localPromosRef.current = readLocalPromoCodes();
-    accountRef.current = nextAccount;
-    latestSaveRef.current = localSave;
-    saveVersionRef.current = 0;
-    flushedVersionRef.current = 0;
-    enableLocalMode();
-    writeLocalGameSave(localSave);
-    setLocalMode(true);
-    setUser(null);
-    setAccount(nextAccount);
-    setInitialSave(localSave);
-    setGameRevision((current) => current + 1);
-    setSyncState("saved");
-    setDifficulty(readLocalDifficulty());
-    setPromoCodes(localPromosRef.current.map(mapLocalPromoCode));
-    setLoginError("");
-    setAuthLoading(false);
-  }, []);
-
+  /**
+   * Выход из облачного аккаунта. Игра не останавливается: сразу
+   * возвращаемся в локальный режим, локальный прогресс на месте.
+   */
   const signOut = useCallback(async () => {
     await flushProgress();
-    if (accountRef.current?.isLocal) {
-      disableLocalMode();
-      accountRef.current = null;
-      localPromosRef.current = [];
-      setLocalMode(false);
-      setAccount(null);
-      setInitialSave(null);
-      setPromoCodes([]);
-      setDifficulty(DEFAULT_DIFFICULTY);
-      setUsername("");
-      setPassword("");
-      setSyncState("saved");
-      setShowCloudLoginForm(false);
-      return;
+    const wasCloud = Boolean(accountRef.current && !accountRef.current.isLocal);
+    setUser(null);
+    if (wasCloud) {
+      try {
+        await getSupabaseClient().auth.signOut();
+      } catch {
+        // Даже без сети локальный режим продолжает работать.
+      }
     }
-    // Облачный аккаунт — выходим и возвращаемся в локальный режим
-    await getSupabaseClient().auth.signOut();
-    switchToLocalMode();
-  }, [flushProgress, switchToLocalMode]);
+    startLocalSession();
+  }, [flushProgress, startLocalSession]);
 
   /** Показать форму входа в облако из настроек. */
-  const showCloudLoginFormAction = useCallback(() => {
-    setShowCloudLoginForm(true);
-    setLoginError("");
-    setUsername("");
-    setPassword("");
+  const showCloudLoginForm = useCallback(() => {
+    setCloudLoginVisible(true);
   }, []);
 
-  /** Выполнить вход в облачный аккаунт. */
+  /** Скрыть форму входа в облако. */
+  const hideCloudLoginForm = useCallback(() => {
+    setCloudLoginVisible(false);
+  }, []);
+
+  /** Вход в облачный аккаунт из настроек. Локальный прогресс не пропадает. */
   const startCloudLogin = useCallback(async (loginUsername: string, loginPassword: string): Promise<{ success: boolean; error?: string }> => {
-    // Нельзя входить в облако если уже локальный аккаунт wolf
+    // Зарезервированная пара wolf / 123456 — это и есть локальный режим,
+    // который уже запущен без всякого входа.
     if (isLocalCredentials(loginUsername, loginPassword)) {
-      return { success: false, error: "Используй локальный режим без входа в аккаунт" };
+      return { success: false, error: "Этот профиль локальный — игра уже работает без входа." };
     }
     const email = usernameToEmail(loginUsername);
     if (!email) {
-      return { success: false, error: "Логин должен содержать от 3 до 32 латинских букв или цифр" };
+      return { success: false, error: "Логин должен содержать от 3 до 32 латинских букв или цифр." };
     }
-    setLoginPending(true);
-    setLoginError("");
-    setShowCloudLoginForm(false);
-
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
+    const { data, error } = await getSupabaseClient().auth.signInWithPassword({
       email,
       password: loginPassword,
     });
 
-    if (error) {
-      setLoginError("Неверный логин или пароль");
-      setLoginPending(false);
-      return { success: false, error: "Неверный логин или пароль" };
+    if (error || !data.user) {
+      return { success: false, error: "Неверный логин или пароль." };
     }
 
-    // После успешного входа useEffect загрузит данные пользователя
+    // Со следующего запуска сессию восстановим из облака автоматически.
+    disableLocalMode();
+    setCloudLoginVisible(false);
+    // Эффект загрузки облачного аккаунта подхватит user и прогресс.
+    setUser(data.user);
     return { success: true };
   }, []);
 
-  if (authLoading) {
+  if (authLoading || !account || !initialSave) {
     return (
       <main className="auth-screen">
         <div className="auth-loader" role="status" aria-label="Загрузка профиля" />
-      </main>
-    );
-  }
-
-  if (!user || !account || !initialSave) {
-    return (
-      <main className="auth-screen">
-        <form className="auth-card" onSubmit={submitLogin}>
-          <p className="auth-kicker">KNOPIK TAP</p>
-          <h1>Вход в игру</h1>
-          <p>Войди в профиль — прогресс загрузится из облака.</p>
-          <label>
-            <span>Логин</span>
-            <input
-              value={username}
-              onChange={(event) => setUsername(event.currentTarget.value)}
-              autoCapitalize="none"
-              autoCorrect="off"
-              autoComplete="username"
-              required
-            />
-          </label>
-          <label>
-            <span>Пароль</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.currentTarget.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          {loginError && <p className="auth-error" role="alert">{loginError}</p>}
-          <button type="submit" disabled={loginPending}>
-            {loginPending ? "Входим…" : "Войти"}
-          </button>
-          <p className="auth-local-hint">
-            Нет сети? Войди как <b>{LOCAL_USERNAME}</b> — игра запустится локально,
-            без облачной синхронизации.
-          </p>
-        </form>
       </main>
     );
   }
@@ -767,7 +696,9 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     redeemPromoCode,
     changePassword,
     signOut,
-    showCloudLoginForm: showCloudLoginFormAction,
+    cloudLoginVisible,
+    showCloudLoginForm,
+    hideCloudLoginForm,
     startCloudLogin,
   });
 }

@@ -250,7 +250,9 @@ type KnopikGameProps = {
   onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
   onChangePassword: (password: string) => Promise<string>;
   onSignOut: () => Promise<void>;
+  cloudLoginVisible: boolean;
   onShowCloudLoginForm: () => void;
+  onHideCloudLoginForm: () => void;
   onStartCloudLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 };
 
@@ -267,7 +269,9 @@ function KnopikGame({
   onRedeemPromoCode,
   onChangePassword,
   onSignOut,
+  cloudLoginVisible,
   onShowCloudLoginForm,
+  onHideCloudLoginForm,
   onStartCloudLogin,
 }: KnopikGameProps) {
   const [dogState, setDogState] = useState<DogState>("calm");
@@ -340,7 +344,6 @@ function KnopikGame({
   const [cloudLoginPassword, setCloudLoginPassword] = useState("");
   const [cloudLoginError, setCloudLoginError] = useState("");
   const [cloudLoginPending, setCloudLoginPending] = useState(false);
-  const [showCloudLoginForm, setShowCloudLoginForm] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
@@ -2902,7 +2905,11 @@ function KnopikGame({
     () => selectNavigation(1),
     [selectNavigation],
   );
-  const closeSettingsSheet = useCallback(() => setSettingsOpen(false), []);
+  const closeSettingsSheet = useCallback(() => {
+    setSettingsOpen(false);
+    onHideCloudLoginForm();
+    setCloudLoginError("");
+  }, [onHideCloudLoginForm]);
   const dismissCaseOpening = useCallback(() => {
     if (caseSequence?.phase === "reward") {
       advanceCaseReward();
@@ -3137,8 +3144,8 @@ function KnopikGame({
           <button
             className="header-pill header-avatar header-settings-button"
             type="button"
-            aria-label={`Открыть настройки аккаунта ${account.username}`}
-            title={`Настройки (${account.username})`}
+            aria-label={account.isLocal ? "Открыть настройки (гостевой режим)" : `Открыть настройки аккаунта ${account.username}`}
+            title={account.isLocal ? "Настройки (гость)" : `Настройки (${account.username})`}
             onClick={() => {
               setShopOpen(false);
               setCasesOpen(false);
@@ -4103,12 +4110,12 @@ function KnopikGame({
             <div className="account-settings">
               <div className="account-summary">
                 <span className="account-avatar" aria-hidden="true">
-                  {account.username.slice(0, 1).toUpperCase()}
+                  {(account.isLocal ? "гость" : account.username).slice(0, 1).toUpperCase()}
                 </span>
                 <div className="account-info">
-                  <strong>{account.username}</strong>
+                  <strong>{account.isLocal ? "Гость" : account.username}</strong>
                   {account.isLocal ? (
-                    <span className="account-local-badge">📱 Локально</span>
+                    <span className="account-local-badge">📱 На этом устройстве</span>
                   ) : (
                     <span className={`account-sync-badge ${syncState}`}>
                       {syncState === "saved" ? "✓ Сохранено" : syncState === "saving" ? "⟳ Сохраняем…" : "⚠ Ошибка"}
@@ -4120,9 +4127,11 @@ function KnopikGame({
               {account.isLocal ? (
                 <div className="account-cloud-section">
                   <p className="account-cloud-description">
-                    Игра сохраняется локально в браузере. Войди в аккаунт, чтобы синхронизировать прогресс между устройствами.
+                    Вход не нужен — игра сохраняется локально, в кэше этого браузера.
+                    Войди в аккаунт, чтобы синхронизировать прогресс между устройствами:
+                    облачное сохранение заменит локальное.
                   </p>
-                  {!showCloudLoginForm ? (
+                  {!cloudLoginVisible ? (
                     <button
                       type="button"
                       className="settings-action primary-action"
@@ -4178,7 +4187,10 @@ function KnopikGame({
                         <button
                           type="button"
                           className="settings-action"
-                          onClick={() => setShowCloudLoginForm(false)}
+                          onClick={() => {
+                            onHideCloudLoginForm();
+                            setCloudLoginError("");
+                          }}
                         >
                           Отмена
                         </button>
@@ -4685,7 +4697,7 @@ export default function Home() {
       )}
       <div className={`boot-content${contentRevealed ? " is-revealed" : ""}`}>
         <CloudAccountGate onBootReady={handleBootReady}>
-          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut, showCloudLoginForm, startCloudLogin }) => (
+          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut, cloudLoginVisible, showCloudLoginForm, hideCloudLoginForm, startCloudLogin }) => (
             <KnopikGame
               key={gameKey}
               account={account}
@@ -4700,7 +4712,9 @@ export default function Home() {
               onRedeemPromoCode={redeemPromoCode}
               onChangePassword={changePassword}
               onSignOut={signOut}
+              cloudLoginVisible={cloudLoginVisible}
               onShowCloudLoginForm={showCloudLoginForm}
+              onHideCloudLoginForm={hideCloudLoginForm}
               onStartCloudLogin={startCloudLogin}
             />
           )}

@@ -36,30 +36,30 @@ const {
 const { createDefaultSave } = await import("../app/game-logic.ts");
 const { DEFAULT_DIFFICULTY } = await import("../app/difficulty-engine.ts");
 
-test("логин W с паролем 8 открывает локальный режим", () => {
-  assert.equal(LOCAL_USERNAME, "W");
-  assert.equal(LOCAL_PASSWORD, "8");
-  assert.equal(matchesLocalCredentials("W", "8"), true);
+test("логин wolf с паролем 123456 открывает локальный режим", () => {
+  assert.equal(LOCAL_USERNAME, "wolf");
+  assert.equal(LOCAL_PASSWORD, "123456");
+  assert.equal(matchesLocalCredentials("wolf", "123456"), true);
   // Регистр логина и пробелы не мешают входу.
-  assert.equal(matchesLocalCredentials("w", "8"), true);
-  assert.equal(matchesLocalCredentials("  W  ", "8"), true);
+  assert.equal(matchesLocalCredentials("WOLF", "123456"), true);
+  assert.equal(matchesLocalCredentials("  wolf  ", "123456"), true);
 });
 
 test("другие пары логин/пароль в локальный режим не пускают", () => {
-  assert.equal(matchesLocalCredentials("W", "9"), false);
-  assert.equal(matchesLocalCredentials("kamrad", "8"), false);
-  assert.equal(matchesLocalCredentials("W8", "8"), false);
+  assert.equal(matchesLocalCredentials("wolf", "654321"), false);
+  assert.equal(matchesLocalCredentials("kamrad", "123456"), false);
+  assert.equal(matchesLocalCredentials("wolf1", "123456"), false);
   assert.equal(matchesLocalCredentials("", ""), false);
 });
 
 test("изменённый локальный пароль работает вместе с базовым", () => {
   store.clear();
-  assert.equal(isLocalCredentials("W", "secret123"), false);
+  assert.equal(isLocalCredentials("wolf", "secret123"), false);
   writeLocalPassword("secret123");
-  assert.equal(isLocalCredentials("W", "secret123"), true);
+  assert.equal(isLocalCredentials("wolf", "secret123"), true);
   // Базовый пароль остаётся запасным входом.
-  assert.equal(isLocalCredentials("W", "8"), true);
-  assert.equal(isLocalCredentials("W", "other"), false);
+  assert.equal(isLocalCredentials("wolf", "123456"), true);
+  assert.equal(isLocalCredentials("wolf", "other"), false);
   store.clear();
 });
 
