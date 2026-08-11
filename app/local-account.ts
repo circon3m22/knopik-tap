@@ -1,7 +1,7 @@
 /**
  * Локальный (офлайн) аккаунт.
  *
- * Вход с логином `W` и паролем `8` запускает игру полностью на устройстве:
+ * Вход с логином `wolf` и паролем `123456` запускает игру полностью на устройстве:
  * Supabase не вызывается, прогресс, сложность и промокоды живут в localStorage.
  * Все игровые функции при этом остаются доступными.
  */
@@ -9,8 +9,8 @@
 import { SAVE_KEY, createDefaultSave, sanitizeSave, type SaveData } from "./game-logic.ts";
 import { DEFAULT_DIFFICULTY, clampDifficulty } from "./difficulty-engine.ts";
 
-export const LOCAL_USERNAME = "W";
-export const LOCAL_PASSWORD = "8";
+export const LOCAL_USERNAME = "wolf";
+export const LOCAL_PASSWORD = "123456";
 export const LOCAL_USER_ID = "local-w";
 
 const LOCAL_MODE_KEY = "knopik-tap:local-mode";

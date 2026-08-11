@@ -576,7 +576,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // Зарезервированная пара W / 8 включает локальный режим без облака.
+    // Зарезервированная пара wolf / 123456 включает локальный режим без облака.
     if (isLocalCredentials(username, password)) {
       setLoginPending(false);
       startLocalSession();
