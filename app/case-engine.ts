@@ -41,7 +41,7 @@ const BUFF_LABELS: Record<BuffKind, string> = {
 };
 
 const CLOTHING_LABELS: Record<ClothingKind, string> = {
-  hat: "Тюбетейка Хасбика",
+  hat: "Тюбетейка",
   mohawk: "Эрокез",
 };
 
