@@ -5718,6 +5718,54 @@ img,
   font-size: 9px;
 }
 
+/* Локальный (офлайн) режим */
+.account-local-note {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: #4b5f6e;
+  background: #eef4f8;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.promo-mode-switch {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #edf3f7;
+}
+
+.promo-mode-switch button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 11px;
+  color: #5d7281;
+  background: transparent;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.promo-mode-switch button.is-active {
+  color: #123149;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(18 49 73 / 12%);
+}
+
+.auth-local-hint {
+  margin: 0;
+  color: rgb(255 255 255 / 55%) !important;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
 @media (max-height: 740px) {
   .level-strip { min-height: 50px; }
   .level-progress-copy { display: none; }

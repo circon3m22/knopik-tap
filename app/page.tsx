@@ -336,6 +336,8 @@ function KnopikGame({
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [promoPending, setPromoPending] = useState(false);
+  // В локальном режиме игрок и создаёт, и активирует промокоды сам.
+  const [promoLocalAction, setPromoLocalAction] = useState<"create" | "redeem">("create");
   const [difficultyDraft, setDifficultyDraft] = useState(() => clampDifficulty(difficulty));
   const [difficultyMessage, setDifficultyMessage] = useState("");
   const [difficultyPending, setDifficultyPending] = useState(false);
@@ -891,10 +893,14 @@ function KnopikGame({
     await onSignOut();
   }, [onSignOut]);
 
+  const promoCreateMode = account.isLocal
+    ? promoLocalAction === "create"
+    : account.isAdmin;
+
   const submitPromoCode = useCallback(async () => {
     setPromoPending(true);
     setPromoMessage("");
-    if (account.isAdmin) {
+    if (promoCreateMode) {
       const message = await onCreatePromoCode(promoCode, Number(promoAmount));
       setPromoMessage(message);
       if (message === "Промокод создан.") {
@@ -915,7 +921,7 @@ function KnopikGame({
       }
     }
     setPromoPending(false);
-  }, [account.isAdmin, getSound, onCreatePromoCode, onRedeemPromoCode, promoAmount, promoCode, updateCoins]);
+  }, [getSound, onCreatePromoCode, onRedeemPromoCode, promoAmount, promoCode, promoCreateMode, updateCoins]);
 
   const submitDifficulty = useCallback(async () => {
     setDifficultyPending(true);
@@ -4090,7 +4096,15 @@ function KnopikGame({
                 <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
                 <div>
                   <strong>{account.username}</strong>
-                  <span>{syncState === "saved" ? "Прогресс сохранён" : syncState === "saving" ? "Сохранение…" : "Сохранится при следующей попытке"}</span>
+                  <span>
+                    {account.isLocal
+                      ? "Локальный режим · прогресс только на устройстве"
+                      : syncState === "saved"
+                        ? "Прогресс сохранён"
+                        : syncState === "saving"
+                          ? "Сохранение…"
+                          : "Сохранится при следующей попытке"}
+                  </span>
                 </div>
               </div>
               <form
@@ -4119,6 +4133,11 @@ function KnopikGame({
                 </label>
                 <button type="submit" disabled={accountPending}>Сменить пароль</button>
               </form>
+              {account.isLocal && (
+                <p className="account-local-note">
+                  Офлайн-профиль: игра не обращается к облаку, все данные хранятся в этом браузере.
+                </p>
+              )}
               {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
               <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>Выйти из аккаунта</button>
             </div>
@@ -4166,14 +4185,40 @@ function KnopikGame({
               </section>
             )}
             <p className="settings-section-title">Бонусы</p>
-            <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
+            <section className={`promo-panel ${promoCreateMode ? "promo-admin" : "promo-redeem"}`}>
               <div className="promo-heading">
                 <span className="promo-symbol" aria-hidden="true">%</span>
                 <div>
-                  <strong>{account.isAdmin ? "Промокоды" : "Есть промокод?"}</strong>
-                  <span>{account.isAdmin ? "Создай одноразовое начисление монет" : "Активировать его можно только один раз"}</span>
+                  <strong>{promoCreateMode ? "Промокоды" : "Есть промокод?"}</strong>
+                  <span>{promoCreateMode ? "Создай одноразовое начисление монет" : "Активировать его можно только один раз"}</span>
                 </div>
               </div>
+              {account.isLocal && (
+                <div className="promo-mode-switch" role="group" aria-label="Действие с промокодом">
+                  <button
+                    type="button"
+                    className={promoLocalAction === "create" ? "is-active" : ""}
+                    aria-pressed={promoLocalAction === "create"}
+                    onClick={() => {
+                      setPromoLocalAction("create");
+                      setPromoMessage("");
+                    }}
+                  >
+                    Создать
+                  </button>
+                  <button
+                    type="button"
+                    className={promoLocalAction === "redeem" ? "is-active" : ""}
+                    aria-pressed={promoLocalAction === "redeem"}
+                    onClick={() => {
+                      setPromoLocalAction("redeem");
+                      setPromoMessage("");
+                    }}
+                  >
+                    Активировать
+                  </button>
+                </div>
+              )}
               <form
                 className="promo-form"
                 onSubmit={(event) => {
@@ -4199,7 +4244,7 @@ function KnopikGame({
                     }}
                   />
                 </label>
-                {account.isAdmin && (
+                {promoCreateMode && (
                   <label>
                     <span>Сумма монет</span>
                     <input
@@ -4220,7 +4265,7 @@ function KnopikGame({
                   </label>
                 )}
                 <button type="submit" disabled={promoPending}>
-                  {promoPending ? "Подождите…" : account.isAdmin ? "Создать" : "Активировать"}
+                  {promoPending ? "Подождите…" : promoCreateMode ? "Создать" : "Активировать"}
                 </button>
               </form>
               {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
