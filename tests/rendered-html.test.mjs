@@ -25,6 +25,7 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /apple-touch-icon-v2\.png/);
   assert.match(html, /icon-192-v2\.png/);
   assert.match(html, /og\.png/);
+  assert.match(html, /data-testid="knopik"/);
   assert.match(html, /knopik-joy-sprite-earless\.webp/);
   assert.match(html, /knopik-rage-sprite-earless\.webp/);
   assert.match(html, /knopik-ear-left\.png/);
@@ -48,6 +49,14 @@ test("server-renders the complete Knopik Tap game", async () => {
   ]) {
     assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
+  assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
+  assert.match(html, /class="saved-balance(?:\s|\")/);
+  assert.match(html, /class="bottom-bar"/);
+  assert.match(html, /class="quick-save-button"/);
+  assert.match(html, /class="boost-row"/);
+  assert.match(html, /drink-pitbull/);
+  assert.match(html, /class="nav-thumb"/);
   assert.doesNotMatch(html, /НЕЗАЩИЩЁННЫЕ МОНЕТЫ/);
   assert.doesNotMatch(html, /state-copy|moment-message/);
   assert.doesNotMatch(html, /series-track/);

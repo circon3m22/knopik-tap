@@ -2,7 +2,7 @@
 :root {
   --ui-font: Inter, ui-rounded, "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ui-ink: #102a43;
-  --ui-muted: #5a6d7e;
+  --ui-muted: #63778a;
   --ui-subtle: #8796a5;
   --ui-blue: #0a73e8;
   --ui-blue-strong: #0759ba;
@@ -12,8 +12,6 @@
   --ui-canvas: #f2f5f8;
   --ui-surface: rgb(255 255 255 / 92%);
   --ui-surface-solid: #fff;
-  --ui-fill: rgb(242 245 248 / 70%);
-  --ui-border: rgb(24 54 78 / 15%);
   --ui-line: rgb(24 54 78 / 11%);
   --ui-shadow-sm: 0 8px 22px rgb(22 48 69 / 8%);
   --ui-shadow-md: 0 18px 48px rgb(15 38 57 / 14%);
@@ -22,13 +20,6 @@
   --ui-radius-md: 19px;
   --ui-radius-lg: 27px;
   --ui-ease: cubic-bezier(.2, .8, .2, 1);
-  /* Safe-area insets, доступные из JS через getComputedStyle()
-     (env() резолвится в браузере; используется для расчёта --app-vh,
-     чтобы шелл дотягивался до физического низа экрана на iOS PWA). */
-  --safe-area-inset-top: env(safe-area-inset-top, 0px);
-  --safe-area-inset-right: env(safe-area-inset-right, 0px);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
 html {
@@ -70,7 +61,7 @@ button {
   background: var(--ui-blue);
 }
 
-/* Account loading */
+/* Account entry */
 .auth-screen {
   min-height: 100dvh;
   padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
@@ -80,6 +71,56 @@ button {
     #f3f7fa;
 }
 
+.auth-card {
+  width: min(100%, 420px);
+  gap: 18px;
+  padding: clamp(24px, 7vw, 36px);
+  border: 1px solid rgb(255 255 255 / 90%);
+  border-radius: 32px;
+  color: var(--ui-ink);
+  background: rgb(255 255 255 / 84%);
+  box-shadow: var(--ui-shadow-md), inset 0 1px 0 #fff;
+  backdrop-filter: blur(24px) saturate(140%);
+}
+
+.auth-card .auth-kicker {
+  margin: 0;
+  color: var(--ui-blue);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+
+.auth-card h1 {
+  margin: -4px 0 0;
+  color: var(--ui-ink);
+  font-size: clamp(30px, 9vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -.045em;
+}
+
+.auth-card > p:not(.auth-kicker):not(.auth-error) {
+  margin: -7px 0 2px;
+  color: var(--ui-muted);
+  font-size: 15px;
+  line-height: 1.48;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 7px;
+  color: var(--ui-ink);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.auth-card label span {
+  color: var(--ui-ink);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.auth-card input,
 .settings-sheet input {
   min-height: 50px;
   padding: 0 15px;
@@ -92,10 +133,32 @@ button {
   transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
+.auth-card input:focus,
 .settings-sheet input:focus {
   border-color: rgb(10 115 232 / 42%);
   background: #fff;
   box-shadow: 0 0 0 4px rgb(10 115 232 / 9%);
+}
+
+.auth-card > button {
+  min-height: 52px;
+  border: 0;
+  border-radius: 17px;
+  color: #fff;
+  background: var(--ui-blue);
+  box-shadow: 0 10px 24px rgb(10 115 232 / 24%), inset 0 1px 0 rgb(255 255 255 / 28%);
+  font-size: 15px;
+  font-weight: 780;
+}
+
+.auth-error {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 13px;
+  color: #a4212a;
+  background: #fff0f1;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 /* Main game */
@@ -133,9 +196,7 @@ button {
   padding-inline: 3px;
 }
 
-.brand-lockup strong,
-.brand-lockup h1 {
-  margin: 0;
+.brand-lockup strong {
   color: var(--adaptive-ink) !important;
   font-size: clamp(25px, 7vw, 31px);
   font-weight: 900;
@@ -434,7 +495,7 @@ button {
 }
 
 .sheet-kicker {
-  color: var(--ui-blue-strong);
+  color: var(--ui-blue);
   font-size: 10px;
   font-weight: 820;
   letter-spacing: .13em;
@@ -684,78 +745,13 @@ button {
   opacity: 1;
 }
 
-/* Settings — отдельное полноэкранное меню (не страница и не bottom-sheet).
-   Открывается на весь экран поверх навигации, закрывается крестиком справа
-   сверху. */
+/* Settings */
 .modal-backdrop:not(.tutorial-backdrop) .settings-sheet {
   width: 100%;
-  max-width: none;
-  height: 100%;
-  max-height: none;
-  padding: calc(env(safe-area-inset-top) + 16px) 14px calc(env(safe-area-inset-bottom) + 16px);
-  border: 0;
-  border-radius: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-width: none;
-  box-shadow: none;
-  animation: settings-sheet-in 300ms cubic-bezier(.16, 1, .3, 1) both;
+  max-width: 720px;
+  padding: calc(env(safe-area-inset-top) + 16px) 14px calc(env(safe-area-inset-bottom) + 104px);
+  border-radius: 30px 30px 0 0;
 }
-.settings-sheet::-webkit-scrollbar { display: none; }
-/* Полноэкранный режим: липкая шапка должна держаться у верха экрана,
-   а не подворачиваться под скругление нижнего листа (top: -inset - 22px). */
-.settings-sheet .sheet-heading {
-  top: 0;
-}
-
-.modal-backdrop.settings-backdrop {
-  z-index: 100; /* выше плавающей навигации (80), ниже кейсов (120) */
-  align-items: stretch;
-  padding: 0; /* полноэкранно: safe-зоны учитывает сам .settings-sheet */
-  background: rgb(244 247 250 / 98%);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  animation: settings-backdrop-in 240ms ease-out both;
-}
-
-@keyframes settings-backdrop-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes settings-sheet-in {
-  from { opacity: 0; transform: translateY(20px) scale(0.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Крестик закрытия справа сверху */
-.sheet-close {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid var(--ui-line);
-  border-radius: 50%;
-  color: var(--ui-ink);
-  background: #fff;
-  box-shadow: 0 4px 14px rgb(19 46 67 / 10%), inset 0 1px 0 rgb(255 255 255 / 90%);
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 140ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 160ms ease, background 160ms ease;
-}
-.sheet-close svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.1;
-  stroke-linecap: round;
-}
-.sheet-close:hover { transform: scale(1.06); box-shadow: 0 6px 18px rgb(19 46 67 / 16%); }
-.sheet-close:active { transform: scale(0.92); }
 
 .settings-sheet > * {
   max-width: 600px;
@@ -804,126 +800,13 @@ button {
 
 .settings-sheet .account-summary {
   min-height: 58px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
-  background: var(--ui-fill);
-  border-radius: 14px;
-  margin-bottom: 12px;
 }
 
 .settings-sheet .account-avatar {
-  width: 52px;
-  height: 52px;
-  flex-basis: 52px;
-  font-size: 20px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-}
-
-.settings-sheet .account-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.settings-sheet .account-info strong {
-  color: var(--ui-ink);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.settings-sheet .account-local-badge,
-.settings-sheet .account-sync-badge {
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  display: inline-block;
-}
-
-.settings-sheet .account-local-badge {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-
-.settings-sheet .account-sync-badge.saved {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.settings-sheet .account-sync-badge.saving {
-  background: #fff8e1;
-  color: #f57f17;
-}
-
-.settings-sheet .account-sync-badge.error {
-  background: #ffebee;
-  color: #c62828;
-}
-
-.settings-sheet .account-cloud-section {
-  margin-bottom: 16px;
-}
-
-.settings-sheet .account-cloud-description {
-  font-size: 13px;
-  color: var(--ui-muted);
-  margin: 0 0 12px 0;
-  line-height: 1.5;
-}
-
-.settings-sheet .cloud-login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background: var(--ui-fill);
-  border-radius: 12px;
-}
-
-.settings-sheet .cloud-login-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--ui-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-sheet .cloud-login-form input {
-  padding: 10px 12px;
-  border: 1.5px solid var(--ui-border);
-  border-radius: 8px;
-  font-size: 14px;
-  background: var(--ui-surface);
-  color: var(--ui-ink);
-}
-
-.settings-sheet .cloud-login-form input:focus {
-  border-color: #667eea;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-}
-
-.settings-sheet .cloud-login-error {
-  color: #c62828;
-  font-size: 12px;
-  margin: 0;
-  padding: 8px 12px;
-  background: #ffebee;
-  border-radius: 6px;
-}
-
-.settings-sheet .cloud-login-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+  width: 48px;
+  height: 48px;
+  flex-basis: 48px;
+  font-size: 18px;
 }
 
 .settings-sheet .account-summary strong,
@@ -943,58 +826,6 @@ button {
   line-height: 1.35;
 }
 
-.settings-sheet .settings-toggle-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 16px;
-}
-
-.settings-sheet .settings-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px 16px;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--ui-fill);
-  color: var(--ui-ink);
-  transition: all 0.15s ease;
-  margin-bottom: 8px;
-}
-
-.settings-sheet .settings-action:hover {
-  background: var(--ui-border);
-}
-
-.settings-sheet .settings-action.primary-action {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.settings-sheet .settings-action.primary-action:hover {
-  filter: brightness(1.1);
-}
-
-.settings-sheet .settings-action.danger-action {
-  background: #ffebee;
-  color: #c62828;
-}
-
-.settings-sheet .settings-action.danger-action:hover {
-  background: #ffcdd2;
-}
-
-.settings-sheet .settings-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .settings-sheet .password-form,
 .settings-sheet .promo-form {
   display: grid;
@@ -1011,22 +842,6 @@ button {
   color: var(--ui-muted);
   font-size: 11px;
   font-weight: 720;
-}
-
-.settings-sheet .stats-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px;
-  background: var(--ui-fill);
-  border-radius: 10px;
-  font-size: 12px;
-  color: var(--ui-muted);
-}
-
-.settings-sheet .stats-line strong {
-  color: var(--ui-ink);
-  font-size: 14px;
 }
 
 .settings-sheet input {
@@ -1267,11 +1082,11 @@ button {
 }
 
 /* Interaction and adaptability */
-:where(.primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled) {
+:where(.auth-card > button, .primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled) {
   transition: transform 120ms var(--ui-ease), filter 150ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
-:where(.primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled):active {
+:where(.auth-card > button, .primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled):active {
   transform: scale(.96);
 }
 
@@ -1556,559 +1371,53 @@ button {
 .case-quest-card > button { min-height: 36px; padding: 0 10px; border: 0; border-radius: 12px; color: #fff; background: var(--ui-blue); font-size: 9px; font-weight: 850; }
 .case-hint { margin: 10px 3px 0; color: var(--ui-muted); font-size: 10px; line-height: 1.4; }
 
-/* === Case opening — cinematic experience === */
-.case-opening {
-  position: fixed;
-  z-index: 120;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom));
-  color: #fff;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 38%, rgb(35 145 255 / 65%) 0%, transparent 60%),
-    radial-gradient(ellipse 100% 80% at 50% 50%, #168ce8 0%, #073d78 38%, #041d3b 78%, #020c1c 100%);
-  isolation: isolate;
-}
+.case-opening { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; overflow: hidden; padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom)); color: #fff; background: radial-gradient(circle at 50% 42%, #168ce8, #073d78 58%, #041d3b); }
+.case-opening.case-big { background: radial-gradient(circle at 50% 42%, #ffbe32, #b84b0f 58%, #411303); }
+.case-opening-stage { display: grid; place-items: center; gap: 18px; text-align: center; }
+.case-opening-stage > p { margin: 0; font-size: 22px; font-weight: 880; letter-spacing: -.025em; }
+.case-opening-stage > small { color: rgb(255 255 255 / 78%); font-size: 11px; font-weight: 760; }
+.case-crate { position: relative; width: min(58vw, 250px); aspect-ratio: 1; border: 0; color: #fff; background: transparent; filter: drop-shadow(0 28px 28px rgb(0 0 0 / 34%)); touch-action: none; }
+.case-crate-body { position: absolute; inset: 30% 10% 8%; display: grid; place-items: center; border: 5px solid #92d8ff; border-radius: 20px 20px 29px 29px; background: linear-gradient(135deg, #19a9ff, #0561c5 66%, #034a9c); box-shadow: inset 0 3px 0 rgb(255 255 255 / 46%), inset 0 -13px 0 rgb(0 43 104 / 31%); }
+.case-big .case-crate-body { border-color: #fff2a6; background: linear-gradient(135deg, #ffd847, #f28a12 67%, #c45108); }
+.case-crate-body i { display: grid; width: 62px; height: 62px; place-items: center; border: 5px solid rgb(255 255 255 / 78%); border-radius: 19px; color: #fff; background: rgb(0 52 128 / 34%); font-size: 30px; font-style: normal; font-weight: 900; }
+.case-crate-lid { position: absolute; z-index: 2; inset: 19% 5% auto; height: 25%; border: 5px solid #b6e8ff; border-radius: 20px 20px 12px 12px; background: linear-gradient(180deg, #62caff, #087bdb); box-shadow: inset 0 3px 0 rgb(255 255 255 / 44%), 0 8px 10px rgb(0 31 79 / 24%); }
+.case-big .case-crate-lid { border-color: #fff5b7; background: linear-gradient(180deg, #ffe975, #f5a316); }
+.case-charge-ring { position: absolute; inset: 2%; border: 5px solid rgb(255 255 255 / 24%); border-top-color: #fff; border-radius: 50%; opacity: 0; }
+.phase-charging .case-crate { animation: case-shake 90ms linear infinite alternate; }
+.phase-charging .case-charge-ring { opacity: 1; animation: case-charge 1.05s linear both; }
+.phase-burst .case-crate { animation: case-explode 620ms cubic-bezier(.2,.85,.25,1) both; }
+.case-burst-particles { position: absolute; top: 50%; left: 50%; pointer-events: none; }
+.case-burst-particles i { position: absolute; width: 11px; height: 18px; border-radius: 4px; background: #fff071; opacity: 0; transform: rotate(var(--case-angle)) translateY(0); }
+.phase-burst .case-burst-particles i { animation: case-particle 620ms ease-out both; }
+.case-reward-screen { display: grid; width: min(100%, 520px); place-items: center; border: 0; color: #fff; background: transparent; text-align: center; }
+.case-reward-screen small { font-size: 11px; font-weight: 850; letter-spacing: .12em; }
+.case-reward-screen h2 { max-width: 90%; margin: 18px 0 8px; color: #fff; font-size: clamp(28px, 9vw, 44px); font-weight: 880; letter-spacing: -.045em; }
+.case-reward-screen p { margin: 0; color: rgb(255 255 255 / 73%); font-size: 13px; }
+.case-reward-icon { display: grid; width: 140px; height: 140px; margin-top: 24px; place-items: center; border: 7px solid rgb(255 255 255 / 74%); border-radius: 38px; background: linear-gradient(145deg, #fff2a1, #ffab13); box-shadow: 0 24px 48px rgb(0 0 0 / 27%), inset 0 4px 0 rgb(255 255 255 / 58%); font-size: 61px; font-weight: 950; animation: case-reward-in 480ms cubic-bezier(.16,1.2,.3,1) both; }
 
-.case-opening::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 18% 22%, rgb(255 255 255 / 8%) 0%, transparent 35%),
-    radial-gradient(circle at 82% 78%, rgb(150 220 255 / 10%) 0%, transparent 40%);
-  pointer-events: none;
-  z-index: 1;
+/* Static dial, rotating hand. The winning sector stays centered at six o'clock. */
+.risk-dial-rotor { transform: rotate(var(--risk-sector-offset)); will-change: auto; }
+.game-shell.risk-spinning .risk-dial-rotor { animation: none; }
+.game-shell .risk-pointer {
+  z-index: 8;
+  inset: 50% auto auto 50%;
+  width: 30px;
+  height: 48%;
+  filter: drop-shadow(0 6px 8px rgb(0 0 0 / 54%));
+  transform: translate(-50%, 0) rotate(0deg);
+  transform-origin: 50% 0;
 }
+.game-shell .risk-pointer::before { top: -15px; width: 30px; height: 30px; }
+.game-shell .risk-pointer::after { top: 8px; width: 16px; height: calc(100% - 10px); clip-path: polygon(28% 0, 72% 0, 100% 88%, 50% 100%, 0 88%); }
+.game-shell.risk-spinning .risk-pointer { animation: risk-hand-spin var(--risk-spin-duration) cubic-bezier(.08,.72,.06,1) both; }
+.game-shell.risk-result .risk-pointer,
+.game-shell.risk-returning .risk-pointer { transform: translate(-50%, 0) rotate(var(--risk-rotation)); }
 
-.case-opening.case-big {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 38%, rgb(255 195 70 / 70%) 0%, transparent 60%),
-    radial-gradient(ellipse 100% 80% at 50% 50%, #ffbe32 0%, #b84b0f 38%, #5a1d05 78%, #1a0903 100%);
-}
-
-.case-opening.case-big::before {
-  background:
-    radial-gradient(circle at 18% 22%, rgb(255 230 180 / 12%) 0%, transparent 35%),
-    radial-gradient(circle at 82% 78%, rgb(255 180 90 / 14%) 0%, transparent 40%);
-}
-
-/* Плавное появление всего оверлея открытия кейса */
-.case-opening {
-  animation: case-opening-in 420ms cubic-bezier(.16, 1, .3, 1) both;
-}
-@keyframes case-opening-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* Кейс в ожидании: мягко «дышит», чтобы было понятно, что его можно зажать */
-.phase-ready .case-crate {
-  animation: case-crate-idle 2.2s ease-in-out infinite;
-}
-.phase-ready .case-crate::before {
-  opacity: 0.5;
-  animation: case-aura-pulse 1.7s ease-in-out infinite alternate;
-}
-@keyframes case-crate-idle {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-7px) rotate(-1.5deg); }
-}
-
-/* Прогресс зажатия: тонкая полоска между кейсом и подписью,
-   заполняется за CASE_HOLD_MS (1.05s) */
-.case-charge-progress {
-  display: none;
-  width: min(62vw, 260px);
-  height: 5px;
-  border-radius: 99px;
-  overflow: hidden;
-  background: rgb(255 255 255 / 16%);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 22%);
-  pointer-events: none;
-}
-.phase-charging .case-charge-progress { display: block; }
-.case-charge-progress i {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #7fd4ff 0%, #e2f6ff 55%, #fff 100%);
-  transform: scaleX(0);
-  transform-origin: left center;
-  animation: case-charge-fill 1.05s linear forwards;
-}
-.case-big .case-charge-progress i {
-  background: linear-gradient(90deg, #ffcf5c 0%, #ffe9ad 55%, #fff 100%);
-}
-@keyframes case-charge-fill {
-  to { transform: scaleX(1); }
-}
-
-/* Взрыв: лёгкий «пинок» сцены + усиленный световой всплеск */
-.phase-burst .case-opening-stage {
-  animation: case-stage-kick 560ms cubic-bezier(.2, .9, .3, 1) both;
-}
-@keyframes case-stage-kick {
-  0% { transform: scale(1); }
-  28% { transform: scale(1.05) translateY(4px); }
-  100% { transform: scale(1) translateY(0); }
-}
-.phase-burst .case-burst-flash {
-  animation: case-flash 900ms ease-out both;
-}
-
-/* Экран награды: мягкая пульсация фона + блик, пробегающий по иконке */
-.phase-reward .case-opening::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  background: radial-gradient(circle at 50% 40%, rgb(255 255 255 / 16%) 0%, transparent 44%);
-  animation: case-reward-bg-pulse 1.9s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-@keyframes case-reward-bg-pulse {
-  from { opacity: 0.45; }
-  to { opacity: 1; }
-}
-.case-reward-icon::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(115deg, transparent 32%, rgb(255 255 255 / 75%) 50%, transparent 68%);
-  background-size: 260% 100%;
-  background-position: 120% 0;
-  animation: case-reward-shine 1.05s cubic-bezier(.4, 0, .2, 1) 240ms both;
-  mix-blend-mode: screen;
-  pointer-events: none;
-}
-@keyframes case-reward-shine {
-  0% { background-position: 120% 0; }
-  100% { background-position: -120% 0; }
-}
-
-.case-opening-stage {
-  display: grid;
-  place-items: center;
-  gap: 18px;
-  text-align: center;
-  position: relative;
-  z-index: 4;
-}
-
-.case-opening-stage > p {
-  margin: 0;
-  font-size: clamp(20px, 6vw, 26px);
-  font-weight: 900;
-  letter-spacing: -.025em;
-  text-shadow: 0 2px 12px rgb(0 20 60 / 45%);
-  animation: case-headline-fade 380ms ease-out both;
-}
-
-@keyframes case-headline-fade {
-  from { opacity: 0; transform: translateY(8px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.case-opening-stage > small {
-  color: rgb(255 255 255 / 78%);
-  font-size: 11px;
-  font-weight: 760;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* === Crate (the case itself) === */
-.case-crate {
-  position: relative;
-  width: min(58vw, 250px);
-  aspect-ratio: 1;
-  border: 0;
-  color: #fff;
-  background: transparent;
-  touch-action: none;
-  filter:
-    drop-shadow(0 28px 30px rgb(0 0 0 / 38%))
-    drop-shadow(0 0 24px rgb(40 120 220 / 35%));
-  transform-origin: 50% 60%;
-}
-
-.case-crate::before {
-  content: "";
-  position: absolute;
-  inset: -30%;
-  background: radial-gradient(circle at 50% 60%, rgb(80 160 255 / 35%) 0%, transparent 55%);
-  pointer-events: none;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 220ms ease;
-}
-
-.phase-charging .case-crate::before { opacity: 1; animation: case-aura-pulse 380ms ease-in-out infinite alternate; }
-.phase-burst .case-crate::before { opacity: 1; animation: case-aura-burst 520ms ease-out both; }
-
-@keyframes case-aura-pulse {
-  from { transform: scale(0.92); opacity: 0.7; }
-  to { transform: scale(1.1); opacity: 1; }
-}
-@keyframes case-aura-burst {
-  from { transform: scale(0.9); opacity: 1; }
-  to { transform: scale(1.6); opacity: 0; }
-}
-
-.case-crate-body {
-  position: absolute;
-  inset: 30% 10% 8%;
-  display: grid;
-  place-items: center;
-  border: 4px solid #92d8ff;
-  border-radius: 20px 20px 29px 29px;
-  background:
-    linear-gradient(135deg, #19a9ff 0%, #0561c5 66%, #034a9c 100%);
-  box-shadow:
-    inset 0 4px 0 rgb(255 255 255 / 55%),
-    inset 0 -14px 0 rgb(0 43 104 / 38%),
-    inset 0 0 0 1px rgb(255 255 255 / 12%),
-    0 6px 16px rgb(0 20 60 / 30%);
-}
-
-.case-crate-body::after {
-  content: "";
-  position: absolute;
-  inset: 6px 8px auto 8px;
-  height: 28%;
-  background: linear-gradient(180deg, rgb(255 255 255 / 35%) 0%, transparent 100%);
-  border-radius: 12px 12px 0 0;
-  pointer-events: none;
-}
-
-.case-big .case-crate-body {
-  border-color: #fff2a6;
-  background: linear-gradient(135deg, #ffd847 0%, #f28a12 67%, #c45108 100%);
-  box-shadow:
-    inset 0 4px 0 rgb(255 255 255 / 60%),
-    inset 0 -14px 0 rgb(120 30 0 / 38%),
-    inset 0 0 0 1px rgb(255 255 255 / 18%),
-    0 6px 16px rgb(60 20 0 / 30%);
-}
-
-.case-crate-body i {
-  display: grid;
-  width: 62px;
-  height: 62px;
-  place-items: center;
-  border: 4px solid rgb(255 255 255 / 80%);
-  border-radius: 18px;
-  color: #fff;
-  background: rgb(0 52 128 / 38%);
-  font-size: 28px;
-  font-style: normal;
-  font-weight: 950;
-  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
-  box-shadow:
-    inset 0 2px 0 rgb(255 255 255 / 50%),
-    inset 0 -3px 0 rgb(0 0 0 / 18%);
-}
-
-.case-big .case-crate-body i {
-  background: rgb(80 20 0 / 40%);
-}
-
-.case-crate-lid {
-  position: absolute;
-  z-index: 2;
-  inset: 19% 5% auto;
-  height: 25%;
-  border: 4px solid #b6e8ff;
-  border-radius: 20px 20px 12px 12px;
-  background: linear-gradient(180deg, #62caff 0%, #087bdb 100%);
-  box-shadow:
-    inset 0 3px 0 rgb(255 255 255 / 50%),
-    inset 0 -3px 0 rgb(0 40 90 / 35%),
-    0 8px 14px rgb(0 31 79 / 30%);
-  transform-origin: 50% 100%;
-  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.case-crate-lid::after {
-  content: "";
-  position: absolute;
-  inset: 4px 8px auto 8px;
-  height: 32%;
-  background: linear-gradient(180deg, rgb(255 255 255 / 55%) 0%, transparent 100%);
-  border-radius: 12px 12px 0 0;
-  pointer-events: none;
-}
-
-.case-big .case-crate-lid {
-  border-color: #fff5b7;
-  background: linear-gradient(180deg, #ffe975 0%, #f5a316 100%);
-  box-shadow:
-    inset 0 3px 0 rgb(255 255 255 / 55%),
-    inset 0 -3px 0 rgb(120 50 0 / 35%),
-    0 8px 14px rgb(80 30 0 / 32%);
-}
-
-.phase-charging .case-crate-lid { animation: case-lid-shake 90ms linear infinite alternate; }
-.phase-burst .case-crate-lid { animation: case-lid-blast 520ms cubic-bezier(.5, 1.6, .4, 1) forwards; }
-
-@keyframes case-lid-shake {
-  0%, 100% { transform: translateY(-2px) rotate(-1deg); }
-  50% { transform: translateY(2px) rotate(1.5deg); }
-}
-@keyframes case-lid-blast {
-  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
-  40% { transform: translate(0, -160px) rotate(-8deg) scale(1.1); opacity: 1; }
-  100% { transform: translate(0, -380px) rotate(-22deg) scale(0.6); opacity: 0; }
-}
-
-.case-charge-ring {
-  position: absolute;
-  inset: 6%;
-  border: 4px solid rgb(255 255 255 / 28%);
-  border-top-color: #fff;
-  border-right-color: rgb(255 255 255 / 60%);
-  border-radius: 50%;
-  opacity: 0;
-  filter: drop-shadow(0 0 8px rgb(120 200 255 / 80%));
-  z-index: 3;
-}
-
-.phase-charging .case-charge-ring {
-  opacity: 1;
-  animation: case-charge 1.05s linear both;
-}
-
-.phase-charging .case-crate { animation: case-shake-strong 70ms linear infinite alternate; }
-.phase-burst .case-crate { animation: case-explode 540ms cubic-bezier(.2,.85,.25,1) both; }
-
-/* === Shockwave === */
-.case-shockwave {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 4px solid rgb(255 255 255 / 95%);
-  transform: translate(-50%, -50%) scale(1);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 3;
-  box-shadow:
-    0 0 36px rgb(150 220 255 / 80%),
-    inset 0 0 18px rgb(255 255 255 / 70%);
-}
-
-.phase-burst .case-shockwave { animation: case-shockwave 720ms cubic-bezier(.18, .9, .25, 1) both; }
-
-@keyframes case-shockwave {
-  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; border-width: 6px; }
-  60% { opacity: 0.85; }
-  100% { transform: translate(-50%, -50%) scale(70); opacity: 0; border-width: 1px; }
-}
-
-/* === Light leak === */
-.case-light-leak {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 180px;
-  height: 100%;
-  transform: translateX(-50%) scaleY(0);
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgb(180 230 255 / 18%) 35%,
-    rgb(255 255 255 / 65%) 50%,
-    rgb(180 230 255 / 18%) 65%,
-    transparent 100%
-  );
-  filter: blur(14px);
-  pointer-events: none;
-  z-index: 3;
-  mix-blend-mode: screen;
-}
-
-.phase-burst .case-light-leak { animation: case-light-leak 760ms cubic-bezier(.2, .9, .3, 1) both; }
-
-@keyframes case-light-leak {
-  0% { transform: translateX(-50%) scaleY(0); opacity: 0; }
-  20% { transform: translateX(-50%) scaleY(1); opacity: 1; }
-  100% { transform: translateX(-50%) scaleY(1.2); opacity: 0; }
-}
-
-/* === Particles === */
-.case-burst-particles {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  pointer-events: none;
-  z-index: 4;
-}
-
-.case-burst-particles i {
-  position: absolute;
-  width: 12px;
-  height: 20px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #fffce0 0%, #ffd84d 50%, #ff9d2e 100%);
-  box-shadow: 0 0 6px rgb(255 220 100 / 80%);
-  opacity: 0;
-  transform: rotate(var(--case-angle)) translateY(0);
-}
-
-.case-big .case-burst-particles i {
-  background: linear-gradient(180deg, #fff5d0 0%, #ffb734 50%, #ff6a18 100%);
-  box-shadow: 0 0 8px rgb(255 200 70 / 80%);
-}
-
-.phase-burst .case-burst-particles i { animation: case-particle-rich 820ms cubic-bezier(.12,.66,.25,1) var(--case-delay) both; }
-
-/* === Confetti === */
-.case-burst-confetti {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.case-burst-confetti i {
-  position: absolute;
-  width: 10px;
-  height: 14px;
-  border-radius: 2px;
-  opacity: 0;
-}
-
-.phase-burst .case-burst-confetti i {
-  animation: case-confetti 1100ms cubic-bezier(.15, .8, .25, 1) var(--case-delay) both;
-}
-
-@keyframes case-shake-strong { from { transform: rotate(-3.5deg) scale(1.04) translateY(-1px); } to { transform: rotate(3.5deg) scale(1.07) translateY(1px); } }
+@keyframes case-shake { from { transform: rotate(-2.5deg) scale(1.01); } to { transform: rotate(2.5deg) scale(1.04); } }
 @keyframes case-charge { from { transform: rotate(0); } to { transform: rotate(1080deg); } }
-@keyframes case-explode { 0% { opacity: 1; transform: scale(1); } 35% { opacity: 1; transform: scale(1.22); filter: brightness(1.65) saturate(1.2); } 100% { opacity: 0; transform: scale(2.4) translateY(-30px); filter: brightness(3) saturate(1.4); } }
-@keyframes case-particle-rich {
-  0% { opacity: 0; transform: rotate(var(--case-angle)) translateY(0) scale(.3); }
-  18% { opacity: 1; }
-  100% { opacity: 0; transform: rotate(var(--case-angle)) translateY(calc(var(--case-distance) * -1)) rotate(360deg) scale(1.15); }
-}
-@keyframes case-confetti {
-  0% { opacity: 0; transform: translate(0, 0) rotate(0) scale(.5); }
-  20% { opacity: 1; }
-  100% {
-    opacity: 0;
-    transform:
-      translate(
-        calc(cos(var(--case-angle)) * var(--case-distance) * 0.6),
-        calc(sin(var(--case-angle)) * var(--case-distance) * 0.6 + 220px)
-      )
-      rotate(720deg)
-      scale(1);
-  }
-}
-
+@keyframes case-explode { 0% { opacity: 1; transform: scale(1); } 55% { opacity: 1; transform: scale(1.18); filter: brightness(1.7); } 100% { opacity: 0; transform: scale(2.2); filter: brightness(3); } }
 @keyframes case-particle { 0% { opacity: 0; transform: rotate(var(--case-angle)) translateY(0) scale(.4); } 25% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--case-angle)) translateY(-230px) scale(1.1); } }
-
-/* === Reward reveal === */
-.case-reward-screen {
-  display: grid;
-  width: min(100%, 520px);
-  place-items: center;
-  border: 0;
-  color: #fff;
-  background: transparent;
-  text-align: center;
-  position: relative;
-  z-index: 6;
-  animation: case-reward-fade 480ms cubic-bezier(.16, 1, .3, 1) both;
-}
-
-@keyframes case-reward-fade {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.case-reward-screen small {
-  font-size: 11px;
-  font-weight: 850;
-  letter-spacing: .12em;
-  color: rgb(255 255 255 / 85%);
-}
-
-.case-reward-screen h2 {
-  max-width: 90%;
-  margin: 14px 0 8px;
-  color: #fff;
-  font-size: clamp(28px, 9vw, 44px);
-  font-weight: 900;
-  letter-spacing: -.045em;
-  text-shadow: 0 4px 18px rgb(0 20 60 / 50%);
-  animation: case-reward-h2 520ms 80ms cubic-bezier(.16, 1.2, .3, 1) both;
-}
-
-@keyframes case-reward-h2 {
-  from { opacity: 0; transform: translateY(20px) scale(0.92); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.case-reward-screen p {
-  margin: 0;
-  color: rgb(255 255 255 / 80%);
-  font-size: 13px;
-  animation: case-reward-h2 480ms 200ms cubic-bezier(.16, 1, .3, 1) both;
-}
-
-.case-reward-icon {
-  display: grid;
-  width: 160px;
-  height: 160px;
-  margin-top: 24px;
-  place-items: center;
-  border: 6px solid rgb(255 255 255 / 80%);
-  border-radius: 40px;
-  background: radial-gradient(circle at 32% 28%, #fffad1 0%, #ffc532 60%, #e68a0b 100%);
-  box-shadow:
-    0 32px 64px rgb(0 0 0 / 40%),
-    0 0 60px rgb(255 200 80 / 50%),
-    inset 0 4px 0 rgb(255 255 255 / 70%),
-    inset 0 -6px 0 rgb(180 80 0 / 35%);
-  font-size: 70px;
-  font-weight: 950;
-  text-shadow: 0 3px 6px rgb(120 60 0 / 35%);
-  animation: case-reward-in 580ms cubic-bezier(.18, 1.4, .3, 1) both;
-  position: relative;
-}
-
-.case-reward-icon::after {
-  content: "";
-  position: absolute;
-  inset: -20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgb(255 220 100 / 35%) 0%, transparent 60%);
-  z-index: -1;
-  animation: case-reward-aura 1.6s ease-in-out infinite alternate;
-}
-
-@keyframes case-reward-aura {
-  from { transform: scale(0.94); opacity: 0.6; }
-  to { transform: scale(1.12); opacity: 1; }
-}
-
-@keyframes case-reward-in {
-  0% { opacity: 0; transform: scale(0.4) rotate(-12deg); }
-  60% { opacity: 1; transform: scale(1.08) rotate(2deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); }
-}
-
-
+@keyframes case-reward-in { from { opacity: 0; transform: scale(.45) rotate(-8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 @keyframes risk-hand-spin { from { transform: translate(-50%, 0) rotate(0deg); } to { transform: translate(-50%, 0) rotate(var(--risk-rotation)); } }
 
 @media (max-width: 370px) {
@@ -2130,114 +1439,64 @@ button {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  padding: 4px 0 6px;
 }
 
-.header-pill {
+.account-identity {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 4px 12px 4px 4px;
-  border: 1px solid var(--adaptive-border);
-  border-radius: 22px;
-  color: var(--adaptive-ink);
-  background: var(--adaptive-surface);
-  box-shadow:
-    0 6px 18px rgb(8 28 44 / 9%),
-    inset 0 1px 0 rgb(255 255 255 / 60%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 180ms ease;
-  cursor: pointer;
-  overflow: hidden;
   min-width: 0;
-}
-
-button.header-pill {
-  border: 1px solid var(--adaptive-border);
-}
-
-.header-pill:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    0 10px 24px rgb(8 28 44 / 14%),
-    inset 0 1px 0 rgb(255 255 255 / 78%);
-}
-
-.header-pill:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.header-avatar {
+  min-height: 40px;
+  align-items: center;
   justify-self: start;
+  gap: 7px;
+  padding: 3px 5px 3px 3px;
+  border: 0;
+  color: var(--adaptive-ink);
+  background: transparent;
 }
 
-.header-mood {
-  justify-self: end;
-  padding: 4px 12px 4px 12px;
-}
-
-.header-avatar-glyph {
+.account-identity .account-shortcut {
   display: grid;
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
   place-items: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgb(255 255 255 / 65%) 0%, transparent 55%),
-    linear-gradient(135deg, #1e88ff 0%, #0a5ed8 60%, #073d9c 100%);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  text-shadow: 0 1px 2px rgb(0 30 80 / 35%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 50%),
-    0 2px 6px rgb(10 80 180 / 30%);
 }
 
-.header-avatar-meta,
-.header-mood-meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  text-align: left;
-  line-height: 1.1;
-}
-
-.header-mood-meta {
-  text-align: right;
-  align-items: flex-end;
-}
-
-.header-avatar-meta small,
-.header-mood-meta small {
-  color: var(--adaptive-muted);
-  font-size: 8.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.header-avatar-meta strong,
-.header-mood-meta strong {
-  color: var(--adaptive-ink);
-  font-size: 11.5px;
-  font-weight: 850;
-  letter-spacing: -0.005em;
+.account-identity > strong {
   overflow: hidden;
+  max-width: 92px;
+  color: var(--adaptive-ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .025em;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 92px;
 }
 
 .top-bar .brand-lockup {
   position: static;
   justify-self: center;
   text-align: center;
-  padding: 0 4px;
+}
+
+.status-cluster {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: end;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.status-cluster > strong {
+  overflow: hidden;
+  max-width: 90px;
+  color: var(--adaptive-ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mood-indicator {
@@ -2248,14 +1507,9 @@ button.header-pill {
   place-items: center;
   border: 1px solid var(--adaptive-border);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgb(255 255 255 / 55%) 0%, transparent 60%),
-    var(--adaptive-surface);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 55%),
-    0 4px 12px rgb(8 28 44 / 10%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
+  background: var(--adaptive-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 25%);
+  backdrop-filter: blur(14px) saturate(130%);
 }
 
 .mood-indicator i {
@@ -2487,35 +1741,21 @@ button.header-pill {
 @keyframes reward-halo { 50% { opacity: .35; transform: scale(1.09); } }
 
 @media (max-width: 420px) {
-  .header-avatar-meta strong,
-  .header-mood-meta strong { max-width: 60px; font-size: 10.5px; }
-  .header-avatar-meta small,
-  .header-mood-meta small { font-size: 7.5px; }
-  .brand-lockup strong,
-  .brand-lockup h1 { font-size: 23px; letter-spacing: .09em; }
+  .account-identity > strong,
+  .status-cluster > strong { max-width: 66px; font-size: 8px; }
+  .brand-lockup strong { font-size: 23px; letter-spacing: .09em; }
 }
 
 @media (max-width: 350px) {
-  .header-avatar-meta,
-  .header-mood-meta { display: none; }
-  .header-avatar,
-  .header-mood { padding: 4px; min-height: 36px; }
-  .header-avatar-glyph { width: 28px; height: 28px; flex-basis: 28px; font-size: 12px; }
-  .mood-indicator { width: 28px; height: 28px; flex-basis: 28px; }
+  .account-identity > strong,
+  .status-cluster > strong { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .case-opening,
   .case-opening::before,
-  .phase-ready .case-crate,
-  .phase-ready .case-crate::before,
   .phase-charging .case-crate,
   .phase-charging .case-opening-stage::before,
   .case-opening.phase-charging::after,
-  .case-charge-progress i,
-  .phase-burst .case-opening-stage,
-  .phase-reward .case-opening::after,
-  .case-reward-icon::before,
   .case-reward-icon::after { animation: none !important; }
 }
 /* Щит должен быть под ушами и головными уборами */
@@ -2640,17 +1880,14 @@ button.header-pill {
   to { opacity: 0; transform: translateY(10px); }
 }
 
-/* Плавное появление главного экрана после сплэша.
-   ВАЖНО: только opacity. Transform/filter здесь делают .boot-content
-   containing block для position: fixed — нижнее меню на время анимации
-   якорится к контенту и визуально «дёргается/уезжает» в конце сплэша. */
+/* Плавное появление главного экрана после сплэша */
 .boot-content.is-revealed {
   animation: boot-reveal .85s cubic-bezier(.16, 1, .3, 1) backwards;
 }
 
 @keyframes boot-reveal {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(16px) scale(1.03); filter: blur(8px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2722,10 +1959,12 @@ html {
 .game-shell .boost-row .inventory-item,
 .game-shell .boost-row .buff-icon-image,
 .saved-balance,
+.bottom-bar,
 .feed-control,
 .quick-save-button,
 .risk-strip,
 .risk-bet-control,
+.auth-card,
 .modal-backdrop,
 .mini-game-backdrop,
 .shop-product-grid .shop-product-card {
@@ -2733,357 +1972,16 @@ html {
   backdrop-filter: none;
 }
 
-/* iOS 26 Liquid Glass — bottom navigation bar (final spec).
-   Плавающая капсула «жидкого стекла»: плотный blur + saturate, crisp
-   specular-кромка сверху, цветной rim-glow, анимированный iridescent-sheen
-   и стеклянная «линза» активного таба, которая скользит между разделами.
-   position: fixed — жёстко прижимает меню к нижней границе видимого экрана
-   поверх любых safe-area/dvh-багов iOS PWA (под ним стоит .bottom-nav-spacer,
-   который резервирует место в сетке, чтобы контент не прятался за меню). */
-.game-shell .bottom-bar {
-  --nav-pad: 8px;
-  position: fixed;
-  z-index: 80;
-  left: 50%;
-  /* iOS Safari fix: используем var(--app-vh) для учёта точной высоты viewport
-     плюс безопасный отступ для home indicator. fallback: 16px гарантирует
-     видимость кнопки даже если env() вернёт 0. */
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  bottom: max(16px, env(safe-area-inset-bottom, 0px), 16px);
-  transform: translateX(-50%);
-  /* Добавляем will-change и transform: translateZ(0) для стабильности на iOS */
-  will-change: transform;
-  transform: translateX(-50%) translateZ(0);
-  width: min(calc(100% - 40px), 456px);
-  isolation: isolate;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  min-height: 78px;
-  margin: 0;
-  padding: 8px;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 85%);
-  border-radius: 999px;
-  background:
-    linear-gradient(
-      160deg,
-      rgb(255 255 255 / 90%) 0%,
-      rgb(244 251 255 / 64%) 42%,
-      rgb(229 242 253 / 48%) 100%
-    );
-  box-shadow:
-    /* primary drop */
-    0 26px 60px -10px rgb(8 28 50 / 30%),
-    0 10px 24px rgb(8 28 50 / 16%),
-    /* colored rim glow — soft blue aura */
-    0 0 0 1px rgb(10 90 200 / 7%),
-    0 0 26px 0 rgb(10 120 230 / 16%),
-    /* specular top highlight + soft inner bottom */
-    inset 0 1.5px 0 rgb(255 255 255 / 95%),
-    inset 0 -1px 0 rgb(20 50 90 / 10%);
-  -webkit-backdrop-filter:
-    blur(44px) saturate(210%) brightness(1.06);
-  backdrop-filter:
-    blur(44px) saturate(210%) brightness(1.06);
-  /* Вертикальный скролл страницы остаётся за браузером, горизонтальный
-     свайп по меню обрабатываем сами (pointer events). */
-  touch-action: pan-y;
-  transition: opacity 220ms ease, filter 220ms ease;
+/* Глубина остаётся только у «плавающих» слоёв: нижняя панель и шиты */
+.bottom-bar,
+.state-tired .bottom-bar,
+.state-warning .bottom-bar,
+.state-recovering.has-fatigue .bottom-bar {
+  background: rgb(250 252 254 / 92%);
+  box-shadow: 0 10px 26px rgb(18 43 62 / 10%);
 }
-
-/* Резервирует место под фиксированную навигацию в сетке game-motion-layer,
-   чтобы контент (банк-плашка) не прятался за меню на любых высотах экрана.
-   Меню: 78px + отступ 12px + home-indicator (inset). Плашка в сетке стоит
-   над этим спейсером с gap 9px, поэтому 100px хватает на всех iPhone. */
-.bottom-nav-spacer {
-  height: 100px;
-  pointer-events: none;
-}
-
-.game-shell .bottom-bar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    /* crisp specular top edge — фирменная кромка Liquid Glass */
-    linear-gradient(
-      180deg,
-      rgb(255 255 255 / 92%) 0%,
-      rgb(255 255 255 / 0%) 1.5px
-    ),
-    /* animated iridescent sheen — like iOS 26 control glass */
-    radial-gradient(
-      120% 180% at 18% -20%,
-      rgb(255 255 255 / 38%) 0%,
-      transparent 40%
-    ),
-    radial-gradient(
-      120% 180% at 82% 120%,
-      rgb(120 180 255 / 14%) 0%,
-      transparent 52%
-    ),
-    linear-gradient(
-      100deg,
-      transparent 0%,
-      transparent 30%,
-      rgb(255 255 255 / 24%) 50%,
-      transparent 70%,
-      transparent 100%
-    );
-  background-size: 100% 100%, 200% 200%, 200% 200%, 240% 100%;
-  background-position: 0% 0%, 0% 0%, 100% 100%, 0% 50%;
-  animation: liquid-glass-drift 8s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-  mix-blend-mode: screen;
-}
-
-.game-shell .bottom-bar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 30%) 0%,
-    transparent 30%,
-    transparent 72%,
-    rgb(0 30 60 / 9%) 100%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-.game-shell .bottom-bar > * {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes liquid-glass-drift {
-  0%, 100% { background-position: 0% 0%, 0% 0%, 100% 100%, -120% 50%; }
-  50% { background-position: 0% 0%, 18% 22%, 82% 78%, 30% 50%; }
-}
-
-.game-shell .bottom-bar.is-locked {
-  opacity: 0.55;
-  filter: saturate(0.55);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
-  backdrop-filter: blur(22px) saturate(140%);
-  pointer-events: none;
-}
-
-/* Во время рулетки навигация временно заблокирована, но меню остаётся видимым. */
-.game-shell.risk-mode .bottom-bar {
-  opacity: 0.42;
-  filter: saturate(0.82);
-  pointer-events: none;
-}
-
-/* Спокойное состояние — то же стекло, чуть воздушнее (перекрывает старый
-   «плоский» фон pale-calm из globals.css). */
-.game-shell.state-calm.pale-calm .bottom-bar {
-  border-color: rgb(255 255 255 / 88%);
-  background:
-    linear-gradient(
-      160deg,
-      rgb(255 255 255 / 92%) 0%,
-      rgb(244 251 255 / 66%) 42%,
-      rgb(229 242 253 / 50%) 100%
-    );
-  box-shadow:
-    0 22px 52px -10px rgb(8 28 50 / 22%),
-    0 8px 20px rgb(8 28 50 / 10%),
-    0 0 0 1px rgb(10 90 200 / 6%),
-    inset 0 1.5px 0 rgb(255 255 255 / 95%),
-    inset 0 -1px 0 rgb(20 50 90 / 8%);
-}
-
-/* Стеклянная «линза» активного таба. */
-.game-shell .nav-thumb {
-  position: absolute;
-  z-index: 0;
-  top: var(--nav-pad);
-  bottom: var(--nav-pad);
-  left: var(--nav-pad);
-  width: calc((100% - 2 * var(--nav-pad)) / 3);
-  border: 1px solid rgb(255 255 255 / 94%);
-  border-radius: 999px;
-  background:
-    radial-gradient(
-      120% 150% at 50% -35%,
-      rgb(255 255 255 / 98%) 0%,
-      rgb(255 255 255 / 0%) 56%
-    ),
-    linear-gradient(
-      160deg,
-      rgb(255 255 255 / 97%) 0%,
-      rgb(223 241 255 / 90%) 100%
-    );
-  box-shadow:
-    0 10px 26px rgb(30 72 108 / 20%),
-    0 0 0 1px rgb(10 115 232 / 8%),
-    0 0 20px rgb(10 120 230 / 16%),
-    inset 0 1px 0 rgb(255 255 255 / 98%),
-    inset 0 -1px 0 rgb(20 50 90 / 6%);
-  transform: translateX(calc(var(--nav-index) * 100%));
-  transition: transform 420ms cubic-bezier(0.2, 0.9, 0.24, 1);
-  pointer-events: none;
-  forced-color-adjust: none;
-}
-
-.game-shell .bottom-bar button {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  min-width: 0;
-  min-height: 62px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 4px 2px;
-  border: 0;
-  border-radius: 999px;
-  color: rgb(90 110 127 / 80%);
-  background: transparent;
+.nav-thumb {
   box-shadow: none;
-  font-size: 9.5px;
-  font-weight: 640;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  cursor: pointer;
-  opacity: 1;
-  touch-action: manipulation;
-  transition:
-    color 200ms ease,
-    opacity 200ms ease,
-    transform 200ms var(--ui-ease);
-}
-
-.game-shell .bottom-bar button.active {
-  color: var(--ui-blue);
-  opacity: 1;
-  /* Глобальная «пульсация» из старых слоёв не нужна — работает линза. */
-  animation: none;
-}
-
-/* Иконки табов в стиле SF Symbols: чуть крупнее и с мягким «поп» при выборе. */
-.game-shell .bottom-bar button.active .shop-icon,
-.game-shell .bottom-bar button.active .home-icon,
-.game-shell .bottom-bar button.active .case-nav-icon {
-  animation: nav-icon-pop 420ms var(--ui-ease);
-  transform: translateY(-1px) scale(1.05);
-  filter: drop-shadow(0 2px 6px rgb(10 115 232 / 30%));
-}
-
-@keyframes nav-icon-pop {
-  0% { transform: translateY(0) scale(0.92); }
-  55% { transform: translateY(-1px) scale(1.12); }
-  100% { transform: translateY(-1px) scale(1.05); }
-}
-
-.game-shell .bottom-bar .shop-icon,
-.game-shell .bottom-bar .home-icon {
-  width: 24px;
-  height: 23px;
-}
-
-.game-shell .bottom-bar .shop-icon {
-  border-width: 1.9px;
-  border-radius: 6px 6px 8px 8px;
-}
-
-.game-shell .bottom-bar .shop-icon::before {
-  top: -6px;
-  left: 6px;
-  width: 10px;
-  height: 7px;
-  border-width: 1.9px;
-  border-radius: 8px 8px 0 0;
-}
-
-.game-shell .bottom-bar .shop-icon i {
-  top: 8px;
-  right: 5px;
-  left: 5px;
-  height: 1.7px;
-}
-
-.game-shell .bottom-bar .home-icon::before {
-  top: 1.5px;
-  left: 3.5px;
-  width: 17px;
-  height: 17px;
-  border-width: 2px;
-  border-radius: 6px;
-}
-
-.game-shell .bottom-bar .home-icon::after {
-  bottom: 1px;
-  left: 8px;
-  width: 8px;
-  height: 13px;
-  border-radius: 6px 6px 2px 2px;
-}
-
-.game-shell .bottom-bar .case-nav-icon {
-  width: 27px;
-  height: 22px;
-  border-width: 2px;
-  border-radius: 6px 6px 8px 8px;
-}
-
-.game-shell .bottom-bar .case-nav-icon::before {
-  top: -7px;
-  left: 4px;
-  width: 16px;
-  height: 6px;
-  border-width: 2px;
-}
-
-.game-shell .bottom-bar .case-nav-icon i {
-  inset: 6px 9px;
-}
-
-/* Компактные экраны */
-@media (max-height: 740px) {
-  .game-shell .bottom-bar {
-    --nav-pad: 6px;
-    min-height: 66px;
-    padding: 6px;
-  }
-  .game-shell .bottom-bar button {
-    min-height: 54px;
-    gap: 3px;
-    font-size: 8.5px;
-  }
-}
-
-@media (max-width: 355px) {
-  .game-shell .bottom-bar {
-    --nav-pad: 6px;
-    padding: 6px;
-  }
-  .game-shell .bottom-bar button {
-    gap: 3px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .game-shell .bottom-bar::before {
-    animation: none;
-  }
-  .game-shell .nav-thumb {
-    transition: none;
-  }
-  .game-shell .bottom-bar button.active .shop-icon,
-  .game-shell .bottom-bar button.active .home-icon,
-  .game-shell .bottom-bar button.active .case-nav-icon {
-    animation: none;
-    transform: none;
-  }
 }
 
 .level-strip,
@@ -3265,1203 +2163,4 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
-}
-
-/* better-accessibility: зоны ушей/шапки — настоящие кнопки поверх Кнопика.
-   Слой совпадает с `.dog-button` (древняя геометрия .ear-hit сохранена),
-   шапочные зоны пересчитаны из старого контейнера `.dog-ears` (inset 3.2%). */
-.dog-accessory-zones {
-  grid-area: 1 / 1;
-  z-index: 5;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.dog-accessory-zones .ear-hit,
-.dog-accessory-zones .hat-hit-zone,
-.dog-accessory-zones .mohawk-hit-zone {
-  appearance: none;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.dog-accessory-zones .hat-hit-zone {
-  top: -1.5%;
-  left: 30.3%;
-  width: 39.3%;
-  height: 23.4%;
-}
-
-.dog-accessory-zones .mohawk-hit-zone {
-  top: -10.8%;
-  left: 40.2%;
-  width: 24.3%;
-  height: 44.9%;
-}
-
-/* ============ Декомпрессия главного экрана (проход 2) ============
-   better-layout: иерархия — Кнопик главное, вторичное раскрывается
-   по требованию; статусы сгруппированы, одно первичное действие. */
-
-/* Уровень — тонкая статусная строка */
-.game-shell .level-strip {
-  min-height: 40px;
-  padding: 5px 10px;
-  gap: 10px;
-  border-radius: 14px;
-}
-.game-shell .level-track { height: 9px; padding: 2px; }
-.game-shell .level-track > span { height: 5px; }
-
-/* Задание на главном экране — только действенный призыв «забрать»;
-   прогресс заданий живёт во вкладке «Кейсы» */
-.quest-claim-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 42px;
-  border: 0;
-  border-radius: 14px;
-  color: #fff;
-  background: var(--ui-blue);
-  box-shadow: 0 8px 20px rgb(5 92 190 / 22%);
-  font-size: 12px;
-  font-weight: 780;
-}
-.quest-claim-pill > span { font-weight: 900; }
-
-/* Ряд предметов: когда действовать нечем — спокойная ссылка на магазин */
-.boost-shop-hint {
-  grid-column: 1 / -1;
-  min-height: 44px;
-  border: 1px dashed var(--adaptive-border);
-  border-radius: 14px;
-  color: var(--adaptive-muted);
-  background: var(--adaptive-surface);
-  font-size: 12px;
-  font-weight: 760;
-}
-
-/* Unified Bank Plate — одна карточка: актив + сейф, свайп для сохранения.
-   Минимализм: без бегущего блика, без лишнего «стекла». */
-.unified-bank-plate {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(110px, 1.05fr) minmax(0, 1fr);
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-  min-height: 62px;
-  padding: 6px;
-  border: 1px solid var(--adaptive-border);
-  border-radius: 20px;
-  background: var(--adaptive-surface);
-  box-shadow:
-    0 6px 18px rgb(8 28 44 / 8%),
-    inset 0 1px 0 rgb(255 255 255 / 55%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-  overflow: hidden;
-  isolation: isolate;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* Статичная едва заметная подсветка сверху вместо бегущего блика */
-.unified-bank-plate::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgb(255 255 255 / 22%) 0%, transparent 34%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.bank-side {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 2px 8px;
-  position: relative;
-  z-index: 1;
-}
-
-.bank-glyph {
-  flex-shrink: 0;
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border: 1px solid var(--adaptive-border);
-  border-radius: 50%;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  text-shadow: 0 1px 2px rgb(0 30 80 / 30%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 55%),
-    0 3px 8px rgb(8 28 44 / 12%);
-}
-
-.bank-glyph i {
-  font-style: normal;
-  line-height: 1;
-}
-
-.bank-glyph-coin {
-  background:
-    radial-gradient(circle at 32% 28%, rgb(255 255 255 / 60%) 0%, transparent 55%),
-    linear-gradient(135deg, #1e88ff 0%, #0a5ed8 60%, #073d9c 100%);
-}
-
-.bank-glyph-vault {
-  background:
-    radial-gradient(circle at 32% 28%, rgb(255 255 255 / 60%) 0%, transparent 55%),
-    linear-gradient(135deg, #1ec28b 0%, #0f8a5a 60%, #075d3c 100%);
-}
-
-.bank-glyph-vault i {
-  width: 12px;
-  height: 10px;
-  border: 2px solid #fff;
-  border-radius: 2px;
-  position: relative;
-}
-.bank-glyph-vault i::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 3px;
-  height: 3px;
-  border: 1.5px solid #fff;
-  border-radius: 50%;
-}
-.bank-glyph-vault i::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 2px;
-  width: 4px;
-  height: 1.5px;
-  background: #fff;
-  transform: translateY(-50%);
-}
-
-.bank-side-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.1;
-}
-
-.bank-side-text small {
-  font-size: 7.5px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  color: var(--adaptive-muted);
-  line-height: 1.1;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.bank-side-text strong {
-  font-size: clamp(15px, 4.5vw, 19px);
-  font-weight: 850;
-  color: var(--adaptive-ink);
-  line-height: 1.15;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bank-side.bank-wallet {
-  flex-direction: row;
-}
-
-.bank-side.bank-vault {
-  flex-direction: row-reverse;
-  text-align: right;
-}
-.bank-side.bank-vault .bank-side-text {
-  align-items: flex-end;
-}
-
-.bank-action {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  margin: -4px 4px;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 18px;
-  color: var(--adaptive-ink);
-  background:
-    linear-gradient(
-      135deg,
-      rgb(245 250 255 / 78%) 0%,
-      rgb(225 235 245 / 62%) 100%
-    );
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 70%),
-    0 4px 14px rgb(8 28 44 / 10%);
-  cursor: pointer;
-  touch-action: pan-y;
-  -webkit-tap-highlight-color: transparent;
-  overflow: hidden;
-  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 180ms ease;
-  min-width: 0;
-}
-
-.unified-bank-plate.can-save .bank-action {
-  background:
-    linear-gradient(
-      135deg,
-      rgb(245 250 255 / 78%) 0%,
-      rgb(225 235 245 / 62%) 100%
-    );
-}
-
-.unified-bank-plate.can-save .bank-action:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 85%),
-    0 6px 18px rgb(8 28 44 / 16%);
-}
-
-.unified-bank-plate.can-save .bank-action:active {
-  transform: scale(0.97);
-}
-
-.unified-bank-plate.is-locked .bank-action {
-  background: rgb(235 240 245 / 55%);
-  cursor: not-allowed;
-}
-
-.bank-action-shine {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    transparent 35%,
-    rgb(255 255 255 / 35%) 50%,
-    transparent 65%,
-    transparent 100%
-  );
-  background-size: 240% 100%;
-  background-position: 200% 50%;
-  animation: bank-action-shine 2.4s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.unified-bank-plate.is-locked .bank-action-shine {
-  animation: none;
-  opacity: 0.4;
-}
-
-@keyframes bank-action-shine {
-  0%, 100% { background-position: 200% 50%; }
-  50% { background-position: -100% 50%; }
-}
-
-.bank-action-fill {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    rgb(5 92 190 / 18%) 0%,
-    rgb(10 132 232 / 38%) 60%,
-    rgb(5 92 190 / 18%) 100%
-  );
-  pointer-events: none;
-  z-index: 0;
-  transition: width 200ms ease;
-}
-
-.bank-action-label {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bank-action-label small {
-  font-size: 8.5px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  color: var(--adaptive-ink);
-  white-space: nowrap;
-}
-
-.unified-bank-plate.is-locked .bank-action-label small {
-  color: var(--adaptive-muted);
-}
-
-.bank-action-arrow {
-  position: relative;
-  width: 18px;
-  height: 12px;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.bank-action-arrow i {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 14px;
-  height: 1.5px;
-  background: var(--ui-blue);
-  border-radius: 1px;
-  transform: translateY(-50%);
-  animation: bank-arrow-march 1.2s ease-in-out infinite;
-  opacity: 0.85;
-}
-
-.bank-action-arrow i + i {
-  left: 4px;
-  animation-delay: 0.15s;
-  opacity: 0.55;
-}
-
-.unified-bank-plate.is-locked .bank-action-arrow i {
-  background: var(--adaptive-muted);
-  animation: none;
-  opacity: 0.45;
-}
-
-@keyframes bank-arrow-march {
-  0% { transform: translate(0, -50%); opacity: 0; }
-  20% { opacity: 0.9; }
-  100% { transform: translate(10px, -50%); opacity: 0; }
-}
-
-/* Corner Buff Plates */
-.corner-buffs {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.corner-buff-plate {
-  position: absolute;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1px solid var(--adaptive-border);
-  background: var(--adaptive-surface);
-  box-shadow: 0 4px 14px rgb(18 43 62 / 12%), inset 0 1px 0 rgb(255 255 255 / 60%);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 150ms ease, border-color 150ms ease;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.corner-buff-plate:hover:not(:disabled) {
-  transform: scale(1.08);
-  box-shadow: 0 6px 18px rgb(18 43 62 / 18%), inset 0 1px 0 rgb(255 255 255 / 80%);
-}
-
-.corner-buff-plate:active:not(:disabled) {
-  transform: scale(0.92);
-}
-
-.corner-buff-plate:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
-}
-
-.corner-buff-plate.is-active {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 3px rgb(255 152 0 / 30%), 0 6px 18px rgb(255 152 0 / 25%);
-  animation: buff-active-pulse 1.8s ease-in-out infinite alternate;
-}
-
-@keyframes buff-active-pulse {
-  0% { transform: scale(1); box-shadow: 0 0 0 2px rgb(255 152 0 / 25%), 0 4px 12px rgb(255 152 0 / 20%); }
-  100% { transform: scale(1.05); box-shadow: 0 0 0 4px rgb(255 152 0 / 40%), 0 8px 22px rgb(255 152 0 / 35%); }
-}
-
-.corner-buff-tl {
-  top: 4px;
-  left: 10px;
-}
-
-.corner-buff-tr {
-  top: 4px;
-  right: 10px;
-}
-
-.corner-buff-bl {
-  bottom: 6px;
-  left: 10px;
-}
-
-.corner-buff-br {
-  bottom: 6px;
-  right: 10px;
-}
-
-.corner-buff-img {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  pointer-events: none;
-}
-
-.corner-buff-badge {
-  position: absolute;
-  bottom: -3px;
-  right: -3px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 3px;
-  border-radius: 99px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8.5px;
-  font-weight: 850;
-  color: #fff;
-  background: var(--ui-blue);
-  box-shadow: 0 2px 6px rgb(5 92 190 / 35%), inset 0 1px 0 rgb(255 255 255 / 35%);
-  line-height: 1;
-  pointer-events: none;
-}
-
-.corner-buff-badge.is-price {
-  background: #f2b820;
-  color: #1a1e24;
-  box-shadow: 0 2px 6px rgb(242 184 32 / 35%);
-}
-
-.corner-buff-badge.is-timer {
-  background: #ff5722;
-  color: #fff;
-  font-size: 8px;
-  padding: 0 4px;
-}
-
-/* === Top buff row: 6 minimal round plates in a single horizontal line ===
-   overflow: visible — тени круглых плашек не должны обрезаться снизу
-   (что-то под рядом их перекрывало). Паддинг снизу даёт теням «воздух»,
-   а clip включается только во время сворачивания ряда. */
-.top-buff-row {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 4px 2px 8px;
-  pointer-events: auto;
-  transition: opacity 200ms ease, transform 200ms ease, max-height 200ms ease, margin 200ms ease, padding 200ms ease;
-  overflow: visible;
-}
-
-.top-buff-row.is-hidden {
-  opacity: 0;
-  transform: translateY(-4px);
-  pointer-events: none;
-  max-height: 0;
-  margin: 0;
-  padding: 0;
-  visibility: hidden;
-  overflow: hidden;
-}
-
-.buff-plate {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1 1 0;
-  min-width: 0;
-  aspect-ratio: 1 / 1;
-  max-width: 56px;
-  border-radius: 50%;
-  border: 1px solid var(--adaptive-border);
-  background: var(--adaptive-surface);
-  box-shadow: 0 4px 14px rgb(18 43 62 / 12%), inset 0 1px 0 rgb(255 255 255 / 60%);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 150ms ease, border-color 150ms ease;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.buff-plate:hover:not(:disabled) {
-  transform: scale(1.08);
-  box-shadow: 0 6px 18px rgb(18 43 62 / 18%), inset 0 1px 0 rgb(255 255 255 / 80%);
-}
-
-.buff-plate:active:not(:disabled) {
-  transform: scale(0.92);
-}
-
-.buff-plate:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  filter: grayscale(0.45);
-}
-
-.buff-plate.is-active {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 3px rgb(255 152 0 / 30%), 0 6px 18px rgb(255 152 0 / 25%);
-  animation: buff-active-pulse 1.8s ease-in-out infinite alternate;
-}
-
-.buff-plate-img {
-  width: 70%;
-  height: 70%;
-  object-fit: contain;
-  pointer-events: none;
-  filter: drop-shadow(0 3px 5px rgb(5 21 34 / 18%));
-}
-
-.buff-plate-badge {
-  position: absolute;
-  bottom: -3px;
-  right: -3px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 99px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8.5px;
-  font-weight: 850;
-  color: #fff;
-  background: var(--ui-blue);
-  box-shadow: 0 2px 6px rgb(5 92 190 / 35%), inset 0 1px 0 rgb(255 255 255 / 35%);
-  line-height: 1;
-  pointer-events: none;
-}
-
-.buff-plate-badge.is-price {
-  background: #f2b820;
-  color: #1a1e24;
-  box-shadow: 0 2px 6px rgb(242 184 32 / 35%);
-}
-
-.buff-plate-badge.is-timer {
-  background: #ff5722;
-  color: #fff;
-  font-size: 8px;
-  padding: 0 4px;
-}
-
-@media (max-width: 360px) {
-  .top-buff-row { gap: 3px; padding-top: 2px; }
-  .buff-plate { max-width: 48px; }
-  .buff-plate-badge { min-width: 16px; height: 16px; font-size: 7.5px; }
-}
-
-/* Enhanced Animation Amplitudes */
-@keyframes tap-squeeze-a {
-  0% { transform: scale(1); }
-  25% { transform: scale(0.91) translateY(6px); }
-  60% { transform: scale(1.05) translateY(-2px); }
-  85% { transform: scale(0.985); }
-  100% { transform: scale(1); }
-}
-
-@keyframes tap-squeeze-b {
-  0% { transform: scale(1); }
-  25% { transform: scale(0.91) translateY(6px); }
-  60% { transform: scale(1.05) translateY(-2px); }
-  85% { transform: scale(0.985); }
-  100% { transform: scale(1); }
-}
-
-@keyframes hat-jump {
-  0% { transform: translateX(-50%) translateY(0) rotate(0deg); }
-  35% { transform: translateX(-50%) translateY(-28px) rotate(-8deg) scale(1.1); }
-  65% { transform: translateX(-50%) translateY(3px) rotate(4deg); }
-  85% { transform: translateX(-50%) translateY(-2px) rotate(-1deg); }
-  100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
-}
-
-@keyframes mohawk-sway {
-  0% { transform: translateX(-50%) rotate(0deg); }
-  20% { transform: translateX(-50%) rotate(-18deg) scale(1.08); }
-  45% { transform: translateX(-50%) rotate(14deg); }
-  70% { transform: translateX(-50%) rotate(-7deg); }
-  88% { transform: translateX(-50%) rotate(2deg); }
-  100% { transform: translateX(-50%) rotate(0deg); }
-}
-
-@media (max-width: 370px) {
-  .corner-buff-tl { top: 2px; left: 4px; }
-  .corner-buff-tr { top: 2px; right: 4px; }
-  .corner-buff-bl { bottom: 4px; left: 4px; }
-  .corner-buff-br { bottom: 4px; right: 4px; }
-  .corner-buff-plate { width: 44px; height: 44px; }
-  .corner-buff-img { width: 24px; height: 24px; }
-}
-
-/* ==== Viewport height & safe-area fix (2026-08, финальный v3) ====
-   iOS PWA (добавлен на домашний экран): в части версий Safari `100dvh`
-   возвращает высоту БЕЗ учёта home-indicator, а `env(safe-area-inset-bottom)`
-   при этом всё равно применяется. Итог — .game-shell не дотягивается до низа
-   экрана и нижнее меню «уезжает вверх» (safe zone). Трёхуровневая защита:
-   1) body фиксируется на весь вьюпорт (position: fixed) — страница физически
-      не может прокрутиться ни в Safari, ни в standalone-режиме;
-   2) JS (page.tsx) пишет точную высоту visualViewport в `--app-vh`, она
-      имеет приоритет над любыми vh/dvh-единицами;
-   3) фолбэки идут строго ДО `var(--app-vh, 100dvh)`: `-webkit-fill-available`
-      в Chrome вырождается в auto, если стоит после 100dvh (уже ломало меню
-      дважды), поэтому порядок критичен. */
-html {
-  height: 100%;
-  min-height: 100%;
-  background: var(--ui-canvas);
-}
-body {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  /* iOS PWA: prevent elastic bounce that reveals white behind */
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
-}
-/* overflow:clip (после hidden — прогрессивное улучшение) запрещает
-   программный scrollTop: overflow:hidden всё ещё позволял браузеру
-   сдвинуть скролл (автофокус, scrollIntoView), из-за чего нижнее меню
-   визуально «уезжало наверх». clip делает такой сдвиг невозможным. */
-html,
-body,
-.game-shell {
-  overflow: hidden;
-  overflow: clip;
-}
-.game-shell {
-  /* Полная высота вьюпорта: фолбэки идут первыми, --app-vh — последним */
-  height: 100vh;
-  height: -webkit-fill-available; /* старый iOS standalone-режим */
-  height: 100dvh;
-  height: var(--app-vh, 100dvh); /* JS-измеренная точная высота */
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  min-height: 100dvh;
-  min-height: var(--app-vh, 100dvh);
-  /* iOS Safari PWA: гарантируем что высота соответствует визуальному viewport.
-     Дополнительный fallback через фиксированный padding-bottom если высота
-     контента превышает viewport (предотвращает "уезжание" меню наверх). */
-  max-height: 100vh;
-  max-height: -webkit-fill-available;
-  max-height: 100dvh;
-  max-height: var(--app-vh, 100dvh);
-  /* Use max() to ensure at least 12px but include notch */
-  padding-top: max(12px, env(safe-area-inset-top));
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-  padding-left: max(14px, env(safe-area-inset-left));
-  padding-right: max(14px, env(safe-area-inset-right));
-  /* Prevent content shift */
-  box-sizing: border-box;
-  /* ВАЖНО: НЕ добавлять transform (даже translateZ(0)) на .game-shell —
-     любой transform делает .game-shell containing block для position: fixed,
-     из-за чего нижнее меню якорится к шеллу, а не к вьюпорту, и «уезжает
-     вверх» вместе с ним на iOS PWA (safe zone). Анимации шелла при этом
-     не нужны: всё движется внутри .game-motion-layer / .game-stage. */
-}
-/* auth screen should also respect safe area */
-.auth-screen {
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: var(--app-vh, 100dvh);
-  height: 100vh;
-  height: -webkit-fill-available;
-  height: 100dvh;
-  height: var(--app-vh, 100dvh);
-  padding-top: max(24px, env(safe-area-inset-top));
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
-  padding-left: max(18px, env(safe-area-inset-left));
-  padding-right: max(18px, env(safe-area-inset-right));
-}
-/* Remove old ::after that doubled top safe-area paint – keep but ensure no layout shift */
-.game-shell::after {
-  display: block;
-  height: env(safe-area-inset-top);
-  background: var(--scene);
-  pointer-events: none;
-}
-
-/* ==== Game motion layer: ensure footer is not part of inert content ==== */
-.game-motion-layer {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 9px;
-  min-height: 0;
-  width: min(100%, 560px);
-  margin: 0 auto;
-  height: 100%;
-}
-/* Страховка: дети грида могут сжиматься ниже min-content — иначе на низких
-   экранах строка контента выталкивает нижнее меню за пределы шелла. */
-.game-motion-layer > .app-header,
-.game-motion-layer > .game-stage {
-  min-width: 0;
-  min-height: 0;
-}
-
-/* ==== Swipe-to-save Bank Plate — минималистичный, без центральной кнопки ====
-   Плоская поверхность, лёгкая тень, два баланса и одна маленькая стрелка,
-   которая мягко «шагает» вправо и показывает направление свайпа в сейф. */
-.swipe-plate {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-  min-height: 62px;
-  padding: 6px 6px;
-  border: 1px solid var(--adaptive-border);
-  border-radius: 20px;
-  background: var(--adaptive-surface);
-  box-shadow: 0 6px 18px rgb(8 28 44 / 8%), inset 0 1px 0 rgb(255 255 255 / 55%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-  overflow: hidden;
-  isolation: isolate;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: pan-y;
-  cursor: grab;
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 120ms ease;
-}
-.swipe-plate.can-save {
-  border-color: rgb(10 115 232 / 18%);
-}
-.swipe-plate.can-save:hover {
-  border-color: rgb(10 115 232 / 28%);
-  box-shadow: 0 8px 22px rgb(8 28 44 / 12%), inset 0 1px 0 rgb(255 255 255 / 65%);
-  transform: translateY(-1px);
-}
-.swipe-plate.is-dragging {
-  cursor: grabbing;
-  transform: scale(0.985);
-}
-.swipe-plate.is-locked {
-  cursor: not-allowed;
-  opacity: 0.72;
-}
-.swipe-plate:focus-visible {
-  outline: 3px solid var(--ui-focus);
-  outline-offset: 3px;
-}
-
-/* Fill that grows with drag progress — едва заметная подсветка свайпа */
-.swipe-plate .bank-swipe-fill {
-  position: absolute;
-  z-index: 0;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 0%;
-  background: linear-gradient(90deg, rgb(10 115 232 / 7%), rgb(10 115 232 / 16%));
-  pointer-events: none;
-  transition: width 80ms linear;
-}
-
-/* Sides are non-interactive for pointer (plate captures) */
-.swipe-plate .bank-side {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 4px 8px;
-  pointer-events: none;
-}
-.swipe-plate .bank-glyph {
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  border: 0;
-  box-shadow: none;
-  font-size: 11px;
-  opacity: 0.92;
-}
-.swipe-plate .bank-side-text {
-  min-width: 0;
-}
-.swipe-plate .bank-side-text strong {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Center: одна маленькая минималистичная стрелка — направление свайпа */
-.bank-swipe-center {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  gap: 4px;
-  min-width: 44px;
-  padding: 0 4px;
-  pointer-events: none;
-}
-.bank-swipe-arrow {
-  position: relative;
-  display: block;
-  width: 18px;
-  height: 12px;
-}
-.bank-swipe-arrow-shaft,
-.bank-swipe-arrow-head {
-  position: absolute;
-  top: 50%;
-  display: block;
-}
-.bank-swipe-arrow-shaft {
-  left: 0;
-  width: 15px;
-  height: 1.5px;
-  border-radius: 1px;
-  background: var(--adaptive-ink);
-  transform: translateY(-50%);
-  opacity: 0.9;
-}
-.bank-swipe-arrow-head {
-  right: 0;
-  width: 6px;
-  height: 6px;
-  border-top: 1.5px solid var(--adaptive-ink);
-  border-right: 1.5px solid var(--adaptive-ink);
-  background: transparent;
-  transform: translateY(-50%) rotate(45deg);
-  opacity: 0.9;
-}
-
-/* Idle animation: стрелка мягко «шагает» вправо — куда уходит свайп */
-.swipe-plate.can-save .bank-swipe-arrow.can-animate {
-  animation: bank-arrow-slide 1.6s cubic-bezier(.4, 0, .2, 1) infinite;
-}
-.swipe-plate.is-locked .bank-swipe-arrow {
-  opacity: 0.3;
-}
-.swipe-plate.is-locked .bank-swipe-arrow-shaft,
-.swipe-plate.is-locked .bank-swipe-arrow-head {
-  background: var(--adaptive-muted);
-  border-color: var(--adaptive-muted);
-  animation: none !important;
-}
-
-@keyframes bank-arrow-slide {
-  0% { transform: translateX(0); opacity: 0; }
-  22% { opacity: 0.95; }
-  62% { opacity: 0.95; }
-  100% { transform: translateX(7px); opacity: 0; }
-}
-
-/* При перетаскивании стрелка следует за пальцем */
-.swipe-plate.is-dragging .bank-swipe-arrow.can-animate {
-  animation: none;
-  transform: translateX(calc(var(--drag-progress, 0) * 12px));
-  opacity: 0.9;
-}
-
-.bank-swipe-label {
-  font-size: 7px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  color: var(--adaptive-muted);
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.swipe-plate.can-save .bank-swipe-label {
-  color: var(--adaptive-ink);
-}
-
-/* Ensure old central button is gone */
-.swipe-plate .bank-action { display: none !important; }
-
-/* ==== Thorough component clickability fixes ==== */
-/* Ensure sheets are above game but below persistent nav when needed */
-.modal-backdrop {
-  z-index: 50;
-  /* Allow vertical scroll inside sheet */
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
-.modal-backdrop.tutorial-backdrop {
-  z-index: 90;
-}
-.case-opening,
-.mini-game-backdrop {
-  z-index: 120;
-}
-.boot-splash {
-  z-index: 9999;
-}
-/* Bottom bar always interactive when not is-locked */
-.game-shell .bottom-bar {
-  z-index: 80;
-  pointer-events: auto;
-}
-.game-shell .bottom-bar.is-locked {
-  pointer-events: none;
-}
-.game-shell .bottom-bar button {
-  pointer-events: auto;
-  touch-action: manipulation;
-}
-/* Shop: ensure product grid buttons are clickable despite parent overflow */
-.shop-product-grid {
-  position: relative;
-  z-index: 1;
-}
-.shop-product-grid .shop-product-card {
-  position: relative;
-  z-index: 1;
-  touch-action: manipulation;
-}
-.shop-product-grid .shop-product-card button {
-  position: relative;
-  z-index: 2;
-  touch-action: manipulation;
-}
-/* Ensure quantity picker buttons don't get covered */
-.quantity-picker {
-  position: relative;
-  z-index: 2;
-}
-/* Ensure top buff row not clipped by transforms */
-.top-buff-row {
-  position: relative;
-  z-index: 5;
-}
-.buff-plate {
-  position: relative;
-  z-index: 1;
-  touch-action: manipulation;
-}
-/* Dog button: ensure pointer capture works, but not blocking siblings */
-.dog-button {
-  touch-action: none;
-  pointer-events: auto;
-}
-.dog-accessory-zones .ear-hit,
-.dog-accessory-zones .hat-hit-zone,
-.dog-accessory-zones .mohawk-hit-zone {
-  touch-action: manipulation;
-}
-/* Prevent inert from disabling nav when shop/cases open — nav has its own inert flag */
-.game-shell .bottom-bar[inert] {
-  pointer-events: none;
-  opacity: 0.5;
-}
-/* Ensure game-data (bank plate) is not inert when content is */
-.game-data {
-  position: relative;
-  z-index: 6;
-}
-/* Risk strip inputs should be draggable */
-.risk-strip input[type="range"],
-.risk-bet-control input[type="range"] {
-  touch-action: pan-x;
-  pointer-events: auto;
-}
-/* Case cards actions */
-.case-card-actions {
-  position: relative;
-  z-index: 2;
-}
-.case-card-actions button {
-  touch-action: manipulation;
-}
-
-/* ==== Minimal arrow enhancement for accessibility ==== */
-@media (prefers-reduced-motion: reduce) {
-  .swipe-plate.can-save .bank-swipe-arrow.can-animate,
-  .unified-bank-plate::before,
-  .bank-action-shine,
-  .game-shell .bottom-bar::before {
-    animation: none !important;
-  }
-}
-
-/* ==== Extra safety: ensure no invisible overlay blocks clicks ==== */
-.save-flight,
-.level-burst,
-.ultra-fire,
-.red-flash,
-.tap-waves,
-.tap-particles,
-.fatigue-countdown-ring,
-.case-burst-flash,
-.case-burst-rays,
-.case-burst-particles,
-.case-burst-confetti,
-.case-shockwave,
-.case-light-leak {
-  pointer-events: none !important;
-}
-
-
-/* ==========================================================================
-   Шапка (2026-08): слева — круглая кнопка-шестерёнка настроек,
-   справа — круглый индикатор статуса Кнопика без подписи словами.
-   ========================================================================== */
-
-/* Обе круглые кнопки-«монеты» одинакового размера по краям от логотипа */
-.game-shell .top-bar {
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
-  gap: 10px;
-}
-
-/* Круглая кнопка настроек вместо плашки «аватар + никнейм» */
-.game-shell .header-settings-button {
-  justify-content: center;
-  justify-self: start;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
-  padding: 0;
-  border-radius: 50%;
-}
-
-.header-settings-gear {
-  display: block;
-  width: 20px;
-  height: 20px;
-  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.game-shell .header-settings-button:active:not(:disabled) .header-settings-gear,
-.game-shell .header-settings-button:hover:not(:disabled) .header-settings-gear {
-  transform: rotate(38deg);
-}
-
-/* Круглый индикатор настроения — только цветная «лампочка», без текста */
-.game-shell .header-mood {
-  display: grid;
-  justify-self: end;
-  width: 42px;
-  height: 42px;
-  min-height: 42px;
-  padding: 0;
-  place-items: center;
-}
-
-.game-shell .mood-indicator {
-  position: relative;
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  place-items: center;
-  border: 1px solid var(--adaptive-border);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 26%, rgb(255 255 255 / 65%) 0%, transparent 58%),
-    var(--adaptive-surface);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 60%),
-    0 6px 18px rgb(8 28 44 / 10%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  backdrop-filter: blur(18px) saturate(150%);
-}
-
-/* Ядро-«лампочка»: цвет + мягкое свечение + медленный пульс */
-.game-shell .mood-indicator i {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #2cc47a;
-  box-shadow:
-    0 0 0 4px rgb(44 196 122 / 16%),
-    0 0 14px rgb(44 196 122 / 55%),
-    inset 0 1px 1px rgb(255 255 255 / 55%);
-  animation: mood-core-pulse 2.6s ease-in-out infinite;
-}
-
-.game-shell .mood-indicator.mood-warning i {
-  background: #ffc52e;
-  box-shadow:
-    0 0 0 4px rgb(255 197 46 / 18%),
-    0 0 14px rgb(255 197 46 / 60%),
-    inset 0 1px 1px rgb(255 255 255 / 55%);
-}
-
-.game-shell .mood-indicator.mood-tired i,
-.game-shell .mood-indicator.mood-recovering i {
-  background: #ffc537;
-  box-shadow:
-    0 0 0 4px rgb(255 197 55 / 18%),
-    0 0 14px rgb(255 216 94 / 65%),
-    inset 0 1px 1px rgb(255 255 255 / 55%);
-}
-
-.game-shell .mood-indicator.mood-angry i {
-  background: #ff554f;
-  box-shadow:
-    0 0 0 4px rgb(255 85 79 / 18%),
-    0 0 16px rgb(255 85 79 / 70%),
-    inset 0 1px 1px rgb(255 255 255 / 55%);
-  animation-duration: 1.1s; /* сердитый пульс быстрее */
-}
-
-@keyframes mood-core-pulse {
-  0%, 100% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.16); filter: brightness(1.1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .game-shell .mood-indicator i { animation: none; }
-  .header-settings-gear { transition: none; }
-}
-
-/* ==== Страховка позиции нижнего меню (финальная, не двигать вверх по файлу) ====
-   position: fixed якорится к вьюпорту только пока ни один предок не создаёт
-   containing block (transform / perspective / filter / will-change).
-   Здесь — жёсткий запрет transform на предках меню и повторная фиксация самого
-   бара. Правило лежит в конце последнего подключённого стиля, поэтому
-   перебивает случайные переопределения выше. Анимации на .game-shell
-   (например, interface-shake) не ломаются: они перекрывают базовый
-   transform только на время своего проигрывания. */
-html,
-body,
-.boot-content,
-.game-shell,
-.game-motion-layer {
-  transform: none;
-  perspective: none;
-}
-
-.game-shell .bottom-bar {
-  position: fixed;
-  left: 50%;
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  margin: 0;
 }

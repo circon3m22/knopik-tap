@@ -25,11 +25,65 @@
     linear-gradient(165deg, #081735 0%, #0c347d 58%, #071126 100%);
 }
 
+.auth-card {
+  display: grid;
+  width: min(100%, 390px);
+  gap: 16px;
+  padding: 30px 24px 24px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 28px;
+  background: rgb(7 18 43 / 84%);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 40%);
+  backdrop-filter: blur(22px);
+}
+
+.auth-kicker {
+  margin: 0;
+  color: #79afff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.auth-card h1 { margin: 0; font-weight: 950; letter-spacing: -0.045em; }
+.auth-card p { margin: 0; color: rgb(255 255 255 / 70%); line-height: 1.45; }
+.auth-card label { display: grid; gap: 7px; }
+.auth-card label span { color: rgb(255 255 255 / 65%); font-size: 0.78rem; font-weight: 800; }
+
+.auth-card input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 15px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 15px;
+  outline: none;
+  color: #fff;
+  background: rgb(255 255 255 / 8%);
+  font: inherit;
+}
+
+.auth-card input:focus { border-color: #62a0ff; box-shadow: 0 0 0 3px rgb(66 139 255 / 18%); }
+
+.auth-card button {
+  min-height: 50px;
+  border: 0;
+  border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(135deg, #2b82ff, #0d55db);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.055em;
+}
+
+.auth-card button:disabled { opacity: 0.5; }
+.auth-error { color: #ff9898 !important; font-size: 0.82rem; font-weight: 800; }
+
 .auth-loader {
   width: 46px;
   height: 46px;
-  border: 4px solid rgb(10 115 232 / 16%);
-  border-top-color: #0a73e8;
+  border: 4px solid rgb(255 255 255 / 20%);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: account-spin 0.8s linear infinite;
 }
@@ -89,16 +143,8 @@ img,
   isolation: isolate;
   display: block;
   width: min(100%, 500px);
-  /* iOS PWA fix: используем все доступные fallback для высоты viewport.
-     Порядок критичен: JS-измеренная высота (--app-vh) должна быть последней. */
-  height: 100vh;
-  height: -webkit-fill-available;
   height: 100dvh;
-  height: var(--app-vh, 100dvh);
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  min-height: 100dvh;
-  min-height: var(--app-vh, 100dvh);
+  min-height: 520px;
   margin: 0 auto;
   padding:
     calc(env(safe-area-inset-top) + 12px)
@@ -551,9 +597,8 @@ img,
   z-index: 2;
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 6px;
-  padding: 8px 0 7px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 13px 0 7px;
   transform-origin: 50% 48%;
 }
 
@@ -4818,7 +4863,7 @@ img,
 .game-stage {
   display: grid;
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
   padding: 0;
 }
@@ -5664,47 +5709,6 @@ img,
   font-size: 9px;
 }
 
-/* Локальный (офлайн) режим */
-.account-local-note {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 12px;
-  color: #4b5f6e;
-  background: #eef4f8;
-  font-size: 9px;
-  line-height: 1.45;
-}
-
-.promo-mode-switch {
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-flow: column;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 14px;
-  background: #edf3f7;
-}
-
-.promo-mode-switch button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 11px;
-  color: #5d7281;
-  background: transparent;
-  font: inherit;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-}
-
-.promo-mode-switch button.is-active {
-  color: #123149;
-  background: #fff;
-  box-shadow: 0 4px 12px rgb(18 49 73 / 12%);
-}
-
 @media (max-height: 740px) {
   .level-strip { min-height: 50px; }
   .level-progress-copy { display: none; }
@@ -5842,8 +5846,6 @@ img,
 
 .cola-pack { background: linear-gradient(145deg, #fff0ed, #efb4ae); }
 .tea-pack { background: linear-gradient(145deg, #fff7d7, #ddc77c); }
-.zhivchik-pack { background: linear-gradient(145deg, #f4ffd9, #a6e058); }
-.vita-pack { background: linear-gradient(145deg, #e6efff, #93b9f0); }
 .cola-action { background: #c72c3f !important; box-shadow: 0 10px 22px rgb(151 28 47 / 20%) !important; }
 .tea-action { color: #fff !important; background: #6d8f3d !important; box-shadow: 0 10px 22px rgb(76 111 36 / 20%) !important; }
 
