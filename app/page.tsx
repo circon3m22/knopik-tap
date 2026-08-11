@@ -2812,16 +2812,6 @@ function KnopikGame({
     [],
   );
 
-  const handleBankKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if ((event.key === "Enter" || event.key === " ") && canSave) {
-        event.preventDefault();
-        saveAllToVault();
-      }
-    },
-    [canSave, saveAllToVault],
-  );
-
   const remainingDrinkSlots = Math.max(0, INVENTORY_LIMIT - drinkCount);
   const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
   const canBuyDrink =
@@ -3589,53 +3579,79 @@ function KnopikGame({
             onPointerMove={handleBankPointerMove}
             onPointerUp={handleBankPointerUp}
             onPointerCancel={handleBankPointerCancel}
-            onKeyDown={handleBankKeyDown}
-            tabIndex={canSave ? 0 : -1}
             data-drag-progress={bankDragProgress.toFixed(3)}
             style={{ "--drag-progress": bankDragProgress } as CSSProperties}
           >
             {/* Заполнение фона показывает прогресс свайпа */}
             <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
 
+            {/* Блик проходит слева направо и показывает направление свайпа */}
+            {canSave && <div className="bank-sweep" aria-hidden="true" />}
+
             <div
               ref={walletBalanceRef}
               className={`bank-side bank-wallet ${balanceVariant}`}
-              role="group"
-              aria-label={`Активные монеты ${coins.walletCoins}`}
               data-side="wallet"
             >
-              <span className="bank-glyph bank-glyph-coin" aria-hidden="true"><i>К</i></span>
-              <div className="bank-side-text">
-                <small>АКТИВ</small>
+              <span className="bank-coin bank-coin-gold" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <circle className="bank-coin-face" cx="16" cy="16" r="14" />
+                  <circle className="bank-coin-rim" cx="16" cy="16" r="10.5" />
+                  <text className="bank-coin-letter" x="16" y="16">К</text>
+                </svg>
+              </span>
+              <span className="bank-side-text">
+                <small>Актив</small>
                 <strong className="balance-number" key={`balance-${balancePulse}`}>
                   {coins.walletCoins.toLocaleString("ru-RU")}
                 </strong>
-              </div>
+              </span>
             </div>
 
-            <div className="bank-swipe-center" aria-hidden="true">
-              <span className={`bank-swipe-arrow ${canSave ? "can-animate" : "is-locked"}`}>
-                {/* Одна минималистичная стрелка — показывает направление свайпа в сейф */}
-                <i className="bank-swipe-arrow-shaft" />
-                <i className="bank-swipe-arrow-head" />
+            <button
+              className="bank-swipe-center"
+              type="button"
+              disabled={!canSave}
+              aria-label={
+                canSave
+                  ? `Перевести ${saveAmount.toLocaleString("ru-RU")} монет в сейф`
+                  : "Перевод в сейф недоступен"
+              }
+              onClick={() => { if (canSave) saveAllToVault(); }}
+            >
+              <span className={`bank-swipe-arrow ${canSave ? "can-animate" : "is-locked"}`} aria-hidden="true">
+                <svg viewBox="0 0 34 12">
+                  <path d="M1 6h30M26 1.5 31.5 6 26 10.5" />
+                </svg>
               </span>
-              {canSave && (
-                <small className="bank-swipe-label">{bankDragProgress > 0.12 ? `${Math.round(bankDragProgress * 100)}%` : "В сейф"}</small>
-              )}
-            </div>
+              <small className="bank-swipe-label" aria-hidden="true">
+                {isBankDragging && bankDragProgress > 0.12
+                  ? `${Math.round(bankDragProgress * 100)}%`
+                  : "В сейф"}
+              </small>
+            </button>
 
             <div
               ref={savedBalanceRef}
               className={`bank-side bank-vault ${saveFlight ? "receiving-coins" : ""}`}
-              role="group"
-              aria-label={`Баланс сейфа ${vaultCoins} монет`}
               data-side="vault"
             >
-              <span className="bank-glyph bank-glyph-vault" aria-hidden="true"><i /></span>
-              <div className="bank-side-text">
-                <small>В СЕЙФЕ</small>
+              <span className="bank-side-text">
+                <small>В сейфе</small>
                 <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
-              </div>
+              </span>
+              <span className="bank-coin bank-coin-silver" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <circle className="bank-coin-face" cx="16" cy="16" r="14" />
+                  <circle className="bank-coin-rim" cx="16" cy="16" r="10.5" />
+                  <g className="bank-coin-safe">
+                    <rect x="9.4" y="10.2" width="13.2" height="11.6" rx="2.3" />
+                    <circle cx="15" cy="16" r="3" />
+                    <path d="M15 13v6M12 16h6" />
+                    <path d="M20 14.4v3.2" />
+                  </g>
+                </svg>
+              </span>
             </div>
           </div>
         </div>
@@ -4057,7 +4073,7 @@ function KnopikGame({
               </span>
               <div className="food-copy">
                 <small>{hatOwned ? `LVL ${hatLevel}/5 · УЛУЧШЕНИЙ ${hatUpgradeTokens}` : "АКСЕССУАР"}</small>
-                <h3>Тюбетейка Хасбика</h3>
+                <h3>Тюбетейка</h3>
                 <p>Улучшает награду и удержание ультра-тапа.</p>
               </div>
               <div className="clothing-actions">

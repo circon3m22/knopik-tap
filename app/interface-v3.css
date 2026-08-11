@@ -802,3 +802,292 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* ==========================================================================
+   6. Плашка балансов — золотая монета «К» слева, серебряный сейф справа
+   ========================================================================== */
+
+/* Плашка приподнята над меню: спейсер + собственный отступ дают воздух,
+   чтобы стеклянная капсула навигации не касалась плашки ни на одном экране. */
+.game-data {
+  padding-bottom: 8px;
+}
+
+.bottom-nav-spacer {
+  height: 104px;
+}
+
+.game-shell .unified-bank-plate.swipe-plate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 68px;
+  padding: 8px 12px;
+  border: 1px solid var(--adaptive-border);
+  border-radius: 22px;
+  background: var(--adaptive-surface);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  overflow: hidden;
+}
+
+/* Стороны: актив читается слева направо, сейф — зеркально к своему краю. */
+.swipe-plate .bank-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+}
+
+.swipe-plate .bank-vault {
+  /* Порядок в разметке уже зеркальный (число, затем монета) — старый
+     row-reverse из v2 перевернул бы его обратно. */
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.swipe-plate .bank-side-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.swipe-plate .bank-vault .bank-side-text {
+  text-align: end;
+}
+
+.swipe-plate .bank-side-text small {
+  color: var(--adaptive-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.swipe-plate .bank-side-text strong {
+  color: var(--adaptive-ink);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Монеты: два плоских кружка, различаются металлом и знаком. */
+.bank-coin {
+  display: block;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+}
+
+.bank-coin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bank-coin .bank-coin-face {
+  stroke: none;
+}
+
+.bank-coin .bank-coin-rim {
+  fill: none;
+  stroke: rgb(255 255 255 / 60%);
+  stroke-width: 1;
+}
+
+.bank-coin-letter {
+  fill: #6b4a05;
+  font-family: var(--ui-font);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* Золото — активный баланс. */
+.bank-coin-gold .bank-coin-face {
+  fill: #f0b429;
+}
+
+/* Серебро — сейф. */
+.bank-coin-silver .bank-coin-face {
+  fill: #c2cbd4;
+}
+
+.bank-coin-silver .bank-coin-safe {
+  fill: none;
+  stroke: #4a5663;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* Центр: одна стрелка и подпись под ней. */
+/* Центр — настоящая кнопка: свайп остаётся жестом, но клавиатура и
+   скринридер получают именованное действие «Перевести N монет в сейф». */
+.game-shell .swipe-plate .bank-swipe-center {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  min-width: 68px;
+  min-height: 48px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  transition: background-color 160ms ease;
+}
+
+.game-shell .swipe-plate .bank-swipe-center:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.game-shell .swipe-plate .bank-swipe-center:hover:not(:disabled) {
+  background: rgb(255 255 255 / 12%);
+}
+
+.game-shell .swipe-plate .bank-swipe-center:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.bank-swipe-arrow {
+  display: block;
+  width: 34px;
+  height: 12px;
+}
+
+.bank-swipe-arrow svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--adaptive-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.swipe-plate.is-locked .bank-swipe-arrow svg {
+  stroke: var(--adaptive-muted);
+}
+
+.bank-swipe-label {
+  color: var(--adaptive-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.swipe-plate.can-save .bank-swipe-label {
+  color: var(--adaptive-ink);
+}
+
+/* Стрелка стоит на месте: направление несёт блик, а не дрожащая иконка.
+   При перетаскивании она следует за пальцем — это прямая обратная связь. */
+.swipe-plate.can-save .bank-swipe-arrow.can-animate {
+  animation: none;
+}
+
+.swipe-plate.is-dragging .bank-swipe-arrow {
+  transform: translateX(calc(var(--drag-progress, 0) * 10px));
+}
+
+/* Блик: проходит по всей плашке слева направо с паузой между проходами. */
+.bank-sweep {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    100deg,
+    transparent 38%,
+    rgb(255 255 255 / 26%) 50%,
+    transparent 62%
+  );
+  background-repeat: no-repeat;
+  background-size: 190% 100%;
+  animation: bank-sweep-pass 3.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes bank-sweep-pass {
+  0% { background-position: -120% 0; }
+  55%, 100% { background-position: 220% 0; }
+}
+
+.swipe-plate.is-dragging .bank-sweep {
+  animation: none;
+  opacity: 0;
+}
+
+.swipe-plate .bank-side,
+.swipe-plate .bank-swipe-center {
+  position: relative;
+  z-index: 1;
+}
+
+/* Свайп-прогресс: подсветка тянется от актива к сейфу. */
+.swipe-plate .bank-swipe-fill {
+  background: linear-gradient(90deg, rgb(10 115 232 / 10%), rgb(10 115 232 / 22%));
+}
+
+@media (max-width: 360px) {
+  .swipe-plate .bank-side-text strong { font-size: 19px; }
+  .bank-coin { flex-basis: 30px; width: 30px; height: 30px; }
+  .bank-swipe-center { min-width: 54px; }
+}
+
+/* Блик — декоративная подсказка, а не единственный носитель смысла:
+   под reduced motion остаются стрелка и подпись «В сейф». */
+@media (prefers-reduced-motion: reduce) {
+  .bank-sweep { animation: none; opacity: 0; }
+  .swipe-plate.is-dragging .bank-swipe-arrow { transition: none; }
+}
+
+/* Диск сейфа тоньше корпуса — иначе на 34px глиф слипается в пятно. */
+.bank-coin-silver .bank-coin-safe circle,
+.bank-coin-silver .bank-coin-safe path {
+  stroke-width: 1.25;
+}
+
+/* Заблокированная плашка гасилась целиком (opacity .72 в v2), из-за чего
+   подписи «Актив» / «В сейфе» / «В сейф» падали до 2.85:1 на светлой сцене —
+   ниже порога WCAG AA 4.5:1 для мелкого текста. Приглушаем только оформление,
+   текст остаётся полностью непрозрачным; «выключено» несут курсор,
+   disabled-кнопка и статичная серая стрелка, а не прозрачность букв. */
+.game-shell .swipe-plate.is-locked {
+  opacity: 1;
+  background: rgb(255 255 255 / 34%);
+}
+
+.game-shell .swipe-plate.is-locked .bank-coin {
+  opacity: 0.62;
+}
+
+/* На светлых сценах (state-tired и др.) 66% чернил по бледно-жёлтому дают
+   4.36:1. Поднимаем до 78% → ~5.9:1, оттенок и насыщенность не трогаем. */
+.game-shell .swipe-plate .bank-side-text small,
+.game-shell .swipe-plate .bank-swipe-label {
+  color: rgb(16 42 67 / 78%);
+}
+
+.game-shell.state-calm:not(.pale-calm) .swipe-plate .bank-side-text small,
+.game-shell.state-calm:not(.pale-calm) .swipe-plate .bank-swipe-label,
+.game-shell.state-recovering:not(.has-fatigue) .swipe-plate .bank-side-text small,
+.game-shell.state-recovering:not(.has-fatigue) .swipe-plate .bank-swipe-label {
+  color: rgb(255 255 255 / 84%);
+}
