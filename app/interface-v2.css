@@ -12,6 +12,8 @@
   --ui-canvas: #f2f5f8;
   --ui-surface: rgb(255 255 255 / 92%);
   --ui-surface-solid: #fff;
+  --ui-fill: rgb(242 245 248 / 70%);
+  --ui-border: rgb(24 54 78 / 15%);
   --ui-line: rgb(24 54 78 / 11%);
   --ui-shadow-sm: 0 8px 22px rgb(22 48 69 / 8%);
   --ui-shadow-md: 0 18px 48px rgb(15 38 57 / 14%);
@@ -874,13 +876,126 @@ button {
 
 .settings-sheet .account-summary {
   min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--ui-fill);
+  border-radius: 14px;
+  margin-bottom: 12px;
 }
 
 .settings-sheet .account-avatar {
-  width: 48px;
-  height: 48px;
-  flex-basis: 48px;
-  font-size: 18px;
+  width: 52px;
+  height: 52px;
+  flex-basis: 52px;
+  font-size: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.settings-sheet .account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-sheet .account-info strong {
+  color: var(--ui-ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-sheet .account-local-badge,
+.settings-sheet .account-sync-badge {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.settings-sheet .account-local-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.settings-sheet .account-sync-badge.saved {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.settings-sheet .account-sync-badge.saving {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.settings-sheet .account-sync-badge.error {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.settings-sheet .account-cloud-section {
+  margin-bottom: 16px;
+}
+
+.settings-sheet .account-cloud-description {
+  font-size: 13px;
+  color: var(--ui-muted);
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.settings-sheet .cloud-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--ui-fill);
+  border-radius: 12px;
+}
+
+.settings-sheet .cloud-login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-sheet .cloud-login-form input {
+  padding: 10px 12px;
+  border: 1.5px solid var(--ui-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+}
+
+.settings-sheet .cloud-login-form input:focus {
+  border-color: #667eea;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.settings-sheet .cloud-login-error {
+  color: #c62828;
+  font-size: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #ffebee;
+  border-radius: 6px;
+}
+
+.settings-sheet .cloud-login-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .settings-sheet .account-summary strong,
@@ -900,6 +1015,58 @@ button {
   line-height: 1.35;
 }
 
+.settings-sheet .settings-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.settings-sheet .settings-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--ui-fill);
+  color: var(--ui-ink);
+  transition: all 0.15s ease;
+  margin-bottom: 8px;
+}
+
+.settings-sheet .settings-action:hover {
+  background: var(--ui-border);
+}
+
+.settings-sheet .settings-action.primary-action {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.settings-sheet .settings-action.primary-action:hover {
+  filter: brightness(1.1);
+}
+
+.settings-sheet .settings-action.danger-action {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.settings-sheet .settings-action.danger-action:hover {
+  background: #ffcdd2;
+}
+
+.settings-sheet .settings-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .settings-sheet .password-form,
 .settings-sheet .promo-form {
   display: grid;
@@ -916,6 +1083,22 @@ button {
   color: var(--ui-muted);
   font-size: 11px;
   font-weight: 720;
+}
+
+.settings-sheet .stats-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  background: var(--ui-fill);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+
+.settings-sheet .stats-line strong {
+  color: var(--ui-ink);
+  font-size: 14px;
 }
 
 .settings-sheet input {

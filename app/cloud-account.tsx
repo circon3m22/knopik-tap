@@ -100,6 +100,10 @@ type CloudGameSession = {
   redeemPromoCode: (code: string) => Promise<PromoResult>;
   changePassword: (password: string) => Promise<string>;
   signOut: () => Promise<void>;
+  /** Показать форму входа в облако из настроек. */
+  showCloudLoginForm: () => void;
+  /** Начать вход в облачный аккаунт. */
+  startCloudLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 };
 
 type CloudAccountGateProps = {
@@ -176,6 +180,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
   const [difficulty, setDifficulty] = useState(DEFAULT_DIFFICULTY);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [localMode, setLocalMode] = useState(false);
+  const [showCloudLoginForm, setShowCloudLoginForm] = useState(false);
   const localPromosRef = useRef<LocalPromoCode[]>([]);
   const accountRef = useRef<CloudAccount | null>(null);
   const latestSaveRef = useRef<SaveData | null>(null);
@@ -215,6 +220,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     setPromoCodes(localPromosRef.current.map(mapLocalPromoCode));
     setLoginError("");
     setAuthLoading(false);
+    setShowCloudLoginForm(false);
   }, []);
 
   const refreshPromoCodes = useCallback(async () => {
@@ -236,7 +242,8 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
   useEffect(() => {
     if (localMode) return;
 
-    // Локальный режим восстанавливается без единого обращения к Supabase.
+    // По умолчанию запускаем локальную сессию без экрана входа.
+    // Пользователь может войти в аккаунт позже через настройки.
     if (isLocalModeActive()) {
       let restored = true;
       void Promise.resolve().then(() => {
@@ -247,31 +254,18 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
       };
     }
 
-    const supabase = getSupabaseClient();
-    let active = true;
-
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!active) return;
-      setUser(data.user ?? null);
-      setAuthLoading(false);
-    });
-
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-      if (!session?.user) {
-        accountRef.current = null;
-        setAccount(null);
-        setInitialSave(null);
-        setPromoCodes([]);
-        setDifficulty(DEFAULT_DIFFICULTY);
+    // Локальный режим по умолчанию — сразу запускаем без запросов к Supabase.
+    // Экран входа не показываем, чтобы играть можно было сразу.
+    let started = false;
+    void Promise.resolve().then(() => {
+      if (!started) {
+        started = true;
+        startLocalSession();
       }
     });
 
     return () => {
-      active = false;
-      data.subscription.unsubscribe();
+      started = false;
     };
   }, [localMode, startLocalSession]);
 
@@ -609,6 +603,47 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     return error ? "Не удалось изменить пароль." : "Пароль изменён.";
   }, []);
 
+  /** Переключиться на локальный режим после выхода из облака. */
+  const switchToLocalMode = useCallback(() => {
+    disableLocalMode();
+    accountRef.current = null;
+    localPromosRef.current = [];
+    setLocalMode(false);
+    setAccount(null);
+    setInitialSave(null);
+    setPromoCodes([]);
+    setDifficulty(DEFAULT_DIFFICULTY);
+    setUsername("");
+    setPassword("");
+    setSyncState("saved");
+    setShowCloudLoginForm(false);
+    // Запускаем локальную сессию
+    const localSave = readLocalGameSave();
+    const nextAccount: CloudAccount = {
+      userId: LOCAL_USER_ID,
+      username: LOCAL_USERNAME,
+      isAdmin: true,
+      isLocal: true,
+    };
+    localPromosRef.current = readLocalPromoCodes();
+    accountRef.current = nextAccount;
+    latestSaveRef.current = localSave;
+    saveVersionRef.current = 0;
+    flushedVersionRef.current = 0;
+    enableLocalMode();
+    writeLocalGameSave(localSave);
+    setLocalMode(true);
+    setUser(null);
+    setAccount(nextAccount);
+    setInitialSave(localSave);
+    setGameRevision((current) => current + 1);
+    setSyncState("saved");
+    setDifficulty(readLocalDifficulty());
+    setPromoCodes(localPromosRef.current.map(mapLocalPromoCode));
+    setLoginError("");
+    setAuthLoading(false);
+  }, []);
+
   const signOut = useCallback(async () => {
     await flushProgress();
     if (accountRef.current?.isLocal) {
@@ -623,10 +658,50 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
       setUsername("");
       setPassword("");
       setSyncState("saved");
+      setShowCloudLoginForm(false);
       return;
     }
+    // Облачный аккаунт — выходим и возвращаемся в локальный режим
     await getSupabaseClient().auth.signOut();
-  }, [flushProgress]);
+    switchToLocalMode();
+  }, [flushProgress, switchToLocalMode]);
+
+  /** Показать форму входа в облако из настроек. */
+  const showCloudLoginFormAction = useCallback(() => {
+    setShowCloudLoginForm(true);
+    setLoginError("");
+    setUsername("");
+    setPassword("");
+  }, []);
+
+  /** Выполнить вход в облачный аккаунт. */
+  const startCloudLogin = useCallback(async (loginUsername: string, loginPassword: string): Promise<{ success: boolean; error?: string }> => {
+    // Нельзя входить в облако если уже локальный аккаунт wolf
+    if (isLocalCredentials(loginUsername, loginPassword)) {
+      return { success: false, error: "Используй локальный режим без входа в аккаунт" };
+    }
+    const email = usernameToEmail(loginUsername);
+    if (!email) {
+      return { success: false, error: "Логин должен содержать от 3 до 32 латинских букв или цифр" };
+    }
+    setLoginPending(true);
+    setLoginError("");
+    setShowCloudLoginForm(false);
+
+    const { error } = await getSupabaseClient().auth.signInWithPassword({
+      email,
+      password: loginPassword,
+    });
+
+    if (error) {
+      setLoginError("Неверный логин или пароль");
+      setLoginPending(false);
+      return { success: false, error: "Неверный логин или пароль" };
+    }
+
+    // После успешного входа useEffect загрузит данные пользователя
+    return { success: true };
+  }, []);
 
   if (authLoading) {
     return (
@@ -692,5 +767,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     redeemPromoCode,
     changePassword,
     signOut,
+    showCloudLoginForm: showCloudLoginFormAction,
+    startCloudLogin,
   });
 }

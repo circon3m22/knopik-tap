@@ -250,6 +250,8 @@ type KnopikGameProps = {
   onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
   onChangePassword: (password: string) => Promise<string>;
   onSignOut: () => Promise<void>;
+  onShowCloudLoginForm: () => void;
+  onStartCloudLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 };
 
 function KnopikGame({
@@ -265,6 +267,8 @@ function KnopikGame({
   onRedeemPromoCode,
   onChangePassword,
   onSignOut,
+  onShowCloudLoginForm,
+  onStartCloudLogin,
 }: KnopikGameProps) {
   const [dogState, setDogState] = useState<DogState>("calm");
   const [recoveryReason, setRecoveryReason] =
@@ -332,6 +336,11 @@ function KnopikGame({
   const [newPassword, setNewPassword] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
   const [accountPending, setAccountPending] = useState(false);
+  const [cloudLoginUsername, setCloudLoginUsername] = useState("");
+  const [cloudLoginPassword, setCloudLoginPassword] = useState("");
+  const [cloudLoginError, setCloudLoginError] = useState("");
+  const [cloudLoginPending, setCloudLoginPending] = useState(false);
+  const [showCloudLoginForm, setShowCloudLoginForm] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
@@ -4090,109 +4099,189 @@ function KnopikGame({
               </button>
             </div>
 
-            <p className="settings-section-title">Аккаунт</p>
+            {/* Синхронизация аккаунта */}
             <div className="account-settings">
               <div className="account-summary">
-                <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
-                <div>
+                <span className="account-avatar" aria-hidden="true">
+                  {account.username.slice(0, 1).toUpperCase()}
+                </span>
+                <div className="account-info">
                   <strong>{account.username}</strong>
-                  <span>
-                    {account.isLocal
-                      ? "Локальный режим · прогресс только на устройстве"
-                      : syncState === "saved"
-                        ? "Прогресс сохранён"
-                        : syncState === "saving"
-                          ? "Сохранение…"
-                          : "Сохранится при следующей попытке"}
-                  </span>
+                  {account.isLocal ? (
+                    <span className="account-local-badge">📱 Локально</span>
+                  ) : (
+                    <span className={`account-sync-badge ${syncState}`}>
+                      {syncState === "saved" ? "✓ Сохранено" : syncState === "saving" ? "⟳ Сохраняем…" : "⚠ Ошибка"}
+                    </span>
+                  )}
                 </div>
               </div>
-              <form
-                className="password-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void submitPasswordChange();
-                }}
-              >
-                <label>
-                  <span>Новый пароль</span>
-                  <input
-                    id="new-password"
-                    name="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => {
-                      setNewPassword(event.currentTarget.value);
-                      setAccountMessage("");
-                    }}
-                    placeholder="Минимум 6 символов"
-                    autoComplete="new-password"
-                    minLength={6}
-                    required
-                  />
-                </label>
-                <button type="submit" disabled={accountPending}>Сменить пароль</button>
-              </form>
-              {account.isLocal && (
-                <p className="account-local-note">
-                  Офлайн-профиль: игра не обращается к облаку, все данные хранятся в этом браузере.
-                </p>
-              )}
-              {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
-              <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>Выйти из аккаунта</button>
-            </div>
-            <p className="settings-section-title">Игра</p>
-            <div className="setting-row">
-              <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
-              <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
-            </div>
-            {account.isAdmin && (
-              <section className="difficulty-panel">
-                <div className="difficulty-heading">
-                  <div>
-                    <strong>Скрытая сложность</strong>
-                    <span>Общая для всех игроков · текущая игра = {DEFAULT_DIFFICULTY}</span>
-                  </div>
-                  <output htmlFor="difficulty-range">{difficultyDraft}</output>
+
+              {account.isLocal ? (
+                <div className="account-cloud-section">
+                  <p className="account-cloud-description">
+                    Игра сохраняется локально в браузере. Войди в аккаунт, чтобы синхронизировать прогресс между устройствами.
+                  </p>
+                  {!showCloudLoginForm ? (
+                    <button
+                      type="button"
+                      className="settings-action primary-action"
+                      onClick={() => {
+                        onShowCloudLoginForm();
+                        setCloudLoginError("");
+                        setCloudLoginUsername("");
+                        setCloudLoginPassword("");
+                      }}
+                    >
+                      🔐 Войти в аккаунт
+                    </button>
+                  ) : (
+                    <form
+                      className="cloud-login-form"
+                      onSubmit={async (event) => {
+                        event.preventDefault();
+                        setCloudLoginPending(true);
+                        setCloudLoginError("");
+                        const result = await onStartCloudLogin(cloudLoginUsername, cloudLoginPassword);
+                        setCloudLoginPending(false);
+                        if (!result.success) {
+                          setCloudLoginError(result.error || "Ошибка входа");
+                        }
+                      }}
+                    >
+                      <label>
+                        <span>Логин</span>
+                        <input
+                          type="text"
+                          value={cloudLoginUsername}
+                          onChange={(event) => setCloudLoginUsername(event.currentTarget.value)}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          autoComplete="username"
+                          placeholder="Введи логин"
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Пароль</span>
+                        <input
+                          type="password"
+                          value={cloudLoginPassword}
+                          onChange={(event) => setCloudLoginPassword(event.currentTarget.value)}
+                          autoComplete="current-password"
+                          placeholder="Введи пароль"
+                          required
+                        />
+                      </label>
+                      {cloudLoginError && <p className="cloud-login-error" role="alert">{cloudLoginError}</p>}
+                      <div className="cloud-login-actions">
+                        <button
+                          type="button"
+                          className="settings-action"
+                          onClick={() => setShowCloudLoginForm(false)}
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          type="submit"
+                          className="settings-action primary-action"
+                          disabled={cloudLoginPending}
+                        >
+                          {cloudLoginPending ? "Входим…" : "Войти"}
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </div>
-                <input
-                  id="difficulty-range"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={difficultyDraft}
-                  aria-label="Скрытая сложность игры"
-                  onChange={(event) => {
-                    setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
-                    setDifficultyMessage("");
-                  }}
-                />
-                <div className="difficulty-scale" aria-hidden="true">
-                  <span><b>0</b> очень легко</span>
-                  <span><b>50</b> стандарт</span>
-                  <span><b>100</b> сложно</span>
+              ) : (
+                <div className="account-cloud-section">
+                  <p className="account-cloud-description">
+                    Прогресс синхронизируется с облаком.
+                  </p>
+                  <form
+                    className="password-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void submitPasswordChange();
+                    }}
+                  >
+                    <label>
+                      <span>Новый пароль</span>
+                      <input
+                        id="new-password"
+                        name="new-password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => {
+                          setNewPassword(event.currentTarget.value);
+                          setAccountMessage("");
+                        }}
+                        placeholder="Минимум 6 символов"
+                        autoComplete="new-password"
+                        minLength={6}
+                      />
+                    </label>
+                    <button type="submit" disabled={accountPending || newPassword.length < 6}>
+                      {accountPending ? "…" : "Сменить пароль"}
+                    </button>
+                  </form>
+                  {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
+                  <button
+                    className="settings-action danger-action"
+                    type="button"
+                    disabled={accountPending}
+                    onClick={() => {
+                      if (confirm("Выйти из аккаунта? Локальный прогресс останется.")) {
+                        void signOutAccount();
+                      }
+                    }}
+                  >
+                    🚪 Выйти из аккаунта
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Настройки звука */}
+            <p className="settings-section-title">Звук и вибрация</p>
+            <div className="settings-toggle-group">
+              <div className="setting-row">
+                <div>
+                  <strong>🔊 Звук</strong>
+                  <span>Звуковые эффекты игры</span>
                 </div>
                 <button
-                  className="difficulty-save"
+                  className="switch"
                   type="button"
-                  disabled={difficultyPending || difficultyDraft === difficulty}
-                  onClick={() => void submitDifficulty()}
+                  role="switch"
+                  aria-checked={settings.sound}
+                  aria-label="Звук"
+                  onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}
                 >
-                  {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
+                  <span />
                 </button>
-                {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
-              </section>
-            )}
-            <p className="settings-section-title">Бонусы</p>
-            <section className={`promo-panel ${promoCreateMode ? "promo-admin" : "promo-redeem"}`}>
-              <div className="promo-heading">
-                <span className="promo-symbol" aria-hidden="true">%</span>
-                <div>
-                  <strong>{promoCreateMode ? "Промокоды" : "Есть промокод?"}</strong>
-                  <span>{promoCreateMode ? "Создай одноразовое начисление монет" : "Активировать его можно только один раз"}</span>
-                </div>
               </div>
+              <div className="setting-row">
+                <div>
+                  <strong>📳 Вибрация</strong>
+                  <span>Вибрация при тапах</span>
+                </div>
+                <button
+                  className="switch"
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.vibration}
+                  aria-label="Вибрация"
+                  onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}
+                >
+                  <span />
+                </button>
+              </div>
+            </div>
+
+            {/* Промокоды */}
+            <p className="settings-section-title">Промокоды</p>
+            <section className={`promo-panel ${promoCreateMode ? "promo-admin" : "promo-redeem"}`}>
               {account.isLocal && (
                 <div className="promo-mode-switch" role="group" aria-label="Действие с промокодом">
                   <button
@@ -4246,7 +4335,7 @@ function KnopikGame({
                 </label>
                 {promoCreateMode && (
                   <label>
-                    <span>Сумма монет</span>
+                    <span>Сумма</span>
                     <input
                       className="promo-amount"
                       name="promo-amount"
@@ -4265,7 +4354,7 @@ function KnopikGame({
                   </label>
                 )}
                 <button type="submit" disabled={promoPending}>
-                  {promoPending ? "Подождите…" : promoCreateMode ? "Создать" : "Активировать"}
+                  {promoPending ? "…" : promoCreateMode ? "Создать" : "Активировать"}
                 </button>
               </form>
               {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
@@ -4273,17 +4362,62 @@ function KnopikGame({
                 <div className="promo-list" role="group" aria-label="Созданные промокоды">
                   <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
                   {promoCodes.length === 0 ? (
-                    <p className="promo-empty">Пока нет созданных промокодов.</p>
+                    <p className="promo-empty">Нет промокодов</p>
                   ) : promoCodes.map((promo) => (
                     <div className={`promo-code-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
                       <span><strong>{promo.code}</strong><small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small></span>
-                      <span><strong>+{promo.amount.toLocaleString("ru-RU")}</strong><small>{promo.redeemed ? "ИСПОЛЬЗОВАН" : "ДОСТУПЕН"}</small></span>
+                      <span><strong>+{promo.amount.toLocaleString("ru-RU")}</strong><small>{promo.redeemed ? "✓" : "○"}</small></span>
                     </div>
                   ))}
                 </div>
               )}
             </section>
-            <p className="settings-section-title">Дополнительно</p>
+
+            {/* Админка */}
+            {account.isAdmin && !account.isLocal && (
+              <>
+                <p className="settings-section-title">Администрирование</p>
+                <section className="difficulty-panel">
+                  <div className="difficulty-heading">
+                    <div>
+                      <strong>Сложность</strong>
+                      <span>текущая: {DEFAULT_DIFFICULTY}</span>
+                    </div>
+                    <output htmlFor="difficulty-range">{difficultyDraft}</output>
+                  </div>
+                  <input
+                    id="difficulty-range"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={difficultyDraft}
+                    aria-label="Скрытая сложность игры"
+                    onChange={(event) => {
+                      setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
+                      setDifficultyMessage("");
+                    }}
+                  />
+                  <div className="difficulty-scale" aria-hidden="true">
+                    <span><b>0</b> легко</span>
+                    <span><b>50</b> норм</span>
+                    <span><b>100</b> сложно</span>
+                  </div>
+                  <button
+                    className="difficulty-save"
+                    type="button"
+                    disabled={difficultyPending || difficultyDraft === difficulty}
+                    onClick={() => void submitDifficulty()}
+                  >
+                    {difficultyPending ? "…" : "Сохранить"}
+                  </button>
+                  {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
+                </section>
+              </>
+            )}
+
+            {/* Чит-коды */}
+            <p className="settings-section-title">Секретное</p>
             <form
               className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
               onSubmit={(event) => {
@@ -4293,7 +4427,7 @@ function KnopikGame({
             >
               <div>
                 <strong>Чит-код</strong>
-                <span>{settings.suliman || settings.yellow ? `Секретных режимов активно: ${Number(settings.suliman) + Number(settings.yellow)}` : "Введи секретное слово"}</span>
+                <span>{settings.suliman || settings.yellow ? `Активно: ${Number(settings.suliman) + Number(settings.yellow)}` : "Введи код"}</span>
               </div>
               <label>
                 <input
@@ -4309,21 +4443,37 @@ function KnopikGame({
                     setCheatMessage("");
                   }}
                 />
-                <button type="submit">Применить</button>
+                <button type="submit">→</button>
               </label>
               {cheatMessage && <small role="status">{cheatMessage}</small>}
             </form>
-            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>Повторить обучение <span>↗</span></button>
+
+            {/* Прочее */}
+            <p className="settings-section-title">Другое</p>
+            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>
+              📖 Повторить обучение
+            </button>
             {!resetConfirmOpen ? (
-              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>Сбросить прогресс</button>
+              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>
+                🗑️ Сбросить прогресс
+              </button>
             ) : (
               <div className="reset-confirm" role="alert">
-                <p>Удалить баланс, сейф, усталость, рекорды и настройки?</p>
-                <div><button type="button" onClick={() => setResetConfirmOpen(false)}>Отмена</button><button className="confirm-reset" type="button" onClick={resetProgress}>Сбросить прогресс</button></div>
+                <p>Удалить весь прогресс? Это нельзя отменить!</p>
+                <div>
+                  <button type="button" onClick={() => setResetConfirmOpen(false)}>Отмена</button>
+                  <button className="confirm-reset" type="button" onClick={resetProgress}>Сбросить</button>
+                </div>
               </div>
             )}
+
+            {/* Статистика */}
             <p className="settings-section-title">Статистика</p>
-            <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
+            <div className="stats-line">
+              <span>🏆 Лучшая серия: <strong>{stats.bestStreak}</strong></span>
+              <span>👆 Тапов: <strong>{stats.totalTaps.toLocaleString("ru-RU")}</strong></span>
+              <span>😱 Укусов: <strong>{stats.totalBites}</strong></span>
+            </div>
           </section>
         </div>
       )}
@@ -4535,7 +4685,7 @@ export default function Home() {
       )}
       <div className={`boot-content${contentRevealed ? " is-revealed" : ""}`}>
         <CloudAccountGate onBootReady={handleBootReady}>
-          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
+          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut, showCloudLoginForm, startCloudLogin }) => (
             <KnopikGame
               key={gameKey}
               account={account}
@@ -4550,6 +4700,8 @@ export default function Home() {
               onRedeemPromoCode={redeemPromoCode}
               onChangePassword={changePassword}
               onSignOut={signOut}
+              onShowCloudLoginForm={showCloudLoginForm}
+              onStartCloudLogin={startCloudLogin}
             />
           )}
         </CloudAccountGate>
