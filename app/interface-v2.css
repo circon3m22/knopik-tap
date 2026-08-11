@@ -70,7 +70,7 @@ button {
   background: var(--ui-blue);
 }
 
-/* Account entry */
+/* Account loading */
 .auth-screen {
   min-height: 100dvh;
   padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
@@ -80,56 +80,6 @@ button {
     #f3f7fa;
 }
 
-.auth-card {
-  width: min(100%, 420px);
-  gap: 18px;
-  padding: clamp(24px, 7vw, 36px);
-  border: 1px solid rgb(255 255 255 / 90%);
-  border-radius: 32px;
-  color: var(--ui-ink);
-  background: rgb(255 255 255 / 84%);
-  box-shadow: var(--ui-shadow-md), inset 0 1px 0 #fff;
-  backdrop-filter: blur(24px) saturate(140%);
-}
-
-.auth-card .auth-kicker {
-  margin: 0;
-  color: var(--ui-blue);
-  font-size: 12px;
-  font-weight: 850;
-  letter-spacing: .16em;
-}
-
-.auth-card h1 {
-  margin: -4px 0 0;
-  color: var(--ui-ink);
-  font-size: clamp(30px, 9vw, 40px);
-  line-height: 1.04;
-  letter-spacing: -.045em;
-}
-
-.auth-card > p:not(.auth-kicker):not(.auth-error) {
-  margin: -7px 0 2px;
-  color: var(--ui-muted);
-  font-size: 15px;
-  line-height: 1.48;
-}
-
-.auth-card label {
-  display: grid;
-  gap: 7px;
-  color: var(--ui-ink);
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.auth-card label span {
-  color: var(--ui-ink);
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.auth-card input,
 .settings-sheet input {
   min-height: 50px;
   padding: 0 15px;
@@ -142,32 +92,10 @@ button {
   transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
-.auth-card input:focus,
 .settings-sheet input:focus {
   border-color: rgb(10 115 232 / 42%);
   background: #fff;
   box-shadow: 0 0 0 4px rgb(10 115 232 / 9%);
-}
-
-.auth-card > button {
-  min-height: 52px;
-  border: 0;
-  border-radius: 17px;
-  color: #fff;
-  background: var(--ui-blue);
-  box-shadow: 0 10px 24px rgb(10 115 232 / 24%), inset 0 1px 0 rgb(255 255 255 / 28%);
-  font-size: 15px;
-  font-weight: 780;
-}
-
-.auth-error {
-  margin: 0;
-  padding: 11px 13px;
-  border-radius: 13px;
-  color: #a4212a;
-  background: #fff0f1;
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 /* Main game */
@@ -1339,11 +1267,11 @@ button {
 }
 
 /* Interaction and adaptability */
-:where(.auth-card > button, .primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled) {
+:where(.primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled) {
   transition: transform 120ms var(--ui-ease), filter 150ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
-:where(.auth-card > button, .primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled):active {
+:where(.primary-button, .shop-buy-button, .settings-sheet button, .mini-game-panel button, .bottom-bar button):not(:disabled):active {
   transform: scale(.96);
 }
 
@@ -2795,7 +2723,6 @@ html {
 .quick-save-button,
 .risk-strip,
 .risk-bet-control,
-.auth-card,
 .modal-backdrop,
 .mini-game-backdrop,
 .shop-product-grid .shop-product-card {
