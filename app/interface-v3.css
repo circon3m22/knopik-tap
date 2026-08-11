@@ -1,0 +1,804 @@
+/* ==========================================================================
+   KNOPIK interface v3 — минималистичный пасс поверх v2.
+   Принципы набора better-* (jakubkrehel/skills):
+   · меньше декора, один акцент, структура через воздух, а не через линии;
+   · все поверхности экрана — полупрозрачное стекло с backdrop-blur;
+   · нижнее меню и настройки перестроены в спокойный минимализм.
+   Файл подключается последним, поэтому перекрывает globals.css и
+   interface-v2.css без !important там, где хватает специфичности.
+   ========================================================================== */
+
+:root {
+  /* Единая шкала стекла: одна прозрачность и один блюр на уровень глубины. */
+  --glass-1: rgb(255 255 255 / 46%);   /* элементы поверх сцены */
+  --glass-2: rgb(255 255 255 / 62%);   /* карточки внутри листа */
+  --glass-3: rgb(255 255 255 / 84%);   /* поднятые элементы: меню, поля */
+  --glass-line: rgb(255 255 255 / 55%);
+  --glass-hairline: rgb(16 42 67 / 8%);
+  --glass-blur: blur(24px) saturate(160%);
+  --glass-blur-strong: blur(32px) saturate(170%);
+  --glass-shadow: 0 8px 24px rgb(10 30 50 / 10%);
+  --glass-shadow-lifted: 0 12px 32px rgb(10 30 50 / 14%);
+
+  /* Радиусы концентричные: внешний = внутренний + паддинг. */
+  --r-row: 14px;
+  --r-card: 20px;
+  --r-nav-item: 20px;
+  --r-nav: 26px;
+}
+
+/* ==========================================================================
+   1. Общие поверхности сцены — полупрозрачность + блюр
+   ========================================================================== */
+
+.header-pill,
+.game-shell .level-strip,
+.quest-strip,
+.risk-strip,
+.risk-bet-control,
+.buff-plate,
+.unified-bank-plate,
+.swipe-plate,
+.saved-balance,
+.quick-save-button,
+.feed-control,
+.game-shell .boost-row .inventory-item {
+  border: 1px solid var(--adaptive-border);
+  background: var(--adaptive-surface);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Светлые сцены: стекло белое, тёмные — чуть плотнее, чтобы текст читался. */
+.game-shell {
+  --adaptive-surface: rgb(10 26 42 / 26%);
+  --adaptive-border: rgb(255 255 255 / 22%);
+}
+
+.game-shell.state-calm.pale-calm,
+.game-shell.state-tired,
+.game-shell.state-warning,
+.game-shell.state-recovering.has-fatigue {
+  --adaptive-surface: rgb(255 255 255 / 52%);
+  --adaptive-border: rgb(16 42 67 / 10%);
+}
+
+/* Декоративные блики со стеклянных плашек убраны: блюр уже даёт глубину. */
+.unified-bank-plate::before,
+.swipe-plate::before {
+  display: none;
+}
+
+/* ==========================================================================
+   2. Нижнее меню — минимализм вместо «liquid glass»
+   ========================================================================== */
+
+.game-shell .bottom-bar {
+  --nav-pad: 6px;
+  display: grid;
+  min-height: 64px;
+  padding: var(--nav-pad);
+  overflow: visible;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-nav);
+  background: var(--glass-3);
+  box-shadow: var(--glass-shadow-lifted);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  will-change: auto;
+}
+
+/* Ни бегущего блика, ни второго градиентного слоя. */
+.game-shell .bottom-bar::before,
+.game-shell .bottom-bar::after {
+  display: none;
+  content: none;
+}
+
+.game-shell.state-calm.pale-calm .bottom-bar {
+  border-color: var(--glass-line);
+  background: var(--glass-3);
+  box-shadow: var(--glass-shadow-lifted);
+}
+
+/* Активный таб — одна спокойная подложка, без свечения и обводок. */
+.game-shell .nav-thumb {
+  top: var(--nav-pad);
+  bottom: var(--nav-pad);
+  left: var(--nav-pad);
+  width: calc((100% - 2 * var(--nav-pad)) / 3);
+  border: 0;
+  border-radius: var(--r-nav-item);
+  background: rgb(16 42 67 / 7%);
+  box-shadow: none;
+  transition: transform 260ms var(--ui-ease);
+}
+
+.game-shell .bottom-bar button {
+  min-height: 52px;
+  gap: 4px;
+  padding: 4px 2px;
+  border-radius: var(--r-nav-item);
+  /* 76% ink на стекле 84% даёт ≥4.9:1 на любой сцене (тёмная, светлая, красная). */
+  color: rgb(16 42 67 / 76%);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  transition: color 160ms ease;
+}
+
+.game-shell .bottom-bar button.active {
+  color: var(--ui-ink);
+  font-weight: 640;
+}
+
+.game-shell .bottom-bar button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Один SVG на состояние: цвет и толщина берутся из текста. */
+.nav-icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bottom-bar button.active .nav-icon {
+  stroke-width: 1.9;
+}
+
+/* Иконка не «прыгает» на каждом переключении: это частое действие. */
+.game-shell .bottom-bar button.active .nav-icon {
+  animation: none;
+  transform: none;
+  filter: none;
+}
+
+.game-shell .bottom-bar.is-locked,
+.game-shell.risk-mode .bottom-bar {
+  opacity: 0.5;
+  filter: none;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Полноэкранные настройки перекрывают меню целиком: прячем его совсем,
+   чтобы капсула не просвечивала сквозь стекло экрана настроек. */
+.game-shell .bottom-bar.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+/* Меню стало ниже — уменьшаем зарезервированное под него место. */
+.bottom-nav-spacer {
+  height: 88px;
+}
+
+@media (max-height: 740px) {
+  .game-shell .bottom-bar {
+    min-height: 60px;
+  }
+  .game-shell .bottom-bar button {
+    min-height: 48px;
+    font-size: 10px;
+  }
+  .bottom-nav-spacer {
+    height: 82px;
+  }
+}
+
+/* ==========================================================================
+   3. Настройки — отдельный экран со спокойной структурой
+   ========================================================================== */
+
+/* Фон: сцена остаётся видимой сквозь стекло. */
+.modal-backdrop.settings-backdrop {
+  align-items: stretch;
+  padding: 0;
+  background: rgb(233 240 246 / 86%);
+  -webkit-backdrop-filter: blur(34px) saturate(150%);
+  backdrop-filter: blur(34px) saturate(150%);
+}
+
+.modal-backdrop:not(.tutorial-backdrop) .settings-sheet {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  padding:
+    calc(env(safe-area-inset-top) + 8px)
+    16px
+    calc(env(safe-area-inset-bottom) + 32px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.settings-sheet > * {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+}
+
+/* Шапка едет вместе с контентом — ничего не закреплено у края экрана. */
+.settings-topbar {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 2px 20px;
+  background: none;
+}
+
+.settings-topbar h2 {
+  margin: 0;
+  color: var(--ui-ink);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.settings-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--glass-hairline);
+  border-radius: 50%;
+  color: var(--ui-ink);
+  background: var(--glass-3);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.settings-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.settings-close:hover {
+  background: rgb(255 255 255 / 88%);
+}
+
+.settings-close:active {
+  transform: scale(0.96);
+}
+
+/* Группы разделены воздухом (24px между, 8px внутри), без разделителей. */
+.settings-groups {
+  /* Вторичный текст на полупрозрачной карточке: #4a5c6d вместо --ui-muted
+     держит ≥5.9:1 даже когда сквозь стекло видна тёмная сцена. */
+  --settings-muted: #4a5c6d;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-groups .settings-group-title,
+.settings-groups .settings-status,
+.settings-groups .settings-note,
+.settings-groups .settings-field > span,
+.settings-groups .settings-promo-head,
+.settings-groups .settings-promo-row small,
+.settings-groups .settings-slider-scale,
+.settings-groups .settings-stats small,
+.settings-groups .settings-segmented button {
+  color: var(--settings-muted);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group-title {
+  margin: 0;
+  padding-inline: 4px;
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--glass-hairline);
+  border-radius: var(--r-card);
+  background: var(--glass-2);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Ряды-переключатели: внешний радиус 20 = внутренний 14 + паддинг 6. */
+.settings-card-rows {
+  gap: 4px;
+  padding: 6px;
+}
+
+.settings-row {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--r-row);
+}
+
+.settings-row-label {
+  color: var(--ui-ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-wrap: pretty;
+}
+
+.settings-card-actions {
+  gap: 8px;
+  padding: 8px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Аккаунт */
+.settings-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background: var(--ui-blue);
+  box-shadow: none;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.settings-identity-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-identity-text strong {
+  overflow: hidden;
+  color: var(--ui-ink);
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-status {
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-weight: 400;
+  text-wrap: pretty;
+}
+
+.settings-status.status-error {
+  color: var(--ui-red);
+}
+
+.settings-note {
+  margin: 0;
+  color: var(--ui-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.settings-error {
+  margin: 0;
+  color: var(--ui-red);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Формы */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-field > span {
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.settings-sheet .settings-field input,
+.settings-sheet input[type="text"],
+.settings-sheet input[type="password"],
+.settings-sheet input[type="number"] {
+  width: 100%;
+  min-height: 48px;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--glass-hairline);
+  border-radius: var(--r-row);
+  color: var(--ui-ink);
+  background: var(--glass-3);
+  box-shadow: none;
+  font-size: 16px;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.settings-sheet input:focus {
+  border-color: rgb(10 115 232 / 45%);
+  background: rgb(255 255 255 / 90%);
+  box-shadow: none;
+}
+
+/* Кнопки: одна заливка на экран — только основное действие. */
+.settings-sheet .settings-button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0 16px;
+  border: 1px solid var(--glass-hairline);
+  border-radius: var(--r-row);
+  color: var(--ui-ink);
+  background: var(--glass-3);
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.settings-sheet .settings-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 92%);
+}
+
+.settings-sheet .settings-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.settings-sheet .settings-button.primary {
+  border-color: transparent;
+  color: #fff;
+  background: var(--ui-blue);
+}
+
+.settings-sheet .settings-button.primary:hover:not(:disabled) {
+  background: var(--ui-blue-strong);
+}
+
+.settings-sheet .settings-button.danger {
+  color: var(--ui-red);
+}
+
+.settings-sheet .settings-button.danger-solid {
+  border-color: transparent;
+  color: #fff;
+  background: var(--ui-red);
+}
+
+.settings-sheet .settings-button:disabled {
+  color: var(--ui-subtle);
+  background: rgb(255 255 255 / 42%);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.settings-sheet .settings-button.primary:disabled {
+  color: rgb(255 255 255 / 78%);
+  background: rgb(10 115 232 / 45%);
+}
+
+.settings-button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Сегментированный переключатель промокода */
+.settings-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-row);
+  background: rgb(16 42 67 / 6%);
+}
+
+.settings-segmented button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--ui-muted);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.settings-segmented button.is-active {
+  color: var(--ui-ink);
+  background: rgb(255 255 255 / 86%);
+  font-weight: 600;
+}
+
+/* Переключатели */
+.settings-sheet .switch {
+  width: 52px;
+  height: 32px;
+  min-height: 32px;
+  flex: 0 0 52px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(16 42 67 / 18%);
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.settings-sheet .switch[aria-checked="true"] {
+  background: var(--ui-blue);
+}
+
+/* Видимая часть 52×32, зона нажатия дотянута до 44px по высоте. */
+.settings-sheet .switch::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+.settings-sheet .switch span {
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  box-shadow: 0 1px 3px rgb(10 30 50 / 22%);
+}
+
+.settings-sheet .switch[aria-checked="true"] span {
+  transform: translateX(20px);
+}
+
+/* Ползунок сложности (раньше жил на .difficulty-panel) */
+.settings-sheet input[type="range"] {
+  width: 100%;
+  height: 6px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  accent-color: var(--ui-blue);
+  cursor: pointer;
+}
+
+/* Список промокодов */
+.settings-promo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-promo-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--ui-muted);
+  font-size: 13px;
+}
+
+.settings-promo-head strong {
+  color: var(--ui-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-promo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-row);
+  background: rgb(255 255 255 / 52%);
+}
+
+.settings-promo-row span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-promo-row span:last-child {
+  text-align: end;
+}
+
+.settings-promo-row strong {
+  color: var(--ui-ink);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-promo-row small {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+
+.settings-promo-row.is-used {
+  opacity: 0.6;
+}
+
+/* Слайдер сложности */
+.settings-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-slider-head label {
+  color: var(--ui-ink);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.settings-slider-head output {
+  color: var(--ui-ink);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-slider-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+
+/* Подтверждение сброса */
+.settings-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgb(207 61 67 / 22%);
+  border-radius: var(--r-card);
+  background: rgb(255 255 255 / 62%);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.settings-confirm p {
+  margin: 0;
+  color: var(--ui-ink);
+  font-size: 14px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* Статистика */
+.settings-stats {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.settings-stats > div {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.settings-stats small {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+
+.settings-stats strong {
+  color: var(--ui-ink);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   4. Листы магазина и кейсов — то же стекло
+   ========================================================================== */
+
+.modal-backdrop:not(.settings-backdrop),
+.mini-game-backdrop {
+  background: rgb(10 25 38 / 28%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  backdrop-filter: blur(20px) saturate(130%);
+}
+
+.modal-backdrop:not(.tutorial-backdrop):not(.settings-backdrop) .sheet,
+.tutorial-sheet,
+.mini-game-panel {
+  border: 1px solid var(--glass-line);
+  background: rgb(248 251 253 / 78%);
+  box-shadow: var(--glass-shadow-lifted);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+}
+
+.modal-backdrop:not(.tutorial-backdrop):not(.settings-backdrop) .sheet-heading {
+  background: linear-gradient(rgb(248 251 253 / 88%) 72%, transparent);
+}
+
+/* ==========================================================================
+   5. Доступность и моторика
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .nav-thumb,
+  .settings-close,
+  .settings-sheet .settings-button,
+  .settings-segmented button,
+  .settings-sheet .switch {
+    transition: none;
+  }
+  .modal-backdrop:not(.tutorial-backdrop) .settings-sheet {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .settings-card,
+  .settings-close,
+  .game-shell .bottom-bar {
+    border: 1px solid CanvasText;
+  }
+}

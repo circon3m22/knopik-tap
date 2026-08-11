@@ -2867,10 +2867,13 @@ function KnopikGame({
     settingsOpen ||
     miniGame !== null ||
     caseSequence !== null;
-  // Нижняя навигация остаётся активной в магазине, кейсах и настройках (persistent nav),
-  // блокируется только когда открыт туториал, мини-игра или открытие кейса
+  // Нижняя навигация остаётся активной в магазине и кейсах (persistent nav):
+  // их листы не перекрывают меню. Настройки — отдельный полноэкранный экран,
+  // поэтому меню под ним недоступно и должно быть inert, иначе фокус и
+  // скринридер уходят на скрытые за оверлеем табы.
   const navInert =
     tutorialOpen ||
+    settingsOpen ||
     miniGame !== null ||
     caseSequence !== null;
   // Для внешних слоёв, где нужна полная блокировка фона
@@ -3640,7 +3643,7 @@ function KnopikGame({
 
       <footer
         inert={navInert ? true : undefined}
-        className={`bottom-bar ${miniGame !== null ? "is-locked" : ""}`}
+        className={`bottom-bar ${miniGame !== null ? "is-locked" : ""} ${settingsOpen ? "is-hidden" : ""}`}
         style={{ "--nav-index": navDragIndex ?? navIndex } as CSSProperties}
         role="tablist"
         aria-label="Разделы игры"
@@ -3659,7 +3662,10 @@ function KnopikGame({
           disabled={miniGame !== null}
           onClick={() => clickNavigation(0)}
         >
-          <span className="shop-icon" aria-hidden="true"><i /></span>
+          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4.5 8.5h15l-1.1 10a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8z" />
+            <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" />
+          </svg>
           <span>Магазин</span>
         </button>
         <button
@@ -3670,7 +3676,10 @@ function KnopikGame({
           disabled={miniGame !== null}
           onClick={() => clickNavigation(1)}
         >
-          <span className="home-icon" aria-hidden="true"><i /></span>
+          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 10.6 12 4l8 6.6V19a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19z" />
+            <path d="M9.6 20.6v-6h4.8v6" />
+          </svg>
           <span>Играть</span>
         </button>
         <button
@@ -3681,7 +3690,11 @@ function KnopikGame({
           disabled={miniGame !== null}
           onClick={() => clickNavigation(2)}
         >
-          <span className="case-nav-icon" aria-hidden="true"><i /></span>
+          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9.2h16v9.2a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 18.4z" />
+            <path d="M3.4 5.4h17.2v3.8H3.4z" />
+            <path d="M12 9.2v10.8" />
+          </svg>
           <span>Кейсы</span>
         </button>
       </footer>
@@ -4091,400 +4104,457 @@ function KnopikGame({
             if (event.target === event.currentTarget) closeSettingsSheet();
           }}
         >
-          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" ref={settingsSheetRef} tabIndex={-1}>
-            <div className="sheet-heading">
-              <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
+          <section
+            className="sheet settings-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+            ref={settingsSheetRef}
+            tabIndex={-1}
+          >
+            {/* Шапка едет вместе с контентом: обычный блок в потоке, без sticky. */}
+            <div className="settings-topbar">
+              <h2 id="settings-title">Настройки</h2>
               <button
-                className="sheet-close"
+                className="settings-close"
                 type="button"
                 aria-label="Закрыть настройки"
                 onClick={closeSettingsSheet}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" />
+                  <path d="M7 7l10 10M17 7L7 17" />
                 </svg>
               </button>
             </div>
 
-            {/* Синхронизация аккаунта */}
-            <div className="account-settings">
-              <div className="account-summary">
-                <span className="account-avatar" aria-hidden="true">
-                  {(account.isLocal ? "гость" : account.username).slice(0, 1).toUpperCase()}
-                </span>
-                <div className="account-info">
-                  <strong>{account.isLocal ? "Гость" : account.username}</strong>
-                  {account.isLocal ? (
-                    <span className="account-local-badge">📱 На этом устройстве</span>
-                  ) : (
-                    <span className={`account-sync-badge ${syncState}`}>
-                      {syncState === "saved" ? "✓ Сохранено" : syncState === "saving" ? "⟳ Сохраняем…" : "⚠ Ошибка"}
+            <div className="settings-groups">
+              {/* Аккаунт */}
+              <section className="settings-group" aria-labelledby="settings-account-title">
+                <h3 className="settings-group-title" id="settings-account-title">Аккаунт</h3>
+                <div className="settings-card">
+                  <div className="settings-identity">
+                    <span className="settings-avatar" aria-hidden="true">
+                      {(account.isLocal ? "гость" : account.username).slice(0, 1).toUpperCase()}
                     </span>
-                  )}
-                </div>
-              </div>
+                    <div className="settings-identity-text">
+                      <strong>{account.isLocal ? "Гость" : account.username}</strong>
+                      <span className={`settings-status status-${account.isLocal ? "local" : syncState}`}>
+                        {account.isLocal
+                          ? "Прогресс хранится на этом устройстве"
+                          : syncState === "saved"
+                            ? "Прогресс сохранён в облаке"
+                            : syncState === "saving"
+                              ? "Сохраняем прогресс…"
+                              : "Не удалось сохранить прогресс"}
+                      </span>
+                    </div>
+                  </div>
 
-              {account.isLocal ? (
-                <div className="account-cloud-section">
-                  <p className="account-cloud-description">
-                    Вход не нужен — игра сохраняется локально, в кэше этого браузера.
-                    Войди в аккаунт, чтобы синхронизировать прогресс между устройствами:
-                    облачное сохранение заменит локальное.
-                  </p>
-                  {!cloudLoginVisible ? (
-                    <button
-                      type="button"
-                      className="settings-action primary-action"
-                      onClick={() => {
-                        onShowCloudLoginForm();
-                        setCloudLoginError("");
-                        setCloudLoginUsername("");
-                        setCloudLoginPassword("");
-                      }}
-                    >
-                      🔐 Войти в аккаунт
-                    </button>
-                  ) : (
-                    <form
-                      className="cloud-login-form"
-                      onSubmit={async (event) => {
-                        event.preventDefault();
-                        setCloudLoginPending(true);
-                        setCloudLoginError("");
-                        const result = await onStartCloudLogin(cloudLoginUsername, cloudLoginPassword);
-                        setCloudLoginPending(false);
-                        if (!result.success) {
-                          setCloudLoginError(result.error || "Ошибка входа");
-                        }
-                      }}
-                    >
-                      <label>
-                        <span>Логин</span>
-                        <input
-                          type="text"
-                          value={cloudLoginUsername}
-                          onChange={(event) => setCloudLoginUsername(event.currentTarget.value)}
-                          autoCapitalize="none"
-                          autoCorrect="off"
-                          autoComplete="username"
-                          placeholder="Введи логин"
-                          required
-                        />
-                      </label>
-                      <label>
-                        <span>Пароль</span>
-                        <input
-                          type="password"
-                          value={cloudLoginPassword}
-                          onChange={(event) => setCloudLoginPassword(event.currentTarget.value)}
-                          autoComplete="current-password"
-                          placeholder="Введи пароль"
-                          required
-                        />
-                      </label>
-                      {cloudLoginError && <p className="cloud-login-error" role="alert">{cloudLoginError}</p>}
-                      <div className="cloud-login-actions">
+                  {account.isLocal ? (
+                    !cloudLoginVisible ? (
+                      <>
+                        <p className="settings-note">
+                          Войдите в аккаунт, чтобы играть на нескольких устройствах.
+                          Облачное сохранение заменит локальное.
+                        </p>
                         <button
                           type="button"
-                          className="settings-action"
+                          className="settings-button primary"
                           onClick={() => {
-                            onHideCloudLoginForm();
+                            onShowCloudLoginForm();
                             setCloudLoginError("");
+                            setCloudLoginUsername("");
+                            setCloudLoginPassword("");
                           }}
                         >
-                          Отмена
+                          Войти в аккаунт
                         </button>
+                      </>
+                    ) : (
+                      <form
+                        className="settings-form"
+                        onSubmit={async (event) => {
+                          event.preventDefault();
+                          setCloudLoginPending(true);
+                          setCloudLoginError("");
+                          const result = await onStartCloudLogin(cloudLoginUsername, cloudLoginPassword);
+                          setCloudLoginPending(false);
+                          if (!result.success) {
+                            setCloudLoginError(result.error || "Не удалось войти. Проверьте логин и пароль.");
+                          }
+                        }}
+                      >
+                        <label className="settings-field">
+                          <span>Логин</span>
+                          <input
+                            type="text"
+                            value={cloudLoginUsername}
+                            onChange={(event) => setCloudLoginUsername(event.currentTarget.value)}
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            autoComplete="username"
+                            placeholder="knopik"
+                            aria-invalid={cloudLoginError ? true : undefined}
+                            aria-describedby={cloudLoginError ? "cloud-login-error" : undefined}
+                            required
+                          />
+                        </label>
+                        <label className="settings-field">
+                          <span>Пароль</span>
+                          <input
+                            type="password"
+                            value={cloudLoginPassword}
+                            onChange={(event) => setCloudLoginPassword(event.currentTarget.value)}
+                            autoComplete="current-password"
+                            placeholder="Не менее 6 символов"
+                            aria-invalid={cloudLoginError ? true : undefined}
+                            aria-describedby={cloudLoginError ? "cloud-login-error" : undefined}
+                            required
+                          />
+                        </label>
+                        {cloudLoginError && (
+                          <p className="settings-error" id="cloud-login-error" role="alert">{cloudLoginError}</p>
+                        )}
+                        <div className="settings-button-row">
+                          <button
+                            type="button"
+                            className="settings-button"
+                            onClick={() => {
+                              onHideCloudLoginForm();
+                              setCloudLoginError("");
+                            }}
+                          >
+                            Отмена
+                          </button>
+                          <button type="submit" className="settings-button primary" disabled={cloudLoginPending}>
+                            {cloudLoginPending ? "Входим…" : "Войти"}
+                          </button>
+                        </div>
+                      </form>
+                    )
+                  ) : (
+                    <>
+                      <form
+                        className="settings-form"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void submitPasswordChange();
+                        }}
+                      >
+                        <label className="settings-field">
+                          <span>Новый пароль</span>
+                          <input
+                            id="new-password"
+                            name="new-password"
+                            type="password"
+                            value={newPassword}
+                            onChange={(event) => {
+                              setNewPassword(event.currentTarget.value);
+                              setAccountMessage("");
+                            }}
+                            placeholder="Не менее 6 символов"
+                            autoComplete="new-password"
+                            minLength={6}
+                          />
+                        </label>
                         <button
                           type="submit"
-                          className="settings-action primary-action"
-                          disabled={cloudLoginPending}
+                          className="settings-button"
+                          disabled={accountPending || newPassword.length < 6}
                         >
-                          {cloudLoginPending ? "Входим…" : "Войти"}
+                          {accountPending ? "Меняем…" : "Сменить пароль"}
                         </button>
-                      </div>
-                    </form>
+                      </form>
+                      {accountMessage && <p className="settings-note" role="status">{accountMessage}</p>}
+                      <button
+                        className="settings-button danger"
+                        type="button"
+                        disabled={accountPending}
+                        onClick={() => {
+                          if (confirm("Выйти из аккаунта? Локальный прогресс останется.")) {
+                            void signOutAccount();
+                          }
+                        }}
+                      >
+                        Выйти из аккаунта
+                      </button>
+                    </>
                   )}
                 </div>
-              ) : (
-                <div className="account-cloud-section">
-                  <p className="account-cloud-description">
-                    Прогресс синхронизируется с облаком.
-                  </p>
+              </section>
+
+              {/* Звук и вибрация */}
+              <section className="settings-group" aria-labelledby="settings-feedback-title">
+                <h3 className="settings-group-title" id="settings-feedback-title">Отклик</h3>
+                <div className="settings-card settings-card-rows">
+                  <div className="settings-row">
+                    <span className="settings-row-label" id="setting-sound-label">Звуковые эффекты</span>
+                    <button
+                      className="switch"
+                      type="button"
+                      role="switch"
+                      aria-checked={settings.sound}
+                      aria-labelledby="setting-sound-label"
+                      onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}
+                    >
+                      <span />
+                    </button>
+                  </div>
+                  <div className="settings-row">
+                    <span className="settings-row-label" id="setting-vibration-label">Вибрация при тапах</span>
+                    <button
+                      className="switch"
+                      type="button"
+                      role="switch"
+                      aria-checked={settings.vibration}
+                      aria-labelledby="setting-vibration-label"
+                      onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}
+                    >
+                      <span />
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Промокод */}
+              <section className="settings-group" aria-labelledby="settings-promo-title">
+                <h3 className="settings-group-title" id="settings-promo-title">Промокод</h3>
+                <div className="settings-card">
+                  {account.isLocal && (
+                    <div className="settings-segmented" role="group" aria-label="Действие с промокодом">
+                      <button
+                        type="button"
+                        className={promoLocalAction === "redeem" ? "is-active" : ""}
+                        aria-pressed={promoLocalAction === "redeem"}
+                        onClick={() => {
+                          setPromoLocalAction("redeem");
+                          setPromoMessage("");
+                        }}
+                      >
+                        Активировать
+                      </button>
+                      <button
+                        type="button"
+                        className={promoLocalAction === "create" ? "is-active" : ""}
+                        aria-pressed={promoLocalAction === "create"}
+                        onClick={() => {
+                          setPromoLocalAction("create");
+                          setPromoMessage("");
+                        }}
+                      >
+                        Создать
+                      </button>
+                    </div>
+                  )}
                   <form
-                    className="password-form"
+                    className="settings-form"
                     onSubmit={(event) => {
                       event.preventDefault();
-                      void submitPasswordChange();
+                      void submitPromoCode();
                     }}
                   >
-                    <label>
-                      <span>Новый пароль</span>
+                    <label className="settings-field">
+                      <span>Код</span>
                       <input
-                        id="new-password"
-                        name="new-password"
-                        type="password"
-                        value={newPassword}
+                        name="promo-code"
+                        type="text"
+                        value={promoCode}
+                        placeholder="KNOPIK100"
+                        autoCapitalize="characters"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        maxLength={32}
+                        required
                         onChange={(event) => {
-                          setNewPassword(event.currentTarget.value);
-                          setAccountMessage("");
+                          setPromoCode(event.currentTarget.value.toUpperCase());
+                          setPromoMessage("");
                         }}
-                        placeholder="Минимум 6 символов"
-                        autoComplete="new-password"
-                        minLength={6}
                       />
                     </label>
-                    <button type="submit" disabled={accountPending || newPassword.length < 6}>
-                      {accountPending ? "…" : "Сменить пароль"}
+                    {promoCreateMode && (
+                      <label className="settings-field">
+                        <span>Сумма</span>
+                        <input
+                          className="promo-amount"
+                          name="promo-amount"
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          max="1000000000"
+                          value={promoAmount}
+                          placeholder="100"
+                          required
+                          onChange={(event) => {
+                            setPromoAmount(event.currentTarget.value);
+                            setPromoMessage("");
+                          }}
+                        />
+                      </label>
+                    )}
+                    <button type="submit" className="settings-button primary" disabled={promoPending}>
+                      {promoPending ? "Проверяем…" : promoCreateMode ? "Создать код" : "Активировать код"}
                     </button>
                   </form>
-                  {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
-                  <button
-                    className="settings-action danger-action"
-                    type="button"
-                    disabled={accountPending}
-                    onClick={() => {
-                      if (confirm("Выйти из аккаунта? Локальный прогресс останется.")) {
-                        void signOutAccount();
-                      }
-                    }}
-                  >
-                    🚪 Выйти из аккаунта
-                  </button>
+                  {promoMessage && <p className="settings-note" role="status">{promoMessage}</p>}
+                  {account.isAdmin && (
+                    <div className="settings-promo-list" role="group" aria-label="Созданные промокоды">
+                      <div className="settings-promo-head">
+                        <span>Все коды</span>
+                        <strong>{promoCodes.length}</strong>
+                      </div>
+                      {promoCodes.length === 0 ? (
+                        <p className="settings-note">Пока нет ни одного кода. Создайте первый выше.</p>
+                      ) : promoCodes.map((promo) => (
+                        <div className={`settings-promo-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
+                          <span>
+                            <strong>{promo.code}</strong>
+                            <small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small>
+                          </span>
+                          <span>
+                            <strong>+{promo.amount.toLocaleString("ru-RU")}</strong>
+                            <small>{promo.redeemed ? "Использован" : "Активен"}</small>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </section>
 
-            {/* Настройки звука */}
-            <p className="settings-section-title">Звук и вибрация</p>
-            <div className="settings-toggle-group">
-              <div className="setting-row">
-                <div>
-                  <strong>🔊 Звук</strong>
-                  <span>Звуковые эффекты игры</span>
-                </div>
-                <button
-                  className="switch"
-                  type="button"
-                  role="switch"
-                  aria-checked={settings.sound}
-                  aria-label="Звук"
-                  onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}
-                >
-                  <span />
-                </button>
-              </div>
-              <div className="setting-row">
-                <div>
-                  <strong>📳 Вибрация</strong>
-                  <span>Вибрация при тапах</span>
-                </div>
-                <button
-                  className="switch"
-                  type="button"
-                  role="switch"
-                  aria-checked={settings.vibration}
-                  aria-label="Вибрация"
-                  onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}
-                >
-                  <span />
-                </button>
-              </div>
-            </div>
-
-            {/* Промокоды */}
-            <p className="settings-section-title">Промокоды</p>
-            <section className={`promo-panel ${promoCreateMode ? "promo-admin" : "promo-redeem"}`}>
-              {account.isLocal && (
-                <div className="promo-mode-switch" role="group" aria-label="Действие с промокодом">
-                  <button
-                    type="button"
-                    className={promoLocalAction === "create" ? "is-active" : ""}
-                    aria-pressed={promoLocalAction === "create"}
-                    onClick={() => {
-                      setPromoLocalAction("create");
-                      setPromoMessage("");
-                    }}
-                  >
-                    Создать
-                  </button>
-                  <button
-                    type="button"
-                    className={promoLocalAction === "redeem" ? "is-active" : ""}
-                    aria-pressed={promoLocalAction === "redeem"}
-                    onClick={() => {
-                      setPromoLocalAction("redeem");
-                      setPromoMessage("");
-                    }}
-                  >
-                    Активировать
-                  </button>
-                </div>
-              )}
-              <form
-                className="promo-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void submitPromoCode();
-                }}
-              >
-                <label>
-                  <span>Промокод</span>
-                  <input
-                    name="promo-code"
-                    type="text"
-                    value={promoCode}
-                    placeholder="Например, KNOPIK100"
-                    autoCapitalize="characters"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    maxLength={32}
-                    required
-                    onChange={(event) => {
-                      setPromoCode(event.currentTarget.value.toUpperCase());
-                      setPromoMessage("");
-                    }}
-                  />
-                </label>
-                {promoCreateMode && (
-                  <label>
-                    <span>Сумма</span>
+              {/* Администрирование */}
+              {account.isAdmin && !account.isLocal && (
+                <section className="settings-group" aria-labelledby="settings-admin-title">
+                  <h3 className="settings-group-title" id="settings-admin-title">Администрирование</h3>
+                  <div className="settings-card">
+                    <div className="settings-slider-head">
+                      <label htmlFor="difficulty-range">Сложность игры</label>
+                      <output htmlFor="difficulty-range">{difficultyDraft}</output>
+                    </div>
                     <input
-                      className="promo-amount"
-                      name="promo-amount"
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max="1000000000"
-                      value={promoAmount}
-                      placeholder="100"
-                      required
+                      id="difficulty-range"
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={difficultyDraft}
                       onChange={(event) => {
-                        setPromoAmount(event.currentTarget.value);
-                        setPromoMessage("");
+                        setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
+                        setDifficultyMessage("");
                       }}
                     />
-                  </label>
-                )}
-                <button type="submit" disabled={promoPending}>
-                  {promoPending ? "…" : promoCreateMode ? "Создать" : "Активировать"}
-                </button>
-              </form>
-              {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
-              {account.isAdmin && (
-                <div className="promo-list" role="group" aria-label="Созданные промокоды">
-                  <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
-                  {promoCodes.length === 0 ? (
-                    <p className="promo-empty">Нет промокодов</p>
-                  ) : promoCodes.map((promo) => (
-                    <div className={`promo-code-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
-                      <span><strong>{promo.code}</strong><small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small></span>
-                      <span><strong>+{promo.amount.toLocaleString("ru-RU")}</strong><small>{promo.redeemed ? "✓" : "○"}</small></span>
+                    <div className="settings-slider-scale" aria-hidden="true">
+                      <span>Легко</span>
+                      <span>Норма</span>
+                      <span>Сложно</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Админка */}
-            {account.isAdmin && !account.isLocal && (
-              <>
-                <p className="settings-section-title">Администрирование</p>
-                <section className="difficulty-panel">
-                  <div className="difficulty-heading">
-                    <div>
-                      <strong>Сложность</strong>
-                      <span>текущая: {DEFAULT_DIFFICULTY}</span>
-                    </div>
-                    <output htmlFor="difficulty-range">{difficultyDraft}</output>
+                    <button
+                      className="settings-button"
+                      type="button"
+                      disabled={difficultyPending || difficultyDraft === difficulty}
+                      onClick={() => void submitDifficulty()}
+                    >
+                      {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
+                    </button>
+                    {difficultyMessage && <p className="settings-note" role="status">{difficultyMessage}</p>}
                   </div>
-                  <input
-                    id="difficulty-range"
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={difficultyDraft}
-                    aria-label="Скрытая сложность игры"
-                    onChange={(event) => {
-                      setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
-                      setDifficultyMessage("");
-                    }}
-                  />
-                  <div className="difficulty-scale" aria-hidden="true">
-                    <span><b>0</b> легко</span>
-                    <span><b>50</b> норм</span>
-                    <span><b>100</b> сложно</span>
-                  </div>
-                  <button
-                    className="difficulty-save"
-                    type="button"
-                    disabled={difficultyPending || difficultyDraft === difficulty}
-                    onClick={() => void submitDifficulty()}
-                  >
-                    {difficultyPending ? "…" : "Сохранить"}
-                  </button>
-                  {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
                 </section>
-              </>
-            )}
+              )}
 
-            {/* Чит-коды */}
-            <p className="settings-section-title">Секретное</p>
-            <form
-              className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitCheatCode();
-              }}
-            >
-              <div>
-                <strong>Чит-код</strong>
-                <span>{settings.suliman || settings.yellow ? `Активно: ${Number(settings.suliman) + Number(settings.yellow)}` : "Введи код"}</span>
-              </div>
-              <label>
-                <input
-                  type="text"
-                  value={cheatCode}
-                  placeholder="Код"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-label="Чит-код"
-                  onChange={(event) => {
-                    setCheatCode(event.currentTarget.value);
-                    setCheatMessage("");
-                  }}
-                />
-                <button type="submit">→</button>
-              </label>
-              {cheatMessage && <small role="status">{cheatMessage}</small>}
-            </form>
-
-            {/* Прочее */}
-            <p className="settings-section-title">Другое</p>
-            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>
-              📖 Повторить обучение
-            </button>
-            {!resetConfirmOpen ? (
-              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>
-                🗑️ Сбросить прогресс
-              </button>
-            ) : (
-              <div className="reset-confirm" role="alert">
-                <p>Удалить весь прогресс? Это нельзя отменить!</p>
-                <div>
-                  <button type="button" onClick={() => setResetConfirmOpen(false)}>Отмена</button>
-                  <button className="confirm-reset" type="button" onClick={resetProgress}>Сбросить</button>
+              {/* Игра */}
+              <section className="settings-group" aria-labelledby="settings-game-title">
+                <h3 className="settings-group-title" id="settings-game-title">Игра</h3>
+                <div className="settings-card settings-card-actions">
+                  <button
+                    className="settings-button"
+                    type="button"
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      setTutorialStep(0);
+                      setTutorialOpen(true);
+                    }}
+                  >
+                    Повторить обучение
+                  </button>
+                  {!resetConfirmOpen ? (
+                    <button
+                      className="settings-button danger"
+                      type="button"
+                      onClick={() => setResetConfirmOpen(true)}
+                    >
+                      Сбросить прогресс
+                    </button>
+                  ) : (
+                    <div className="settings-confirm" role="alert">
+                      <p>Весь прогресс будет удалён без возможности восстановления.</p>
+                      <div className="settings-button-row">
+                        <button type="button" className="settings-button" onClick={() => setResetConfirmOpen(false)}>
+                          Отмена
+                        </button>
+                        <button type="button" className="settings-button danger-solid" onClick={resetProgress}>
+                          Сбросить прогресс
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              </section>
 
-            {/* Статистика */}
-            <p className="settings-section-title">Статистика</p>
-            <div className="stats-line">
-              <span>🏆 Лучшая серия: <strong>{stats.bestStreak}</strong></span>
-              <span>👆 Тапов: <strong>{stats.totalTaps.toLocaleString("ru-RU")}</strong></span>
-              <span>😱 Укусов: <strong>{stats.totalBites}</strong></span>
+              {/* Статистика */}
+              <section className="settings-group" aria-labelledby="settings-stats-title">
+                <h3 className="settings-group-title" id="settings-stats-title">Статистика</h3>
+                <div className="settings-card settings-stats">
+                  <div>
+                    <small>Лучшая серия</small>
+                    <strong>{stats.bestStreak.toLocaleString("ru-RU")}</strong>
+                  </div>
+                  <div>
+                    <small>Тапов</small>
+                    <strong>{stats.totalTaps.toLocaleString("ru-RU")}</strong>
+                  </div>
+                  <div>
+                    <small>Укусов</small>
+                    <strong>{stats.totalBites.toLocaleString("ru-RU")}</strong>
+                  </div>
+                </div>
+              </section>
+
+              {/* Секретное */}
+              <section className="settings-group" aria-labelledby="settings-cheat-title">
+                <h3 className="settings-group-title" id="settings-cheat-title">Чит-код</h3>
+                <div className="settings-card">
+                  <form
+                    className="settings-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      submitCheatCode();
+                    }}
+                  >
+                    <label className="settings-field">
+                      <span>Код</span>
+                      <input
+                        type="text"
+                        value={cheatCode}
+                        placeholder="Введите код"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-describedby="cheat-status"
+                        onChange={(event) => {
+                          setCheatCode(event.currentTarget.value);
+                          setCheatMessage("");
+                        }}
+                      />
+                    </label>
+                    <button type="submit" className="settings-button">Применить код</button>
+                  </form>
+                  <p className="settings-note" id="cheat-status" role="status">
+                    {cheatMessage
+                      || (settings.suliman || settings.yellow
+                        ? `Активных кодов: ${Number(settings.suliman) + Number(settings.yellow)}`
+                        : "Активных кодов нет")}
+                  </p>
+                </div>
+              </section>
             </div>
           </section>
         </div>
