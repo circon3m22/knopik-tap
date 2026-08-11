@@ -143,8 +143,16 @@ img,
   isolation: isolate;
   display: block;
   width: min(100%, 500px);
+  /* iOS PWA fix: используем все доступные fallback для высоты viewport.
+     Порядок критичен: JS-измеренная высота (--app-vh) должна быть последней. */
+  height: 100vh;
+  height: -webkit-fill-available;
   height: 100dvh;
-  min-height: 520px;
+  height: var(--app-vh, 100dvh);
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  min-height: 100dvh;
+  min-height: var(--app-vh, 100dvh);
   margin: 0 auto;
   padding:
     calc(env(safe-area-inset-top) + 12px)

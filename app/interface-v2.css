@@ -2625,8 +2625,15 @@ html {
   position: fixed;
   z-index: 80;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  /* iOS Safari fix: используем var(--app-vh) для учёта точной высоты viewport
+     плюс безопасный отступ для home indicator. fallback: 16px гарантирует
+     видимость кнопки даже если env() вернёт 0. */
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  bottom: max(16px, env(safe-area-inset-bottom, 0px), 16px);
   transform: translateX(-50%);
+  /* Добавляем will-change и transform: translateZ(0) для стабильности на iOS */
+  will-change: transform;
+  transform: translateX(-50%) translateZ(0);
   width: min(calc(100% - 40px), 456px);
   isolation: isolate;
   display: grid;
@@ -3841,8 +3848,16 @@ body,
   height: 100dvh;
   height: var(--app-vh, 100dvh); /* JS-измеренная точная высота */
   min-height: 100vh;
+  min-height: -webkit-fill-available;
   min-height: 100dvh;
   min-height: var(--app-vh, 100dvh);
+  /* iOS Safari PWA: гарантируем что высота соответствует визуальному viewport.
+     Дополнительный fallback через фиксированный padding-bottom если высота
+     контента превышает viewport (предотвращает "уезжание" меню наверх). */
+  max-height: 100vh;
+  max-height: -webkit-fill-available;
+  max-height: 100dvh;
+  max-height: var(--app-vh, 100dvh);
   /* Use max() to ensure at least 12px but include notch */
   padding-top: max(12px, env(safe-area-inset-top));
   padding-bottom: max(10px, env(safe-area-inset-bottom));
@@ -3850,6 +3865,9 @@ body,
   padding-right: max(14px, env(safe-area-inset-right));
   /* Prevent content shift */
   box-sizing: border-box;
+  /* iOS Safari: force hardware acceleration for stable rendering */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 /* auth screen should also respect safe area */
 .auth-screen {
