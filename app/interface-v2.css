@@ -387,15 +387,8 @@ button {
 }
 
 .game-shell .wallet-balance,
-.game-shell .wallet-balance strong,
-.game-shell .wallet-balance small {
+.game-shell .wallet-balance strong {
   color: var(--adaptive-ink) !important;
-}
-
-.wallet-balance small {
-  font-size: 10px;
-  font-weight: 760;
-  letter-spacing: .1em;
 }
 
 .wallet-balance strong {
@@ -446,7 +439,7 @@ button {
   margin-bottom: 4px;
   padding: 6px;
   border: 1px solid rgb(255 255 255 / 72%);
-  border-radius: 38px;
+  border-radius: 46px;
   background: rgb(248 252 255 / 76%);
   box-shadow: 0 16px 40px rgb(18 43 62 / 17%), inset 0 1px 0 #fff;
   backdrop-filter: blur(26px) saturate(155%);
@@ -454,7 +447,7 @@ button {
 
 .bottom-bar button {
   min-height: 60px;
-  border-radius: 31px;
+  border-radius: 38px;
   color: #5a6e7f;
   font-size: 10px;
   font-weight: 730;
@@ -468,7 +461,7 @@ button {
 .nav-thumb {
   top: 6px;
   bottom: 6px;
-  border-radius: 31px;
+  border-radius: 38px;
   background: #edf7ff;
   box-shadow: 0 8px 20px rgb(32 76 108 / 13%), inset 0 1px 0 #fff;
 }
