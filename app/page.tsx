@@ -3246,12 +3246,9 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             aria-label={`Активные монеты ${coins.walletCoins}`}
           >
             <span className="coin-mark" aria-hidden="true"><i>К</i></span>
-            <div>
-              <small>АКТИВНЫЕ МОНЕТЫ</small>
-              <strong className="balance-number" key={`balance-${balancePulse}`}>
-                {coins.walletCoins.toLocaleString("ru-RU")}
-              </strong>
-            </div>
+            <strong className="balance-number" key={`balance-${balancePulse}`}>
+              {coins.walletCoins.toLocaleString("ru-RU")}
+            </strong>
           </div>
           {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
           <div className="vault-row">
@@ -3642,7 +3639,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               </span>
               <div className="food-copy">
                 <small>{hatOwned ? `LVL ${hatLevel}/5 · УЛУЧШЕНИЙ ${hatUpgradeTokens}` : "АКСЕССУАР"}</small>
-                <h3>Тюбетейка Хасбика</h3>
+                <h3>Тюбетейка</h3>
                 <p>Улучшает награду и удержание ультра-тапа.</p>
               </div>
               <div className="clothing-actions">
