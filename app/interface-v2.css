@@ -20,6 +20,13 @@
   --ui-radius-md: 19px;
   --ui-radius-lg: 27px;
   --ui-ease: cubic-bezier(.2, .8, .2, 1);
+  /* Safe-area insets, доступные из JS через getComputedStyle()
+     (env() резолвится в браузере; используется для расчёта --app-vh,
+     чтобы шелл дотягивался до физического низа экрана на iOS PWA). */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
 html {
@@ -3865,9 +3872,11 @@ body,
   padding-right: max(14px, env(safe-area-inset-right));
   /* Prevent content shift */
   box-sizing: border-box;
-  /* iOS Safari: force hardware acceleration for stable rendering */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
+  /* ВАЖНО: НЕ добавлять transform (даже translateZ(0)) на .game-shell —
+     любой transform делает .game-shell containing block для position: fixed,
+     из-за чего нижнее меню якорится к шеллу, а не к вьюпорту, и «уезжает
+     вверх» вместе с ним на iOS PWA (safe zone). Анимации шелла при этом
+     не нужны: всё движется внутри .game-motion-layer / .game-stage. */
 }
 /* auth screen should also respect safe area */
 .auth-screen {

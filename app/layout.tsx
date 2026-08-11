@@ -26,7 +26,11 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // НЕ используем "black-translucent": связка standalone + viewport-fit=cover
+    // + black-translucent + height:100% даёт на iOS «chin gap» (~34–59px белой
+    // полосы снизу) — нижнее меню визуально «уезжает вверх». Со стандартным
+    // стилем статус-бара iOS сам резервирует статус-бар сверху, а цвет статус-бара
+    // берётся из theme-color (обновляется под цвет сцены из page.tsx).
     title: "Knopik",
   },
   icons: {

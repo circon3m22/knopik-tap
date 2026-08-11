@@ -1560,7 +1560,11 @@ function KnopikGame({
     setRiskPayout(0);
     setRiskResult(null);
     const winningDegrees = riskChance * 3.6;
-    setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
+    // Крутится КОЛЕСО (risk-dial-rotor), а не стрелка: finalAngle — точка
+    // «падения шарика» внутри выигрышного сектора (0..winningDegrees при победе).
+    // Колесо вращается по часовой на (2160° - finalAngle), тогда под неподвижной
+    // стрелкой (верх колеса) оказывается именно точка finalAngle сектора.
+    setRiskRotation(1_800 + (360 - outcome.finalAngle));
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins((current) => ({
@@ -3043,6 +3047,7 @@ function KnopikGame({
     "--ultra-fill": `${Math.round(ultraCharge * 1000) / 10}%`,
     "--risk-chance": `${riskChance * 3.6}deg`,
     "--risk-rotation": `${riskRotation}deg`,
+    "--risk-wheel-rotation": `${riskRotation}deg`,
     "--risk-sector-offset": `${180 - (riskChance * 3.6) / 2}deg`,
     "--risk-spin-duration": `${RISK_SPIN_MS}ms`,
     "--fatigue-angle": `${Math.round(fatigueCountdownRatio * 360)}deg`,
@@ -4328,10 +4333,11 @@ export default function Home() {
   }, []);
 
   // iOS PWA (добавлен на домашний экран): в некоторых версиях Safari
-  // 100dvh не учитывает home-indicator, из-за чего .game-shell не дотягивается
-  // до низа экрана и нижнее меню «уезжает вверх». Пишем точную высоту
-  // visualViewport в CSS-переменную --app-vh и жёстко сбрасываем любой скролл
-  // страницы (автофокус, scrollIntoView, rubber-band) — иначе меню сдвигается.
+  // 100dvh/visualViewport.height не учитывают home-indicator, из-за чего
+  // .game-shell не дотягивается до низа экрана и нижнее меню «уезжает вверх».
+  // Пишем точную высоту visualViewport + нижний safe-area inset в CSS-переменную
+  // --app-vh и жёстко сбрасываем любой скролл страницы (автофокус,
+  // scrollIntoView, rubber-band) — иначе меню сдвигается.
   useEffect(() => {
     const root = document.documentElement;
     let raf = 0;
@@ -4339,7 +4345,27 @@ export default function Home() {
     const applyViewportHeight = () => {
       raf = window.requestAnimationFrame(() => {
         const vv = window.visualViewport;
-        const height = Math.round(vv?.height ?? window.innerHeight);
+        // env(safe-area-inset-bottom) резолвится браузером в --safe-area-inset-bottom
+        // (см. interface-v2.css :root); в обычном браузере это 0px, на iOS PWA
+        // с home indicator — 34px. Добавляем его к высоте, чтобы шелл закрывал
+        // весь физический экран даже там, где visualViewport уже не учитывает
+        // safe zone. parseFloat + || 0 дают безопасный fallback.
+        const rootStyle = getComputedStyle(root);
+        const bottomInset =
+          parseFloat(rootStyle.getPropertyValue("--safe-area-inset-bottom")) || 0;
+        const heightWithInset = Math.round(
+          (vv?.height ?? window.innerHeight) + bottomInset,
+        );
+        // Не позволяем шеллу стать выше физического экрана: если браузер уже
+        // вернул полную высоту (включая safe area), добавление inset дало бы
+        // лишние пиксели и нижняя плашка уезжала бы под меню.
+        const isPortrait =
+          window.matchMedia?.("(orientation: portrait)").matches !== false;
+        const rawScreenMax = isPortrait
+          ? window.screen.height
+          : window.screen.width;
+        const screenMax = rawScreenMax > 0 ? rawScreenMax : Infinity;
+        const height = Math.min(heightWithInset, screenMax);
         root.style.setProperty("--app-vh", `${height}px`);
       });
     };
