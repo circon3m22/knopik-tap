@@ -2640,14 +2640,17 @@ button.header-pill {
   to { opacity: 0; transform: translateY(10px); }
 }
 
-/* Плавное появление главного экрана после сплэша */
+/* Плавное появление главного экрана после сплэша.
+   ВАЖНО: только opacity. Transform/filter здесь делают .boot-content
+   containing block для position: fixed — нижнее меню на время анимации
+   якорится к контенту и визуально «дёргается/уезжает» в конце сплэша. */
 .boot-content.is-revealed {
   animation: boot-reveal .85s cubic-bezier(.16, 1, .3, 1) backwards;
 }
 
 @keyframes boot-reveal {
-  from { opacity: 0; transform: translateY(16px) scale(1.03); filter: blur(8px); }
-  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4437,4 +4440,28 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .game-shell .mood-indicator i { animation: none; }
   .header-settings-gear { transition: none; }
+}
+
+/* ==== Страховка позиции нижнего меню (финальная, не двигать вверх по файлу) ====
+   position: fixed якорится к вьюпорту только пока ни один предок не создаёт
+   containing block (transform / perspective / filter / will-change).
+   Здесь — жёсткий запрет transform на предках меню и повторная фиксация самого
+   бара. Правило лежит в конце последнего подключённого стиля, поэтому
+   перебивает случайные переопределения выше. Анимации на .game-shell
+   (например, interface-shake) не ломаются: они перекрывают базовый
+   transform только на время своего проигрывания. */
+html,
+body,
+.boot-content,
+.game-shell,
+.game-motion-layer {
+  transform: none;
+  perspective: none;
+}
+
+.game-shell .bottom-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
 }
