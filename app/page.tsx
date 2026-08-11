@@ -85,7 +85,6 @@ import {
 } from "./mini-game-panel";
 import { resolveMiniGameBet } from "./mini-game-engine";
 import { BOOT_IMAGE_ASSETS } from "./boot-assets";
-import { useDialogA11y } from "./use-dialog-a11y";
 
 type TapParticle = {
   id: number;
@@ -250,10 +249,6 @@ type KnopikGameProps = {
   onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
   onChangePassword: (password: string) => Promise<string>;
   onSignOut: () => Promise<void>;
-  cloudLoginVisible: boolean;
-  onShowCloudLoginForm: () => void;
-  onHideCloudLoginForm: () => void;
-  onStartCloudLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
 };
 
 function KnopikGame({
@@ -269,10 +264,6 @@ function KnopikGame({
   onRedeemPromoCode,
   onChangePassword,
   onSignOut,
-  cloudLoginVisible,
-  onShowCloudLoginForm,
-  onHideCloudLoginForm,
-  onStartCloudLogin,
 }: KnopikGameProps) {
   const [dogState, setDogState] = useState<DogState>("calm");
   const [recoveryReason, setRecoveryReason] =
@@ -335,21 +326,14 @@ function KnopikGame({
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [casesOpen, setCasesOpen] = useState(false);
-  const [navDragIndex, setNavDragIndex] = useState<number | null>(null);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
   const [accountPending, setAccountPending] = useState(false);
-  const [cloudLoginUsername, setCloudLoginUsername] = useState("");
-  const [cloudLoginPassword, setCloudLoginPassword] = useState("");
-  const [cloudLoginError, setCloudLoginError] = useState("");
-  const [cloudLoginPending, setCloudLoginPending] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
   const [promoPending, setPromoPending] = useState(false);
-  // В локальном режиме игрок и создаёт, и активирует промокоды сам.
-  const [promoLocalAction, setPromoLocalAction] = useState<"create" | "redeem">("create");
   const [difficultyDraft, setDifficultyDraft] = useState(() => clampDifficulty(difficulty));
   const [difficultyMessage, setDifficultyMessage] = useState("");
   const [difficultyPending, setDifficultyPending] = useState(false);
@@ -375,11 +359,6 @@ function KnopikGame({
   const [hatBounce, setHatBounce] = useState(0);
   const [mohawkSwing, setMohawkSwing] = useState(0);
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
-  const [bankDragProgress, setBankDragProgress] = useState(0);
-  const [isBankDragging, setIsBankDragging] = useState(false);
-  const bankPlateRef = useRef<HTMLDivElement | null>(null);
-  const bankStartXRef = useRef(0);
-  const bankDraggingRef = useRef(false);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
   const [riskChance, setRiskChance] = useState<RiskChance>(50);
   const [riskBetAmount, setRiskBetAmount] = useState(0);
@@ -430,7 +409,7 @@ function KnopikGame({
   const tapLimitRef = useRef(0);
   const tapIntervalsRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
-  const patienceRollRef = useRef<number | null>(null);
+  const patienceRollRef = useRef(Math.random());
   const particleIdRef = useRef(0);
   const soundRef = useRef<KnopikSoundEngine | null>(null);
   const holdStartRef = useRef(0);
@@ -470,12 +449,6 @@ function KnopikGame({
   const savedBalanceRef = useRef<HTMLDivElement | null>(null);
   const navDragStartRef = useRef(0);
   const navDidDragRef = useRef(false);
-  const tutorialSheetRef = useRef<HTMLElement | null>(null);
-  const shopSheetRef = useRef<HTMLElement | null>(null);
-  const casesSheetRef = useRef<HTMLElement | null>(null);
-  const settingsSheetRef = useRef<HTMLElement | null>(null);
-  const shellRef = useRef<HTMLElement | null>(null);
-  const caseOpeningRef = useRef<HTMLDivElement | null>(null);
   const earTapStateRef = useRef({
     left: { count: 0, lastAt: 0 },
     right: { count: 0, lastAt: 0 },
@@ -657,7 +630,6 @@ function KnopikGame({
           );
 
       coinsRef.current = loadedCoins;
-      patienceRollRef.current = Math.random();
       difficultyRef.current = difficultyWithBalancePenalty(
         configuredDifficultyRef.current,
         loadedCoins.walletCoins,
@@ -740,22 +712,6 @@ function KnopikGame({
     soundRef.current?.setEnabled(settings.sound);
   }, [settings]);
 
-  // Страховка нижнего меню: шелл никогда не должен прокручиваться
-  // (overflow:hidden всё равно позволяет браузеру задать scrollTop,
-  // например при автофокусе — из-за этого меню «уезжало наверх»).
-  useEffect(() => {
-    const shell = shellRef.current;
-    if (!shell) return undefined;
-    const pinToTop = () => {
-      if (shell.scrollTop !== 0 || shell.scrollLeft !== 0) {
-        shell.scrollTo(0, 0);
-      }
-    };
-    pinToTop();
-    shell.addEventListener("scroll", pinToTop, { passive: true });
-    return () => shell.removeEventListener("scroll", pinToTop);
-  }, []);
-
   useEffect(() => {
     const normalized = clampDifficulty(difficulty);
     configuredDifficultyRef.current = normalized;
@@ -763,6 +719,7 @@ function KnopikGame({
       normalized,
       coinsRef.current.walletCoins,
     );
+    setDifficultyDraft(normalized);
   }, [difficulty]);
 
   useEffect(() => {
@@ -905,14 +862,10 @@ function KnopikGame({
     await onSignOut();
   }, [onSignOut]);
 
-  const promoCreateMode = account.isLocal
-    ? promoLocalAction === "create"
-    : account.isAdmin;
-
   const submitPromoCode = useCallback(async () => {
     setPromoPending(true);
     setPromoMessage("");
-    if (promoCreateMode) {
+    if (account.isAdmin) {
       const message = await onCreatePromoCode(promoCode, Number(promoAmount));
       setPromoMessage(message);
       if (message === "Промокод создан.") {
@@ -933,7 +886,7 @@ function KnopikGame({
       }
     }
     setPromoPending(false);
-  }, [getSound, onCreatePromoCode, onRedeemPromoCode, promoAmount, promoCode, promoCreateMode, updateCoins]);
+  }, [account.isAdmin, getSound, onCreatePromoCode, onRedeemPromoCode, promoAmount, promoCode, updateCoins]);
 
   const submitDifficulty = useCallback(async () => {
     setDifficultyPending(true);
@@ -1255,17 +1208,13 @@ function KnopikGame({
         currentState === "tired"
           ? Math.max(currentFatigue, 0.72)
           : currentFatigue;
-      if (patienceRollRef.current === null) {
-        patienceRollRef.current = Math.random();
-      }
-      const patienceRoll = patienceRollRef.current;
       const dynamicLimit = Math.max(
         1,
         Math.round(
           calculateTapLimit(
             average,
             effectiveFatigue,
-            () => patienceRoll,
+            () => patienceRollRef.current,
           ) * difficultyPatienceMultiplier(difficultyRef.current),
         ),
       );
@@ -1543,7 +1492,7 @@ function KnopikGame({
       !settingsRef.current.yellow &&
       (dogStateRef.current === "tired" || fatigueUntilRef.current > Date.now());
     if (tiredNow) {
-      showRiskNotice("Кнопик устал");
+      showRiskNotice("Сиба устала");
       vibrate([12, 26, 12], settingsRef.current.vibration);
       return;
     }
@@ -1577,12 +1526,8 @@ function KnopikGame({
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
-    const winningDegrees = riskChance * 3.6;
-    // Крутится КОЛЕСО (risk-dial-rotor), а не стрелка: finalAngle — точка
-    // «падения шарика» внутри выигрышного сектора (0..winningDegrees при победе).
-    // Колесо вращается по часовой на (2160° - finalAngle), тогда под неподвижной
-    // стрелкой (верх колеса) оказывается именно точка finalAngle сектора.
-    setRiskRotation(1_800 + (360 - outcome.finalAngle));
+  const winningDegrees = riskChance * 3.6;
+setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins((current) => ({
@@ -2178,13 +2123,17 @@ function KnopikGame({
     getSound().safe();
   }, [cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo, updateCoins]);
 
-  const playHatBounce = useCallback(() => {
+  const bounceHat = useCallback((event: PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     setHatBounce((current) => current + 1);
     setHatInteractionCount((current) => current + 1);
     registerTap(50, 16);
   }, [registerTap]);
 
-  const playMohawkSwing = useCallback(() => {
+  const swingMohawk = useCallback((event: PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
     setMohawkSwing((current) => current + 1);
     setMohawkInteractionCount((current) => current + 1);
     registerTap(50, 14);
@@ -2320,53 +2269,35 @@ function KnopikGame({
     setResetConfirmOpen(false);
   }, []);
 
-  const moveNavigationThumb = useCallback((event: PointerEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
-    // Во время свайпа двигаем только «линзу»; раздел открываем на отпускании,
-    // чтобы листы не мигали и inert-слой не обрывал жест.
-    setNavDragIndex(Math.floor(ratio * 3));
-  }, []);
-
-  const handleNavigationDown = useCallback((event: PointerEvent<HTMLElement>) => {
-    if (event.button !== 0) return;
-    navDragStartRef.current = event.clientX;
-    navDidDragRef.current = false;
-    // Захват указателя не включаем сразу: короткий тап должен дойти до кнопки
-    // обычным click. Захват появляется только после горизонтального сдвига,
-    // чтобы свайп по меню не «съедал» клики по кнопкам.
-  }, []);
-
-  const handleNavigationMove = useCallback(
+  const moveNavigationThumb = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      if (Math.abs(event.clientX - navDragStartRef.current) <= 8) return;
-      navDidDragRef.current = true;
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
+      selectNavigation(Math.floor(ratio * 3));
+    },
+    [selectNavigation],
+  );
+
+  const handleNavigationDown = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return;
+      navDragStartRef.current = event.clientX;
+      navDidDragRef.current = false;
+      event.currentTarget.setPointerCapture(event.pointerId);
       moveNavigationThumb(event);
     },
     [moveNavigationThumb],
   );
 
-  const handleNavigationUp = useCallback(
+  const handleNavigationMove = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+      if (Math.abs(event.clientX - navDragStartRef.current) > 8) {
+        navDidDragRef.current = true;
       }
-      if (!navDidDragRef.current) return;
-      // Свайп завершён: фиксируем таб под пальцем, открываем раздел и гасим
-      // флаг, чтобы последующий click (он уходит в общий предок из-за
-      // захвата указателя) не был обработан повторно.
-      navDidDragRef.current = false;
-      const rect = event.currentTarget.getBoundingClientRect();
-      const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
-      const finalIndex = Math.floor(ratio * 3);
-      setNavDragIndex(null);
-      getSound().nav(finalIndex - 1);
-      selectNavigation(finalIndex);
+      moveNavigationThumb(event);
     },
-    [getSound, selectNavigation],
+    [moveNavigationThumb],
   );
 
   const clickNavigation = useCallback((index: number) => {
@@ -2377,20 +2308,6 @@ function KnopikGame({
     getSound().nav(index - 1);
     selectNavigation(index);
   }, [getSound, selectNavigation]);
-
-  const handleNavigationKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLElement>) => {
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      event.preventDefault();
-      const currentIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
-      const nextIndex =
-        event.key === "ArrowRight"
-          ? Math.min(2, currentIndex + 1)
-          : Math.max(0, currentIndex - 1);
-      clickNavigation(nextIndex);
-    },
-    [casesOpen, clickNavigation, shopOpen],
-  );
 
   const buyOrToggleHat = useCallback(() => {
     if (!hatOwned) {
@@ -2471,57 +2388,32 @@ function KnopikGame({
     const tiredNow =
       dogStateRef.current === "tired" ||
       (dogStateRef.current === "recovering" && fatigueUntilRef.current > Date.now());
-    if (tiredNow && coinsRef.current.walletCoins >= DOG_FOOD_PRICE) {
-      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
-      clearRoundTimers();
-      fatigueUntilRef.current = 0;
-      setFatigueUntil(0);
-      setRiskFatigueUntil(0);
-      setClock(Date.now());
-      setRecoveryReason("rest");
-      resetSeries();
-      transitionTo("calm");
-      getSound().purchase();
-      vibrate([16, 22, 38], settingsRef.current.vibration);
-      return;
-    }
-    // Если нет корма и не получается быстро купить — открываем магазин, чтобы не выглядело сломанным
-    setShopOpen(true);
-    setShopCategory("food");
-    setCasesOpen(false);
-    setSettingsOpen(false);
-    getSound().uiPress();
+    if (!tiredNow || coinsRef.current.walletCoins < DOG_FOOD_PRICE) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
+    clearRoundTimers();
+    fatigueUntilRef.current = 0;
+    setFatigueUntil(0);
+    setRiskFatigueUntil(0);
+    setClock(Date.now());
+    setRecoveryReason("rest");
+    resetSeries();
+    transitionTo("calm");
+    getSound().purchase();
+    vibrate([16, 22, 38], settingsRef.current.vibration);
   }, [clearRoundTimers, feedDog, foodCount, getSound, resetSeries, transitionTo, updateCoins]);
 
   const handleDrinkItem = useCallback(() => {
-    if (riskPhaseRef.current !== "normal") {
-      if (coinsRef.current.walletCoins < ZHIVCHIK_PRICE && drinkCount === 0) {
-        setShopOpen(true);
-        setShopCategory("food");
-        setCasesOpen(false);
-        setSettingsOpen(false);
-        getSound().uiPress();
-      }
-      return;
-    }
     if (drinkCount > 0) {
       activateDrink();
       return;
     }
-    if (coinsRef.current.walletCoins >= ZHIVCHIK_PRICE) {
-      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
-      const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
-      boostUntilRef.current = nextBoostUntil;
-      setBoostUntil(nextBoostUntil);
-      getSound().purchase();
-      vibrate([14, 20, 34], settingsRef.current.vibration);
-      return;
-    }
-    setShopOpen(true);
-    setShopCategory("food");
-    setCasesOpen(false);
-    setSettingsOpen(false);
-    getSound().uiPress();
+    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < ZHIVCHIK_PRICE) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - ZHIVCHIK_PRICE }));
+    const nextBoostUntil = Math.max(Date.now(), boostUntilRef.current) + ZHIVCHIK_DURATION_MS;
+    boostUntilRef.current = nextBoostUntil;
+    setBoostUntil(nextBoostUntil);
+    getSound().purchase();
+    vibrate([14, 20, 34], settingsRef.current.vibration);
   }, [activateDrink, drinkCount, getSound, updateCoins]);
 
   const handlePitbullItem = useCallback(() => {
@@ -2531,30 +2423,23 @@ function KnopikGame({
     }
     const remainingCoins = coinsRef.current.walletCoins - PITBULL_PRICE;
     if (
-      remainingCoins >= 1 &&
-      riskPhaseRef.current === "normal" &&
-      (settingsRef.current.yellow || fatigueUntilRef.current <= Date.now()) &&
-      dogStateRef.current === "calm"
-    ) {
-      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
-      setShopOpen(false);
-      setCasesOpen(false);
-      setSettingsOpen(false);
-      riskCommittedRef.current = false;
-      setRiskBetAmount(remainingCoins);
-      setRiskResult(null);
-      setRiskPayout(0);
-      setRiskRotation(0);
-      transitionRisk("selecting");
-      getSound().purchase();
-      vibrate([16, 24, 34], settingsRef.current.vibration);
-      return;
-    }
-    setShopOpen(true);
-    setShopCategory("food");
+      remainingCoins < 1 ||
+      riskPhaseRef.current !== "normal" ||
+      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
+      dogStateRef.current !== "calm"
+    ) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - PITBULL_PRICE }));
+    setShopOpen(false);
     setCasesOpen(false);
     setSettingsOpen(false);
-    getSound().uiPress();
+    riskCommittedRef.current = false;
+    setRiskBetAmount(remainingCoins);
+    setRiskResult(null);
+    setRiskPayout(0);
+    setRiskRotation(0);
+    transitionRisk("selecting");
+    getSound().purchase();
+    vibrate([16, 24, 34], settingsRef.current.vibration);
   }, [activatePitbull, getSound, pitbullCount, transitionRisk, updateCoins]);
 
   const handleMiniGameItem = useCallback((kind: MiniGameKind) => {
@@ -2565,29 +2450,22 @@ function KnopikGame({
     }
     const price = kind === "slots" ? COCOA_COLA_PRICE : BERGAMOT_TEA_PRICE;
     if (
-      coinsRef.current.walletCoins - price >= 1 &&
-      miniGame === null &&
-      riskPhaseRef.current === "normal" &&
-      (settingsRef.current.yellow || fatigueUntilRef.current <= Date.now()) &&
-      dogStateRef.current === "calm"
-    ) {
-      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
-      if (kind === "slots") setColaCount(1);
-      else setTeaCount(1);
-      setShopOpen(false);
-      setCasesOpen(false);
-      setSettingsOpen(false);
-      setMiniGameSession((current) => current + 1);
-      setMiniGame(kind);
-      getSound().purchase();
-      vibrate([16, 24, 34], settingsRef.current.vibration);
-      return;
-    }
-    setShopOpen(true);
-    setShopCategory("food");
+      coinsRef.current.walletCoins - price < 1 ||
+      miniGame !== null ||
+      riskPhaseRef.current !== "normal" ||
+      (!settingsRef.current.yellow && fatigueUntilRef.current > Date.now()) ||
+      dogStateRef.current !== "calm"
+    ) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - price }));
+    if (kind === "slots") setColaCount(1);
+    else setTeaCount(1);
+    setShopOpen(false);
     setCasesOpen(false);
     setSettingsOpen(false);
-    getSound().uiPress();
+    setMiniGameSession((current) => current + 1);
+    setMiniGame(kind);
+    getSound().purchase();
+    vibrate([16, 24, 34], settingsRef.current.vibration);
   }, [colaCount, getSound, miniGame, openMiniGame, teaCount, updateCoins]);
 
   const handleVitaPowerItem = useCallback(() => {
@@ -2596,18 +2474,11 @@ function KnopikGame({
       activateVitaPower();
       return;
     }
-    if (riskPhaseRef.current === "normal" && coinsRef.current.walletCoins >= VITA_POWER_PRICE) {
-      updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - VITA_POWER_PRICE }));
-      setVitaPowerShield(true);
-      getSound().purchase();
-      vibrate([20, 24, 48, 20], settingsRef.current.vibration);
-      return;
-    }
-    setShopOpen(true);
-    setShopCategory("food");
-    setCasesOpen(false);
-    setSettingsOpen(false);
-    getSound().uiPress();
+    if (riskPhaseRef.current !== "normal" || coinsRef.current.walletCoins < VITA_POWER_PRICE) return;
+    updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - VITA_POWER_PRICE }));
+    setVitaPowerShield(true);
+    getSound().purchase();
+    vibrate([20, 24, 48, 20], settingsRef.current.vibration);
   }, [activateVitaPower, getSound, updateCoins, vitaPowerCount, vitaPowerShield]);
 
   const finishTutorial = useCallback(() => {
@@ -2712,7 +2583,7 @@ function KnopikGame({
   const isDogTired =
     !settings.yellow &&
     (dogState === "tired" ||
-      (dogState === "recovering" && fatigueUntil > clock));
+      (dogState === "recovering" && fatigueUntil > Date.now()));
   const isDogResting = !settings.yellow && fatigueUntil > clock;
   const canFeedDog = isDogTired && foodCount > 0;
   const canQuickBuyFood = isDogTired && foodCount === 0 && coins.walletCoins >= DOG_FOOD_PRICE;
@@ -2731,86 +2602,6 @@ function KnopikGame({
     coins.walletCoins >= foodTotalPrice;
   const canBuyHat = hatOwned || coins.walletCoins >= HASBIK_HAT_PRICE;
   const canBuyMohawk = mohawkOwned || coins.walletCoins >= MOHAWK_PRICE;
-
-  // === New swipe-to-save: свайп от активного баланса к сейфу ===
-  const handleBankPointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!canSave) return;
-      // Только основная кнопка мыши / один палец
-      if (event.button !== 0) return;
-      const plate = bankPlateRef.current;
-      if (!plate) return;
-      bankStartXRef.current = event.clientX;
-      bankDraggingRef.current = true;
-      setIsBankDragging(true);
-      setBankDragProgress(0);
-      try {
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      } catch {}
-    },
-    [canSave],
-  );
-
-  const handleBankPointerMove = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!bankDraggingRef.current) return;
-      const plate = bankPlateRef.current;
-      if (!plate) return;
-      const delta = event.clientX - bankStartXRef.current;
-      // Свайп только вправо имеет смысл (от актива к сейфу)
-      if (delta <= 0) {
-        setBankDragProgress(0);
-        return;
-      }
-      const rect = plate.getBoundingClientRect();
-      // Полная дистанция ~ 45% ширины пластины — достаточно, чтобы случайно не триггерить
-      const threshold = rect.width * 0.46;
-      const progress = Math.min(1, delta / threshold);
-      setBankDragProgress(progress);
-      if (progress >= 0.92) {
-        // Порог достигнут — выполняем сохранение
-        bankDraggingRef.current = false;
-        setIsBankDragging(false);
-        setBankDragProgress(0);
-        try {
-          if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
-            (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-          }
-        } catch {}
-        saveAllToVault();
-      }
-    },
-    [saveAllToVault],
-  );
-
-  const handleBankPointerUp = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!bankDraggingRef.current) return;
-      bankDraggingRef.current = false;
-      setIsBankDragging(false);
-      setBankDragProgress(0);
-      try {
-        if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
-          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-        }
-      } catch {}
-    },
-    [],
-  );
-
-  const handleBankPointerCancel = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      bankDraggingRef.current = false;
-      setIsBankDragging(false);
-      setBankDragProgress(0);
-      try {
-        if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
-          (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
-        }
-      } catch {}
-    },
-    [],
-  );
 
   const remainingDrinkSlots = Math.max(0, INVENTORY_LIMIT - drinkCount);
   const drinkTotalPrice = drinkQuantity * ZHIVCHIK_PRICE;
@@ -2843,31 +2634,11 @@ function KnopikGame({
     vitaPowerQuantity <= remainingVitaPowerSlots &&
     coins.walletCoins >= vitaPowerTotalPrice;
   const boostSeconds = Math.max(0, Math.ceil((boostUntil - clock) / 1_000));
-  // Ряд бафов всегда показывает все 6 кнопок; недоступные — disabled, быстрая покупка — «+».
   const selectedRiskMultiplier = Math.round(
     riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1) * 100,
   ) / 100;
   const riskMode = riskPhase !== "normal";
   const navIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
-  // Контент (header + игровое поле) должен быть неактивен, когда открыт любой лист/диалог
-  const contentInert =
-    tutorialOpen ||
-    shopOpen ||
-    casesOpen ||
-    settingsOpen ||
-    miniGame !== null ||
-    caseSequence !== null;
-  // Нижняя навигация остаётся активной в магазине и кейсах (persistent nav):
-  // их листы не перекрывают меню. Настройки — отдельный полноэкранный экран,
-  // поэтому меню под ним недоступно и должно быть inert, иначе фокус и
-  // скринридер уходят на скрытые за оверлеем табы.
-  const navInert =
-    tutorialOpen ||
-    settingsOpen ||
-    miniGame !== null ||
-    caseSequence !== null;
-  // Для внешних слоёв, где нужна полная блокировка фона
-  const anyModalOpen = contentInert;
   const currentQuest = questIndex < QUESTS.length ? QUESTS[questIndex] : null;
   const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins;
   const questProgress = currentQuest
@@ -2894,43 +2665,19 @@ function KnopikGame({
     vibrate([18, 24, 48], settingsRef.current.vibration);
   };
 
-  const closeSheetsToHome = useCallback(
-    () => selectNavigation(1),
-    [selectNavigation],
-  );
-  const closeSettingsSheet = useCallback(() => {
-    setSettingsOpen(false);
-    onHideCloudLoginForm();
-    setCloudLoginError("");
-  }, [onHideCloudLoginForm]);
-  const dismissCaseOpening = useCallback(() => {
-    if (caseSequence?.phase === "reward") {
-      advanceCaseReward();
-      return;
-    }
-    setCaseSequence(null);
-  }, [advanceCaseReward, caseSequence?.phase]);
-
-  useDialogA11y(tutorialOpen, tutorialSheetRef, finishTutorial);
-  useDialogA11y(shopOpen, shopSheetRef, closeSheetsToHome);
-  useDialogA11y(casesOpen, casesSheetRef, closeSheetsToHome);
-  useDialogA11y(settingsOpen, settingsSheetRef, closeSettingsSheet);
-  useDialogA11y(caseSequence !== null, caseOpeningRef, dismissCaseOpening);
-
+  const tempoRatio =
+    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const isHappy =
     dogState === "calm" && seriesTaps >= 3 && averageInterval <= 360;
-  // Полоски эмоций видны только в своих состояниях; вне их кадр всегда 0 —
-  // это выводится в render, а не сбрасывается эффектом.
-  const joyAnimationActive = dogState === "calm" && joySpriteReady;
-  const rageAnimationActive =
-    (dogState === "angry" ||
-      (dogState === "recovering" && recoveryReason === "bite")) &&
-    rageSpriteReady;
-  const shownJoyFrame = joyAnimationActive ? joyFrame : 0;
-  const shownRageFrame = rageAnimationActive ? rageFrame : 0;
-
   useEffect(() => {
-    if (!joyAnimationActive) return;
+    if (dogState !== "calm") {
+      setJoyFrame(0);
+      return;
+    }
+    if (!joySpriteReady) {
+      setJoyFrame(0);
+      return;
+    }
 
     const targetFrame = isHappy ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -2948,10 +2695,19 @@ function KnopikGame({
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [isHappy, joyAnimationActive]);
+  }, [dogState, isHappy, joySpriteReady]);
 
   useEffect(() => {
-    if (!rageAnimationActive) return;
+    const reversingAfterBite =
+      dogState === "recovering" && recoveryReason === "bite";
+    if (dogState !== "angry" && !reversingAfterBite) {
+      setRageFrame(0);
+      return;
+    }
+    if (!rageSpriteReady) {
+      setRageFrame(0);
+      return;
+    }
 
     const targetFrame = dogState === "angry" ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -2969,17 +2725,17 @@ function KnopikGame({
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [dogState, rageAnimationActive, recoveryReason]);
+  }, [dogState, rageSpriteReady, recoveryReason]);
 
   const showRageSequence =
     rageSpriteReady &&
     (dogState === "angry" ||
-      (dogState === "recovering" && recoveryReason === "bite" && shownRageFrame > 0));
+      (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0));
   const isEmotionShifting =
     (dogState === "calm" &&
-      ((isHappy && shownJoyFrame < 4) || (!isHappy && shownJoyFrame > 0))) ||
-    (dogState === "angry" && shownRageFrame < 4) ||
-    (dogState === "recovering" && recoveryReason === "bite" && shownRageFrame > 0);
+      ((isHappy && joyFrame < 4) || (!isHappy && joyFrame > 0))) ||
+    (dogState === "angry" && rageFrame < 4) ||
+    (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
   const dogImageState =
     showRageSequence
       ? "rage"
@@ -3018,7 +2774,7 @@ function KnopikGame({
     riskMode
       ? "#25272b"
       : dogState === "angry"
-      ? "#d13a32"
+      ? "#ec5148"
       : dogState === "tired"
         ? "#e8c65d"
         : dogState === "warning" ||
@@ -3062,7 +2818,6 @@ function KnopikGame({
     "--ultra-fill": `${Math.round(ultraCharge * 1000) / 10}%`,
     "--risk-chance": `${riskChance * 3.6}deg`,
     "--risk-rotation": `${riskRotation}deg`,
-    "--risk-wheel-rotation": `${riskRotation}deg`,
     "--risk-sector-offset": `${180 - (riskChance * 3.6) / 2}deg`,
     "--risk-spin-duration": `${RISK_SPIN_MS}ms`,
     "--fatigue-angle": `${Math.round(fatigueCountdownRatio * 360)}deg`,
@@ -3075,7 +2830,7 @@ function KnopikGame({
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
       } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
-        dogState === "calm" && shownJoyFrame > 0 ? "is-happy" : ""
+        dogState === "calm" && joyFrame > 0 ? "is-happy" : ""
       } ${isEmotionShifting ? "is-emotion-shifting" : ""} ${
         riskMode ? `risk-mode risk-${riskPhase}` : ""
       } ${riskPhase === "transition" && riskResult ? "risk-returning" : ""} ${
@@ -3084,7 +2839,6 @@ function KnopikGame({
       data-state={dogState}
       data-hydrated={hydrated}
       style={gameStyle}
-      ref={shellRef}
       onPointerDownCapture={handleInterfacePress}
     >
       <div
@@ -3132,43 +2886,30 @@ function KnopikGame({
         </svg>
       </div>
       <div className="game-motion-layer">
-      <header className="app-header" inert={contentInert ? true : undefined}>
+      <header className="app-header">
         <div className="top-bar">
           <button
-            className="header-pill header-avatar header-settings-button"
-            type="button"
-            aria-label={account.isLocal ? "Открыть настройки (гостевой режим)" : `Открыть настройки аккаунта ${account.username}`}
-            title={account.isLocal ? "Настройки (гость)" : `Настройки (${account.username})`}
-            onClick={() => {
-              setShopOpen(false);
-              setCasesOpen(false);
-              setSettingsOpen(true);
-              setDifficultyDraft(clampDifficulty(difficulty));
-            }}
-          >
-            <svg
-              className="header-settings-gear"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+              className="account-identity"
+              type="button"
+              aria-label="Открыть аккаунт и настройки"
+              onClick={() => {
+                setShopOpen(false);
+                setCasesOpen(false);
+                setSettingsOpen(true);
+              }}
             >
-              <circle cx="12" cy="12" r="3.2" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.24.6.83 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
+              <span className="account-shortcut" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+              <strong>{account.username}</strong>
           </button>
-          <div className="wordmark brand-lockup" aria-hidden="true"><h1>KNOPIK</h1></div>
-          <div className="header-mood" role="img" aria-label={`Статус Кнопика: ${moodLabel}`}>
+          <div className="wordmark brand-lockup" aria-label="Knopik Tap"><strong>KNOPIK</strong></div>
+          <div className="status-cluster" aria-label={`Статус Кнопика: ${moodLabel}`}>
+            <strong>{moodLabel}</strong>
             <span className={`mood-indicator mood-${dogState}`} aria-hidden="true"><i /></span>
           </div>
         </div>
         {!riskMode ? (
           <div
             className="level-strip"
-            role="group"
             aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
           >
             <div className="level-title">
@@ -3188,7 +2929,7 @@ function KnopikGame({
             </div>
           </div>
         ) : (
-          <div className="risk-strip" role="group" aria-label={`Шанс выигрыша ${riskChance}%`}>
+          <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
             <span className="risk-strip-label">СЕКТОР {riskChance}%</span>
             <input
               type="range"
@@ -3207,22 +2948,22 @@ function KnopikGame({
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
         )}
-        {!riskMode && currentQuest && (
-          <div className={`quest-strip ${questComplete ? "is-complete" : ""}`} role="group" aria-label="Текущее задание кейса">
+        {!riskMode && (
+          <div className={`quest-strip ${questComplete ? "is-complete" : ""}`}>
             <span className="quest-symbol" aria-hidden="true">✓</span>
             <span className="quest-copy">
-              <small>{`ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}`}</small>
-              <strong>{currentQuest.title}</strong>
+              <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ВСЕ ЗАДАНИЯ ВЫПОЛНЕНЫ"}</small>
+              <strong>{currentQuest?.title ?? "Новые задания появятся позже"}</strong>
             </span>
-            {questComplete ? (
-              <button type="button" onClick={claimQuestReward}>Забрать кейс</button>
-            ) : (
-              <b>{Math.min(questProgress, currentQuest.target).toLocaleString("ru-RU")}/{currentQuest.target.toLocaleString("ru-RU")}</b>
+            {currentQuest && (
+              questComplete
+                ? <button type="button" onClick={claimQuestReward}>Забрать кейс</button>
+                : <b>{Math.min(questProgress, currentQuest.target).toLocaleString("ru-RU")}/{currentQuest.target.toLocaleString("ru-RU")}</b>
             )}
           </div>
         )}
         {riskPhase === "selecting" && mohawkEquipped && (
-          <div className="risk-bet-control" role="group" aria-label="Размер ставки рулетки">
+          <div className="risk-bet-control" aria-label="Размер ставки рулетки">
             <span><small>СТАВКА</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
             <input
               type="range"
@@ -3236,108 +2977,43 @@ function KnopikGame({
             <button type="button" onClick={() => setRiskBetAmount(coins.walletCoins)}>ВСЁ</button>
           </div>
         )}
+        <div className="boost-row" aria-label="Предметы Кнопика">
+          <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
+            <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
+            <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
+            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{canQuickBuyFood ? null : foodCount}</b>
+          </button>
+          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
+            <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
+            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
+            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{canQuickBuyDrink ? null : drinkCount}</b>
+          </button>
+          <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
+            <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
+            <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
+            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{canQuickBuyPitbull ? null : pitbullCount}</b>
+          </button>
+          <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
+            <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
+            <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
+            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{canQuickBuyCola ? null : colaCount}</b>
+          </button>
+          <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
+            <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
+            <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
+            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{canQuickBuyTea ? null : teaCount}</b>
+          </button>
+          <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
+            <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
+            <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
+            <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? null : vitaPowerCount}</b>
+          </button>
+        </div>
       </header>
 
       <section
         className="game-stage"
-        inert={contentInert ? true : undefined}
       >
-        <div
-          className={`top-buff-row ${riskMode || miniGame !== null ? "is-hidden" : ""}`}
-          role="group"
-          aria-label="Быстрые бафы"
-        >
-          {/* 1. Корм — снятие усталости */}
-          <button
-            className={`buff-plate ${foodCount === 0 && canQuickBuyFood ? "is-quick-buy" : ""}`}
-            type="button"
-            disabled={miniGame !== null}
-            aria-label={`Корм: ${foodCount} шт.${canQuickBuyFood ? ` (купить за ${DOG_FOOD_PRICE})` : ""}`}
-            title="Корм"
-            onClick={handleFoodItem}
-          >
-            <img className="buff-plate-img" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
-            <span className={`buff-plate-badge ${canQuickBuyFood && foodCount === 0 ? "is-price" : ""}`}>
-              {foodCount > 0 ? foodCount : canQuickBuyFood ? "+" : 0}
-            </span>
-          </button>
-
-          {/* 2. Пепси — щит от потери монет */}
-          <button
-            className={`buff-plate ${vitaPowerShield ? "is-active" : ""} ${vitaPowerCount === 0 && canQuickBuyVitaPower ? "is-quick-buy" : ""}`}
-            type="button"
-            disabled={vitaPowerShield || miniGame !== null}
-            aria-label={`Пепси (щит): ${vitaPowerShield ? "активен" : `${vitaPowerCount} шт.`}${canQuickBuyVitaPower ? ` (купить за ${VITA_POWER_PRICE})` : ""}`}
-            title="Пепси"
-            onClick={handleVitaPowerItem}
-          >
-            <img className="buff-plate-img" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
-            <span className={`buff-plate-badge ${canQuickBuyVitaPower && vitaPowerCount === 0 ? "is-price" : ""}`}>
-              {vitaPowerShield ? "ON" : vitaPowerCount > 0 ? vitaPowerCount : canQuickBuyVitaPower ? "+" : 0}
-            </span>
-          </button>
-
-          {/* 3. Живчик — буст ×4 на минуту */}
-          <button
-            className={`buff-plate ${boostSeconds > 0 ? "is-active" : drinkCount === 0 && canQuickBuyDrink ? "is-quick-buy" : ""}`}
-            type="button"
-            disabled={riskMode || miniGame !== null}
-            aria-label={`Живчик ×4: ${boostSeconds > 0 ? `${boostSeconds} сек.` : `${drinkCount} шт.`}${canQuickBuyDrink ? ` (купить за ${ZHIVCHIK_PRICE})` : ""}`}
-            title="Живчик"
-            onClick={handleDrinkItem}
-          >
-            <img className="buff-plate-img" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
-            <span className={`buff-plate-badge ${boostSeconds > 0 ? "is-timer" : canQuickBuyDrink && drinkCount === 0 ? "is-price" : ""}`}>
-              {boostSeconds > 0 ? `${boostSeconds}с` : drinkCount > 0 ? drinkCount : canQuickBuyDrink ? "+" : 0}
-            </span>
-          </button>
-
-          {/* 4. Питбуль — открывает рулетку */}
-          <button
-            className={`buff-plate ${pitbullCount === 0 && canQuickBuyPitbull ? "is-quick-buy" : ""}`}
-            type="button"
-            disabled={riskMode || dogState !== "calm" || miniGame !== null}
-            aria-label={`Питбуль (рулетка): ${pitbullCount} шт.${canQuickBuyPitbull ? ` (купить за ${PITBULL_PRICE})` : ""}`}
-            title="Питбуль"
-            onClick={handlePitbullItem}
-          >
-            <img className="buff-plate-img" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
-            <span className={`buff-plate-badge ${canQuickBuyPitbull && pitbullCount === 0 ? "is-price" : ""}`}>
-              {pitbullCount > 0 ? pitbullCount : canQuickBuyPitbull ? "+" : 0}
-            </span>
-          </button>
-
-          {/* 5. Какао-Кола — слот-машина */}
-          <button
-            className={`buff-plate ${colaCount === 0 && canQuickBuyCola ? "is-quick-buy" : ""}`}
-            type="button"
-            disabled={riskMode || dogState !== "calm" || miniGame !== null}
-            aria-label={`Какао-Кола (слоты): ${colaCount} шт.${canQuickBuyCola ? ` (купить за ${COCOA_COLA_PRICE})` : ""}`}
-            title="Какао-Кола"
-            onClick={() => handleMiniGameItem("slots")}
-          >
-            <img className="buff-plate-img" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
-            <span className={`buff-plate-badge ${canQuickBuyCola && colaCount === 0 ? "is-price" : ""}`}>
-              {colaCount > 0 ? colaCount : canQuickBuyCola ? "+" : 0}
-            </span>
-          </button>
-
-          {/* 6. Чай с бергамотом — игра с 5 кнопками */}
-          <button
-            className={`buff-plate ${teaCount === 0 && canQuickBuyTea ? "is-quick-buy" : ""}`}
-            type="button"
-            disabled={riskMode || dogState !== "calm" || miniGame !== null}
-            aria-label={`Чай с бергамотом (5 кнопок): ${teaCount} шт.${canQuickBuyTea ? ` (купить за ${BERGAMOT_TEA_PRICE})` : ""}`}
-            title="Бергамот"
-            onClick={() => handleMiniGameItem("mines")}
-          >
-            <img className="buff-plate-img" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
-            <span className={`buff-plate-badge ${canQuickBuyTea && teaCount === 0 ? "is-price" : ""}`}>
-              {teaCount > 0 ? teaCount : canQuickBuyTea ? "+" : 0}
-            </span>
-          </button>
-        </div>
-
         <div className="dog-stage">
           <div className={`dog-orbit ${vitaPowerShield ? "has-vita-shield" : ""}`}>
           {isDogResting && (
@@ -3397,7 +3073,7 @@ function KnopikGame({
                 draggable={false}
                 loading="eager"
                 decoding="async"
-                style={{ transform: `translate3d(-${shownJoyFrame * 20}%, 0, 0)` }}
+                style={{ transform: `translate3d(-${joyFrame * 20}%, 0, 0)` }}
                 onLoad={() => setJoySpriteReady(true)}
               />
               <img
@@ -3416,7 +3092,7 @@ function KnopikGame({
                 draggable={false}
                 loading="eager"
                 decoding="async"
-                style={{ transform: `translate3d(-${shownRageFrame * 20}%, 0, 0)` }}
+                style={{ transform: `translate3d(-${rageFrame * 20}%, 0, 0)` }}
                 onLoad={() => setRageSpriteReady(true)}
               />
             </span>
@@ -3443,6 +3119,12 @@ function KnopikGame({
                     aria-hidden="true"
                     draggable={false}
                   />
+                  <span
+                    className="hat-hit-zone"
+                    onPointerDown={bounceHat}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
                 </>
               )}
               {mohawkOwned && mohawkEquipped && (
@@ -3455,8 +3137,29 @@ function KnopikGame({
                     aria-hidden="true"
                     draggable={false}
                   />
+                  <span
+                    className="mohawk-hit-zone"
+                    onPointerDown={swingMohawk}
+                    onPointerUp={(event) => event.stopPropagation()}
+                    onPointerCancel={(event) => event.stopPropagation()}
+                  />
                 </>
               )}
+            </span>
+            <span className="ear-hit-zones" aria-hidden="true">
+              {(["left", "right"] as const).map((ear) => (
+                <span
+                  className={`ear-hit ear-hit-${ear}`}
+                  key={ear}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleEarTap(ear);
+                  }}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onPointerCancel={(event) => event.stopPropagation()}
+                />
+              ))}
             </span>
             <span className="tap-particles" aria-hidden="true">
               {particles.map((particle) => (
@@ -3533,188 +3236,73 @@ function KnopikGame({
               </span>
             )}
           </button>
-          <div className="dog-accessory-zones">
-            {(["left", "right"] as const).map((ear) => (
-              <button
-                className={`ear-hit ear-hit-${ear}`}
-                key={ear}
-                type="button"
-                disabled={dogDisabled || riskPhase !== "normal"}
-                aria-label={
-                  ear === "left"
-                    ? "Коснуться левого уха Кнопика"
-                    : "Коснуться правого уха Кнопика"
-                }
-                onClick={() => handleEarTap(ear)}
-              />
-            ))}
-            {hatOwned && hatEquipped && (
-              <button
-                className="hat-hit-zone"
-                type="button"
-                aria-label="Постучать по тюбетейке"
-                onClick={playHatBounce}
-              />
-            )}
-            {mohawkOwned && mohawkEquipped && (
-              <button
-                className="mohawk-hit-zone"
-                type="button"
-                aria-label="Потрепать эрокез"
-                onClick={playMohawkSwing}
-              />
-            )}
-          </div>
           </div>
         </div>
 
         <div className="game-data">
-          {riskMessage && <p className="risk-notice" role="status" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
           <div
-            ref={bankPlateRef}
-            className={`unified-bank-plate swipe-plate ${canSave ? "can-save" : "is-locked"} ${isBankDragging ? "is-dragging" : ""}`}
-            role="group"
-            aria-label={`Баланс и перевод в сейф — ${coins.walletCoins} активных, ${vaultCoins} в сейфе`}
-            onPointerDown={handleBankPointerDown}
-            onPointerMove={handleBankPointerMove}
-            onPointerUp={handleBankPointerUp}
-            onPointerCancel={handleBankPointerCancel}
-            data-drag-progress={bankDragProgress.toFixed(3)}
-            style={{ "--drag-progress": bankDragProgress } as CSSProperties}
+            ref={walletBalanceRef}
+            className={`wallet-balance ${balanceVariant}`}
+            aria-label={`Активные монеты ${coins.walletCoins}`}
           >
-            {/* Заполнение фона показывает прогресс свайпа */}
-            <div className="bank-swipe-fill" aria-hidden="true" style={{ width: `${Math.round(bankDragProgress * 100)}%` }} />
-
-            {/* Блик проходит слева направо и показывает направление свайпа */}
-            {canSave && <div className="bank-sweep" aria-hidden="true" />}
-
-            <div
-              ref={walletBalanceRef}
-              className={`bank-side bank-wallet ${balanceVariant}`}
-              data-side="wallet"
-            >
-              <span className="bank-coin bank-coin-gold" aria-hidden="true">
-                <svg viewBox="0 0 32 32">
-                  <circle className="bank-coin-face" cx="16" cy="16" r="14" />
-                  <circle className="bank-coin-rim" cx="16" cy="16" r="10.5" />
-                  <text className="bank-coin-letter" x="16" y="16">К</text>
-                </svg>
-              </span>
-              <span className="bank-side-text">
-                <small>Актив</small>
-                <strong className="balance-number" key={`balance-${balancePulse}`}>
-                  {coins.walletCoins.toLocaleString("ru-RU")}
-                </strong>
-              </span>
+            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+            <div>
+              <small>АКТИВНЫЕ МОНЕТЫ</small>
+              <strong className="balance-number" key={`balance-${balancePulse}`}>
+                {coins.walletCoins.toLocaleString("ru-RU")}
+              </strong>
             </div>
-
+          </div>
+          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
+          <div className="vault-row">
             <button
-              className="bank-swipe-center"
+              className="quick-save-button"
               type="button"
               disabled={!canSave}
-              aria-label={
-                canSave
-                  ? `Перевести ${saveAmount.toLocaleString("ru-RU")} монет в сейф`
-                  : "Перевод в сейф недоступен"
-              }
-              onClick={() => { if (canSave) saveAllToVault(); }}
+              aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
+              onClick={saveAllToVault}
             >
-              <span className={`bank-swipe-arrow ${canSave ? "can-animate" : "is-locked"}`} aria-hidden="true">
-                <svg viewBox="0 0 34 12">
-                  <path d="M1 6h30M26 1.5 31.5 6 26 10.5" />
-                </svg>
-              </span>
-              <small className="bank-swipe-label" aria-hidden="true">
-                {isBankDragging && bankDragProgress > 0.12
-                  ? `${Math.round(bankDragProgress * 100)}%`
-                  : "В сейф"}
-              </small>
+              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span>ПЕРЕНЕСТИ В СЕЙФ</span>
+              <small>50% БАЛАНСА</small>
             </button>
-
             <div
               ref={savedBalanceRef}
-              className={`bank-side bank-vault ${saveFlight ? "receiving-coins" : ""}`}
-              data-side="vault"
+              className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
+              aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
-              <span className="bank-side-text">
-                <small>В сейфе</small>
-                <strong>{vaultCoins.toLocaleString("ru-RU")}</strong>
-              </span>
-              <span className="bank-coin bank-coin-silver" aria-hidden="true">
-                <svg viewBox="0 0 32 32">
-                  <circle className="bank-coin-face" cx="16" cy="16" r="14" />
-                  <circle className="bank-coin-rim" cx="16" cy="16" r="10.5" />
-                  <g className="bank-coin-safe">
-                    <rect x="9.4" y="10.2" width="13.2" height="11.6" rx="2.3" />
-                    <circle cx="15" cy="16" r="3" />
-                    <path d="M15 13v6M12 16h6" />
-                    <path d="M20 14.4v3.2" />
-                  </g>
-                </svg>
-              </span>
+              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
             </div>
           </div>
         </div>
       </section>
 
       <footer
-        inert={navInert ? true : undefined}
-        className={`bottom-bar ${miniGame !== null ? "is-locked" : ""} ${settingsOpen ? "is-hidden" : ""}`}
-        style={{ "--nav-index": navDragIndex ?? navIndex } as CSSProperties}
-        role="tablist"
-        aria-label="Разделы игры"
+        className="bottom-bar"
+        style={{ "--nav-index": navIndex } as CSSProperties}
         onPointerDown={handleNavigationDown}
         onPointerMove={handleNavigationMove}
-        onPointerUp={handleNavigationUp}
-        onPointerCancel={handleNavigationUp}
-        onKeyDown={handleNavigationKeyDown}
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
       >
         <span className="nav-thumb" aria-hidden="true" />
-        <button
-          className={navIndex === 0 ? "active" : ""}
-          type="button"
-          role="tab"
-          aria-selected={navIndex === 0}
-          disabled={miniGame !== null}
-          onClick={() => clickNavigation(0)}
-        >
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4.5 8.5h15l-1.1 10a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8z" />
-            <path d="M9 8.5V7a3 3 0 0 1 6 0v1.5" />
-          </svg>
+        <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
+          <span className="shop-icon" aria-hidden="true"><i /></span>
           <span>Магазин</span>
         </button>
-        <button
-          className={`home-nav ${navIndex === 1 ? "active" : ""}`}
-          type="button"
-          role="tab"
-          aria-selected={navIndex === 1}
-          disabled={miniGame !== null}
-          onClick={() => clickNavigation(1)}
-        >
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 10.6 12 4l8 6.6V19a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 19z" />
-            <path d="M9.6 20.6v-6h4.8v6" />
-          </svg>
+        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
+          <span className="home-icon" aria-hidden="true"><i /></span>
           <span>Играть</span>
         </button>
-        <button
-          className={navIndex === 2 ? "active" : ""}
-          type="button"
-          role="tab"
-          aria-selected={navIndex === 2}
-          disabled={miniGame !== null}
-          onClick={() => clickNavigation(2)}
-        >
-          <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 9.2h16v9.2a1.6 1.6 0 0 1-1.6 1.6H5.6A1.6 1.6 0 0 1 4 18.4z" />
-            <path d="M3.4 5.4h17.2v3.8H3.4z" />
-            <path d="M12 9.2v10.8" />
-          </svg>
+        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
+          <span className="case-nav-icon" aria-hidden="true"><i /></span>
           <span>Кейсы</span>
         </button>
       </footer>
-      <div className="bottom-nav-spacer" aria-hidden="true" />
       </div>
 
       {miniGame && (
@@ -3783,7 +3371,7 @@ function KnopikGame({
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet cases-sheet" role="dialog" aria-modal="true" aria-labelledby="cases-title" ref={casesSheetRef} tabIndex={-1}>
+          <section className="sheet cases-sheet" role="dialog" aria-modal="true" aria-labelledby="cases-title">
             <div className="cases-heading">
               <div><p className="sheet-kicker">НАГРАДЫ</p><h2 id="cases-title">Кейсы</h2></div>
               <span><strong>{commonCases + bigCases}</strong><small>доступно</small></span>
@@ -3811,7 +3399,7 @@ function KnopikGame({
               <div>
                 <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ЦЕПОЧКА ЗАВЕРШЕНА"}</small>
                 <strong>{currentQuest?.title ?? "Все задания выполнены"}</strong>
-                {currentQuest && <progress max={currentQuest.target} value={Math.min(questProgress, currentQuest.target)} aria-label={`Прогресс задания: ${Math.min(questProgress, currentQuest.target)} из ${currentQuest.target}`} />}
+                {currentQuest && <progress max={currentQuest.target} value={Math.min(questProgress, currentQuest.target)} />}
               </div>
               {currentQuest && (
                 questComplete
@@ -3825,14 +3413,7 @@ function KnopikGame({
       )}
 
       {caseSequence && (
-        <div
-          className={`case-opening case-${caseSequence.kind} phase-${caseSequence.phase}`}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Открытие кейса"
-          ref={caseOpeningRef}
-          tabIndex={-1}
-        >
+        <div className={`case-opening case-${caseSequence.kind} phase-${caseSequence.phase}`}>
           {caseSequence.phase === "reward" ? (
             <button className="case-reward-screen" type="button" onClick={advanceCaseReward}>
               <small>НАГРАДА {caseSequence.rewardIndex + 1} ИЗ {caseSequence.rewards.length}</small>
@@ -3863,21 +3444,12 @@ function KnopikGame({
                 <span className="case-crate-body"><i>{caseSequence.kind === "common" ? "3" : "5"}</i></span>
                 <span className="case-charge-ring" />
               </button>
-              <span className="case-charge-progress" aria-hidden="true"><i /></span>
               <small>{caseSequence.kind === "common" ? "Обычный кейс · 3 награды" : "Большой кейс · 5 наград"}</small>
             </div>
           )}
           <span className="case-burst-flash" aria-hidden="true" />
           <span className="case-burst-rays" aria-hidden="true" />
-          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 48 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 7.5}deg`, "--case-distance": `${220 + (index % 6) * 38}px`, "--case-delay": `${(index % 7) * 14}ms` } as CSSProperties} />)}</span>
-          <span className="case-burst-confetti" aria-hidden="true">{Array.from({ length: 28 }, (_, index) => <i key={index} style={{
-            "--case-angle": `${(index * (360 / 28))}deg`,
-            "--case-distance": `${260 + (index % 5) * 50}px`,
-            "--case-delay": `${(index % 6) * 22}ms`,
-            background: ["#ff5277", "#ffd84d", "#5ad6ff", "#5cff8a", "#ff7d3a", "#a26bff", "#ff4f8a"][index % 7],
-          } as CSSProperties} />)}</span>
-          <span className="case-shockwave" aria-hidden="true" />
-          <span className="case-light-leak" aria-hidden="true" />
+          <span className="case-burst-particles" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} style={{ "--case-angle": `${index * 10}deg`, "--case-distance": `${190 + (index % 5) * 34}px`, "--case-delay": `${(index % 6) * 18}ms` } as CSSProperties} />)}</span>
         </div>
       )}
 
@@ -3888,8 +3460,6 @@ function KnopikGame({
             role="dialog"
             aria-modal="true"
             aria-labelledby="tutorial-title"
-            ref={tutorialSheetRef}
-            tabIndex={-1}
           >
             <div className="tutorial-visual" aria-hidden="true">
               <span>{tutorialSlides[tutorialStep].symbol}</span>
@@ -3898,7 +3468,7 @@ function KnopikGame({
             <p className="sheet-kicker">{tutorialSlides[tutorialStep].eyebrow}</p>
             <h2 id="tutorial-title">{tutorialSlides[tutorialStep].title}</h2>
             <p>{tutorialSlides[tutorialStep].copy}</p>
-            <div className="tutorial-dots" role="group" aria-label={`Шаг ${tutorialStep + 1} из ${tutorialSlides.length}`}>
+            <div className="tutorial-dots" aria-label={`Шаг ${tutorialStep + 1} из ${tutorialSlides.length}`}>
               {tutorialSlides.map((_, index) => (
                 <span className={index === tutorialStep ? "active" : ""} key={index} />
               ))}
@@ -3925,7 +3495,7 @@ function KnopikGame({
             if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title" ref={shopSheetRef} tabIndex={-1}>
+          <section className="sheet shop-sheet" role="dialog" aria-modal="true" aria-labelledby="shop-title">
             <div className="shop-hero-row">
               <div className="sheet-heading"><h2 id="shop-title">Магазин</h2></div>
               <div className="shop-wallet">
@@ -4027,8 +3597,8 @@ function KnopikGame({
               <span className="drink-pack cola-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
                 <small>ЗАПАС {colaCount}/{INVENTORY_LIMIT}</small>
-                <h3>Какао-Кола</h3>
-                <p>Открывает мини-игру «Три барабана».</p>
+                <h3>Напиток «Какао-Кола»</h3>
+                <p>Открывает слот-машину с тремя барабанами.</p>
               </div>
               <button className={`shop-buy-button cola-action ${bulkBuyHolding === "cola" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyCola} onPointerDown={() => beginBulkBuy("cola")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyCola)}>
                 <span>{remainingColaSlots === 0
@@ -4050,13 +3620,12 @@ function KnopikGame({
                   : `Купить · ${BERGAMOT_TEA_PRICE}`}</span>
               </button>
             </article>
-
             <article className="shop-card shop-product-card vita-card">
               <span className="drink-pack vita-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {vitaPowerCount}/{INVENTORY_LIMIT}</small>
-                <h3>Пепси</h3>
-                <p>Активирует щит и спасает монеты при укусе.</p>
+                <small>ЗАПАС {vitaPowerCount}/{INVENTORY_LIMIT} {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
+                <h3>Напиток «Пепси»</h3>
+                <p>Защищает активный баланс от одной неудачи.</p>
               </div>
               <button className={`shop-buy-button vita-action ${bulkBuyHolding === "vita" ? "is-bulk-holding" : ""}`} type="button" disabled={!canBuyVitaPower} onPointerDown={() => beginBulkBuy("vita")} onPointerUp={cancelBulkBuy} onPointerCancel={cancelBulkBuy} onPointerLeave={cancelBulkBuy} onClick={() => handleBuffBuyClick(buyVitaPower)}>
                 <span>{remainingVitaPowerSlots === 0
@@ -4073,7 +3642,7 @@ function KnopikGame({
               </span>
               <div className="food-copy">
                 <small>{hatOwned ? `LVL ${hatLevel}/5 · УЛУЧШЕНИЙ ${hatUpgradeTokens}` : "АКСЕССУАР"}</small>
-                <h3>Тюбетейка</h3>
+                <h3>Тюбетейка Хасбика</h3>
                 <p>Улучшает награду и удержание ультра-тапа.</p>
               </div>
               <div className="clothing-actions">
@@ -4115,463 +3684,211 @@ function KnopikGame({
 
       {settingsOpen && (
         <div
-          className="modal-backdrop settings-backdrop"
+          className="modal-backdrop"
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) closeSettingsSheet();
+            if (event.target === event.currentTarget) selectNavigation(1);
           }}
         >
-          <section
-            className="sheet settings-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-title"
-            ref={settingsSheetRef}
-            tabIndex={-1}
-          >
-            {/* Шапка едет вместе с контентом: обычный блок в потоке, без sticky. */}
-            <div className="settings-topbar">
-              <h2 id="settings-title">Настройки</h2>
-              <button
-                className="settings-close"
-                type="button"
-                aria-label="Закрыть настройки"
-                onClick={closeSettingsSheet}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M7 7l10 10M17 7L7 17" />
-                </svg>
-              </button>
+          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div className="sheet-heading">
+              <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
             </div>
 
-            <div className="settings-groups">
-              {/* Аккаунт */}
-              <section className="settings-group" aria-labelledby="settings-account-title">
-                <h3 className="settings-group-title" id="settings-account-title">Аккаунт</h3>
-                <div className="settings-card">
-                  <div className="settings-identity">
-                    <span className="settings-avatar" aria-hidden="true">
-                      {(account.isLocal ? "гость" : account.username).slice(0, 1).toUpperCase()}
-                    </span>
-                    <div className="settings-identity-text">
-                      <strong>{account.isLocal ? "Гость" : account.username}</strong>
-                      <span className={`settings-status status-${account.isLocal ? "local" : syncState}`}>
-                        {account.isLocal
-                          ? "Прогресс хранится на этом устройстве"
-                          : syncState === "saved"
-                            ? "Прогресс сохранён в облаке"
-                            : syncState === "saving"
-                              ? "Сохраняем прогресс…"
-                              : "Не удалось сохранить прогресс"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {account.isLocal ? (
-                    !cloudLoginVisible ? (
-                      <>
-                        <p className="settings-note">
-                          Войдите в аккаунт, чтобы играть на нескольких устройствах.
-                          Облачное сохранение заменит локальное.
-                        </p>
-                        <button
-                          type="button"
-                          className="settings-button primary"
-                          onClick={() => {
-                            onShowCloudLoginForm();
-                            setCloudLoginError("");
-                            setCloudLoginUsername("");
-                            setCloudLoginPassword("");
-                          }}
-                        >
-                          Войти в аккаунт
-                        </button>
-                      </>
-                    ) : (
-                      <form
-                        className="settings-form"
-                        onSubmit={async (event) => {
-                          event.preventDefault();
-                          setCloudLoginPending(true);
-                          setCloudLoginError("");
-                          const result = await onStartCloudLogin(cloudLoginUsername, cloudLoginPassword);
-                          setCloudLoginPending(false);
-                          if (!result.success) {
-                            setCloudLoginError(result.error || "Не удалось войти. Проверьте логин и пароль.");
-                          }
-                        }}
-                      >
-                        <label className="settings-field">
-                          <span>Логин</span>
-                          <input
-                            type="text"
-                            value={cloudLoginUsername}
-                            onChange={(event) => setCloudLoginUsername(event.currentTarget.value)}
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                            autoComplete="username"
-                            placeholder="knopik"
-                            aria-invalid={cloudLoginError ? true : undefined}
-                            aria-describedby={cloudLoginError ? "cloud-login-error" : undefined}
-                            required
-                          />
-                        </label>
-                        <label className="settings-field">
-                          <span>Пароль</span>
-                          <input
-                            type="password"
-                            value={cloudLoginPassword}
-                            onChange={(event) => setCloudLoginPassword(event.currentTarget.value)}
-                            autoComplete="current-password"
-                            placeholder="Не менее 6 символов"
-                            aria-invalid={cloudLoginError ? true : undefined}
-                            aria-describedby={cloudLoginError ? "cloud-login-error" : undefined}
-                            required
-                          />
-                        </label>
-                        {cloudLoginError && (
-                          <p className="settings-error" id="cloud-login-error" role="alert">{cloudLoginError}</p>
-                        )}
-                        <div className="settings-button-row">
-                          <button
-                            type="button"
-                            className="settings-button"
-                            onClick={() => {
-                              onHideCloudLoginForm();
-                              setCloudLoginError("");
-                            }}
-                          >
-                            Отмена
-                          </button>
-                          <button type="submit" className="settings-button primary" disabled={cloudLoginPending}>
-                            {cloudLoginPending ? "Входим…" : "Войти"}
-                          </button>
-                        </div>
-                      </form>
-                    )
-                  ) : (
-                    <>
-                      <form
-                        className="settings-form"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void submitPasswordChange();
-                        }}
-                      >
-                        <label className="settings-field">
-                          <span>Новый пароль</span>
-                          <input
-                            id="new-password"
-                            name="new-password"
-                            type="password"
-                            value={newPassword}
-                            onChange={(event) => {
-                              setNewPassword(event.currentTarget.value);
-                              setAccountMessage("");
-                            }}
-                            placeholder="Не менее 6 символов"
-                            autoComplete="new-password"
-                            minLength={6}
-                          />
-                        </label>
-                        <button
-                          type="submit"
-                          className="settings-button"
-                          disabled={accountPending || newPassword.length < 6}
-                        >
-                          {accountPending ? "Меняем…" : "Сменить пароль"}
-                        </button>
-                      </form>
-                      {accountMessage && <p className="settings-note" role="status">{accountMessage}</p>}
-                      <button
-                        className="settings-button danger"
-                        type="button"
-                        disabled={accountPending}
-                        onClick={() => {
-                          if (confirm("Выйти из аккаунта? Локальный прогресс останется.")) {
-                            void signOutAccount();
-                          }
-                        }}
-                      >
-                        Выйти из аккаунта
-                      </button>
-                    </>
-                  )}
+            <p className="settings-section-title">Аккаунт</p>
+            <div className="account-settings">
+              <div className="account-summary">
+                <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+                <div>
+                  <strong>{account.username}</strong>
+                  <span>{syncState === "saved" ? "Прогресс сохранён" : syncState === "saving" ? "Сохранение…" : "Сохранится при следующей попытке"}</span>
                 </div>
-              </section>
-
-              {/* Звук и вибрация */}
-              <section className="settings-group" aria-labelledby="settings-feedback-title">
-                <h3 className="settings-group-title" id="settings-feedback-title">Отклик</h3>
-                <div className="settings-card settings-card-rows">
-                  <div className="settings-row">
-                    <span className="settings-row-label" id="setting-sound-label">Звуковые эффекты</span>
-                    <button
-                      className="switch"
-                      type="button"
-                      role="switch"
-                      aria-checked={settings.sound}
-                      aria-labelledby="setting-sound-label"
-                      onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}
-                    >
-                      <span />
-                    </button>
-                  </div>
-                  <div className="settings-row">
-                    <span className="settings-row-label" id="setting-vibration-label">Вибрация при тапах</span>
-                    <button
-                      className="switch"
-                      type="button"
-                      role="switch"
-                      aria-checked={settings.vibration}
-                      aria-labelledby="setting-vibration-label"
-                      onClick={() => setSettings((current) => ({ ...current, vibration: !current.vibration }))}
-                    >
-                      <span />
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              {/* Промокод */}
-              <section className="settings-group" aria-labelledby="settings-promo-title">
-                <h3 className="settings-group-title" id="settings-promo-title">Промокод</h3>
-                <div className="settings-card">
-                  {account.isLocal && (
-                    <div className="settings-segmented" role="group" aria-label="Действие с промокодом">
-                      <button
-                        type="button"
-                        className={promoLocalAction === "redeem" ? "is-active" : ""}
-                        aria-pressed={promoLocalAction === "redeem"}
-                        onClick={() => {
-                          setPromoLocalAction("redeem");
-                          setPromoMessage("");
-                        }}
-                      >
-                        Активировать
-                      </button>
-                      <button
-                        type="button"
-                        className={promoLocalAction === "create" ? "is-active" : ""}
-                        aria-pressed={promoLocalAction === "create"}
-                        onClick={() => {
-                          setPromoLocalAction("create");
-                          setPromoMessage("");
-                        }}
-                      >
-                        Создать
-                      </button>
-                    </div>
-                  )}
-                  <form
-                    className="settings-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void submitPromoCode();
+              </div>
+              <form
+                className="password-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitPasswordChange();
+                }}
+              >
+                <label>
+                  <span>Новый пароль</span>
+                  <input
+                    id="new-password"
+                    name="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.currentTarget.value);
+                      setAccountMessage("");
                     }}
-                  >
-                    <label className="settings-field">
-                      <span>Код</span>
-                      <input
-                        name="promo-code"
-                        type="text"
-                        value={promoCode}
-                        placeholder="KNOPIK100"
-                        autoCapitalize="characters"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        maxLength={32}
-                        required
-                        onChange={(event) => {
-                          setPromoCode(event.currentTarget.value.toUpperCase());
-                          setPromoMessage("");
-                        }}
-                      />
-                    </label>
-                    {promoCreateMode && (
-                      <label className="settings-field">
-                        <span>Сумма</span>
-                        <input
-                          className="promo-amount"
-                          name="promo-amount"
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          max="1000000000"
-                          value={promoAmount}
-                          placeholder="100"
-                          required
-                          onChange={(event) => {
-                            setPromoAmount(event.currentTarget.value);
-                            setPromoMessage("");
-                          }}
-                        />
-                      </label>
-                    )}
-                    <button type="submit" className="settings-button primary" disabled={promoPending}>
-                      {promoPending ? "Проверяем…" : promoCreateMode ? "Создать код" : "Активировать код"}
-                    </button>
-                  </form>
-                  {promoMessage && <p className="settings-note" role="status">{promoMessage}</p>}
-                  {account.isAdmin && (
-                    <div className="settings-promo-list" role="group" aria-label="Созданные промокоды">
-                      <div className="settings-promo-head">
-                        <span>Все коды</span>
-                        <strong>{promoCodes.length}</strong>
-                      </div>
-                      {promoCodes.length === 0 ? (
-                        <p className="settings-note">Пока нет ни одного кода. Создайте первый выше.</p>
-                      ) : promoCodes.map((promo) => (
-                        <div className={`settings-promo-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
-                          <span>
-                            <strong>{promo.code}</strong>
-                            <small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small>
-                          </span>
-                          <span>
-                            <strong>+{promo.amount.toLocaleString("ru-RU")}</strong>
-                            <small>{promo.redeemed ? "Использован" : "Активен"}</small>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    placeholder="Минимум 6 символов"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                  />
+                </label>
+                <button type="submit" disabled={accountPending}>Сменить пароль</button>
+              </form>
+              {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
+              <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>Выйти из аккаунта</button>
+            </div>
+            <p className="settings-section-title">Игра</p>
+            <div className="setting-row">
+              <div><strong>Звук</strong><span>Тактильные, живые игровые эффекты</span></div>
+              <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
+            </div>
+            {account.isAdmin && (
+              <section className="difficulty-panel">
+                <div className="difficulty-heading">
+                  <div>
+                    <strong>Скрытая сложность</strong>
+                    <span>Общая для всех игроков · текущая игра = {DEFAULT_DIFFICULTY}</span>
+                  </div>
+                  <output htmlFor="difficulty-range">{difficultyDraft}</output>
                 </div>
+                <input
+                  id="difficulty-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={difficultyDraft}
+                  aria-label="Скрытая сложность игры"
+                  onChange={(event) => {
+                    setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
+                    setDifficultyMessage("");
+                  }}
+                />
+                <div className="difficulty-scale" aria-hidden="true">
+                  <span><b>0</b> очень легко</span>
+                  <span><b>50</b> стандарт</span>
+                  <span><b>100</b> сложно</span>
+                </div>
+                <button
+                  className="difficulty-save"
+                  type="button"
+                  disabled={difficultyPending || difficultyDraft === difficulty}
+                  onClick={() => void submitDifficulty()}
+                >
+                  {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
+                </button>
+                {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
               </section>
-
-              {/* Администрирование */}
-              {account.isAdmin && !account.isLocal && (
-                <section className="settings-group" aria-labelledby="settings-admin-title">
-                  <h3 className="settings-group-title" id="settings-admin-title">Администрирование</h3>
-                  <div className="settings-card">
-                    <div className="settings-slider-head">
-                      <label htmlFor="difficulty-range">Сложность игры</label>
-                      <output htmlFor="difficulty-range">{difficultyDraft}</output>
-                    </div>
+            )}
+            <p className="settings-section-title">Бонусы</p>
+            <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
+              <div className="promo-heading">
+                <span className="promo-symbol" aria-hidden="true">%</span>
+                <div>
+                  <strong>{account.isAdmin ? "Промокоды" : "Есть промокод?"}</strong>
+                  <span>{account.isAdmin ? "Создай одноразовое начисление монет" : "Активировать его можно только один раз"}</span>
+                </div>
+              </div>
+              <form
+                className="promo-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitPromoCode();
+                }}
+              >
+                <label>
+                  <span>Промокод</span>
+                  <input
+                    name="promo-code"
+                    type="text"
+                    value={promoCode}
+                    placeholder="Например, KNOPIK100"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={32}
+                    required
+                    onChange={(event) => {
+                      setPromoCode(event.currentTarget.value.toUpperCase());
+                      setPromoMessage("");
+                    }}
+                  />
+                </label>
+                {account.isAdmin && (
+                  <label>
+                    <span>Сумма монет</span>
                     <input
-                      id="difficulty-range"
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="1"
-                      value={difficultyDraft}
+                      className="promo-amount"
+                      name="promo-amount"
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max="1000000000"
+                      value={promoAmount}
+                      placeholder="100"
+                      required
                       onChange={(event) => {
-                        setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
-                        setDifficultyMessage("");
+                        setPromoAmount(event.currentTarget.value);
+                        setPromoMessage("");
                       }}
                     />
-                    <div className="settings-slider-scale" aria-hidden="true">
-                      <span>Легко</span>
-                      <span>Норма</span>
-                      <span>Сложно</span>
+                  </label>
+                )}
+                <button type="submit" disabled={promoPending}>
+                  {promoPending ? "Подождите…" : account.isAdmin ? "Создать" : "Активировать"}
+                </button>
+              </form>
+              {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
+              {account.isAdmin && (
+                <div className="promo-list" aria-label="Созданные промокоды">
+                  <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
+                  {promoCodes.length === 0 ? (
+                    <p className="promo-empty">Пока нет созданных промокодов.</p>
+                  ) : promoCodes.map((promo) => (
+                    <div className={`promo-code-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
+                      <span><strong>{promo.code}</strong><small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small></span>
+                      <span><strong>+{promo.amount.toLocaleString("ru-RU")}</strong><small>{promo.redeemed ? "ИСПОЛЬЗОВАН" : "ДОСТУПЕН"}</small></span>
                     </div>
-                    <button
-                      className="settings-button"
-                      type="button"
-                      disabled={difficultyPending || difficultyDraft === difficulty}
-                      onClick={() => void submitDifficulty()}
-                    >
-                      {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
-                    </button>
-                    {difficultyMessage && <p className="settings-note" role="status">{difficultyMessage}</p>}
-                  </div>
-                </section>
+                  ))}
+                </div>
               )}
-
-              {/* Игра */}
-              <section className="settings-group" aria-labelledby="settings-game-title">
-                <h3 className="settings-group-title" id="settings-game-title">Игра</h3>
-                <div className="settings-card settings-card-actions">
-                  <button
-                    className="settings-button"
-                    type="button"
-                    onClick={() => {
-                      setSettingsOpen(false);
-                      setTutorialStep(0);
-                      setTutorialOpen(true);
-                    }}
-                  >
-                    Повторить обучение
-                  </button>
-                  {!resetConfirmOpen ? (
-                    <button
-                      className="settings-button danger"
-                      type="button"
-                      onClick={() => setResetConfirmOpen(true)}
-                    >
-                      Сбросить прогресс
-                    </button>
-                  ) : (
-                    <div className="settings-confirm" role="alert">
-                      <p>Весь прогресс будет удалён без возможности восстановления.</p>
-                      <div className="settings-button-row">
-                        <button type="button" className="settings-button" onClick={() => setResetConfirmOpen(false)}>
-                          Отмена
-                        </button>
-                        <button type="button" className="settings-button danger-solid" onClick={resetProgress}>
-                          Сбросить прогресс
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Статистика */}
-              <section className="settings-group" aria-labelledby="settings-stats-title">
-                <h3 className="settings-group-title" id="settings-stats-title">Статистика</h3>
-                <div className="settings-card settings-stats">
-                  <div>
-                    <small>Лучшая серия</small>
-                    <strong>{stats.bestStreak.toLocaleString("ru-RU")}</strong>
-                  </div>
-                  <div>
-                    <small>Тапов</small>
-                    <strong>{stats.totalTaps.toLocaleString("ru-RU")}</strong>
-                  </div>
-                  <div>
-                    <small>Укусов</small>
-                    <strong>{stats.totalBites.toLocaleString("ru-RU")}</strong>
-                  </div>
-                </div>
-              </section>
-
-              {/* Секретное */}
-              <section className="settings-group" aria-labelledby="settings-cheat-title">
-                <h3 className="settings-group-title" id="settings-cheat-title">Чит-код</h3>
-                <div className="settings-card">
-                  <form
-                    className="settings-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      submitCheatCode();
-                    }}
-                  >
-                    <label className="settings-field">
-                      <span>Код</span>
-                      <input
-                        type="text"
-                        value={cheatCode}
-                        placeholder="Введите код"
-                        autoCapitalize="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        aria-describedby="cheat-status"
-                        onChange={(event) => {
-                          setCheatCode(event.currentTarget.value);
-                          setCheatMessage("");
-                        }}
-                      />
-                    </label>
-                    <button type="submit" className="settings-button">Применить код</button>
-                  </form>
-                  <p className="settings-note" id="cheat-status" role="status">
-                    {cheatMessage
-                      || (settings.suliman || settings.yellow
-                        ? `Активных кодов: ${Number(settings.suliman) + Number(settings.yellow)}`
-                        : "Активных кодов нет")}
-                  </p>
-                </div>
-              </section>
-            </div>
+            </section>
+            <p className="settings-section-title">Дополнительно</p>
+            <form
+              className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitCheatCode();
+              }}
+            >
+              <div>
+                <strong>Чит-код</strong>
+                <span>{settings.suliman || settings.yellow ? `Секретных режимов активно: ${Number(settings.suliman) + Number(settings.yellow)}` : "Введи секретное слово"}</span>
+              </div>
+              <label>
+                <input
+                  type="text"
+                  value={cheatCode}
+                  placeholder="Код"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Чит-код"
+                  onChange={(event) => {
+                    setCheatCode(event.currentTarget.value);
+                    setCheatMessage("");
+                  }}
+                />
+                <button type="submit">Применить</button>
+              </label>
+              {cheatMessage && <small role="status">{cheatMessage}</small>}
+            </form>
+            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>Повторить обучение <span>↗</span></button>
+            {!resetConfirmOpen ? (
+              <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>Сбросить прогресс</button>
+            ) : (
+              <div className="reset-confirm" role="alert">
+                <p>Удалить баланс, сейф, усталость, рекорды и настройки?</p>
+                <div><button type="button" onClick={() => setResetConfirmOpen(false)}>Отмена</button><button className="confirm-reset" type="button" onClick={resetProgress}>Сбросить прогресс</button></div>
+              </div>
+            )}
+            <p className="settings-section-title">Статистика</p>
+            <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
           </section>
         </div>
       )}
@@ -4623,70 +3940,6 @@ export default function Home() {
 
   useEffect(() => {
     bootStartRef.current = Date.now();
-  }, []);
-
-  // iOS PWA (добавлен на домашний экран): в некоторых версиях Safari
-  // 100dvh/visualViewport.height не учитывают home-indicator, из-за чего
-  // .game-shell не дотягивается до низа экрана и нижнее меню «уезжает вверх».
-  // Пишем точную высоту visualViewport + нижний safe-area inset в CSS-переменную
-  // --app-vh и жёстко сбрасываем любой скролл страницы (автофокус,
-  // scrollIntoView, rubber-band) — иначе меню сдвигается.
-  useEffect(() => {
-    const root = document.documentElement;
-    let raf = 0;
-
-    const applyViewportHeight = () => {
-      raf = window.requestAnimationFrame(() => {
-        const vv = window.visualViewport;
-        // env(safe-area-inset-bottom) резолвится браузером в --safe-area-inset-bottom
-        // (см. interface-v2.css :root); в обычном браузере это 0px, на iOS PWA
-        // с home indicator — 34px. Добавляем его к высоте, чтобы шелл закрывал
-        // весь физический экран даже там, где visualViewport уже не учитывает
-        // safe zone. parseFloat + || 0 дают безопасный fallback.
-        const rootStyle = getComputedStyle(root);
-        const bottomInset =
-          parseFloat(rootStyle.getPropertyValue("--safe-area-inset-bottom")) || 0;
-        const heightWithInset = Math.round(
-          (vv?.height ?? window.innerHeight) + bottomInset,
-        );
-        // Не позволяем шеллу стать выше физического экрана: если браузер уже
-        // вернул полную высоту (включая safe area), добавление inset дало бы
-        // лишние пиксели и нижняя плашка уезжала бы под меню.
-        const isPortrait =
-          window.matchMedia?.("(orientation: portrait)").matches !== false;
-        const rawScreenMax = isPortrait
-          ? window.screen.height
-          : window.screen.width;
-        const screenMax = rawScreenMax > 0 ? rawScreenMax : Infinity;
-        const height = Math.min(heightWithInset, screenMax);
-        root.style.setProperty("--app-vh", `${height}px`);
-      });
-    };
-
-    const resetScroll = () => {
-      if (window.scrollX !== 0 || window.scrollY !== 0) {
-        window.scrollTo(0, 0);
-        root.scrollTop = 0;
-        document.body.scrollTop = 0;
-      }
-    };
-
-    applyViewportHeight();
-    resetScroll();
-    window.addEventListener("resize", applyViewportHeight, { passive: true });
-    window.addEventListener("orientationchange", applyViewportHeight, { passive: true });
-    window.visualViewport?.addEventListener("resize", applyViewportHeight, { passive: true });
-    window.addEventListener("scroll", resetScroll, { passive: true });
-    document.addEventListener("scroll", resetScroll, { passive: true, capture: true });
-
-    return () => {
-      window.cancelAnimationFrame(raf);
-      window.removeEventListener("resize", applyViewportHeight);
-      window.removeEventListener("orientationchange", applyViewportHeight);
-      window.visualViewport?.removeEventListener("resize", applyViewportHeight);
-      window.removeEventListener("scroll", resetScroll);
-      document.removeEventListener("scroll", resetScroll, { capture: true });
-    };
   }, []);
 
   const handleBootReady = useCallback(() => setBootReady(true), []);
@@ -4783,7 +4036,7 @@ export default function Home() {
       )}
       <div className={`boot-content${contentRevealed ? " is-revealed" : ""}`}>
         <CloudAccountGate onBootReady={handleBootReady}>
-          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut, cloudLoginVisible, showCloudLoginForm, hideCloudLoginForm, startCloudLogin }) => (
+          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
             <KnopikGame
               key={gameKey}
               account={account}
@@ -4798,10 +4051,6 @@ export default function Home() {
               onRedeemPromoCode={redeemPromoCode}
               onChangePassword={changePassword}
               onSignOut={signOut}
-              cloudLoginVisible={cloudLoginVisible}
-              onShowCloudLoginForm={showCloudLoginForm}
-              onHideCloudLoginForm={hideCloudLoginForm}
-              onStartCloudLogin={startCloudLogin}
             />
           )}
         </CloudAccountGate>

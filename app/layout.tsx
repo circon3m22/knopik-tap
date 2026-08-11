@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { BOOT_IMAGE_ASSETS, bootImageMimeType } from "./boot-assets";
 import "./globals.css";
 import "./interface-v2.css";
-import "./interface-v3.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
@@ -13,7 +12,6 @@ const publicAsset = (path: string) => `${basePath}${path}`;
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
   themeColor: "#f7f9fc",
 };
 
@@ -27,11 +25,7 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
   appleWebApp: {
     capable: true,
-    // НЕ используем "black-translucent": связка standalone + viewport-fit=cover
-    // + black-translucent + height:100% даёт на iOS «chin gap» (~34–59px белой
-    // полосы снизу) — нижнее меню визуально «уезжает вверх». Со стандартным
-    // стилем статус-бара iOS сам резервирует статус-бар сверху, а цвет статус-бара
-    // берётся из theme-color (обновляется под цвет сцены из page.tsx).
+    statusBarStyle: "black-translucent",
     title: "Knopik",
   },
   icons: {
