@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- Sprite sheets and preloaded static game art require raw image elements. */
 "use client";
 
 import {
@@ -11,7 +12,6 @@ import {
   type PointerEvent,
 } from "react";
 import {
-  SAVE_KEY,
   SAVE_VERSION,
   createDefaultSave,
   sanitizeSave,
@@ -57,6 +57,7 @@ import {
 import {
   createRiskOutcome,
   riskMultiplier,
+  riskPointerRotation,
   type RiskChance,
 } from "./risk-engine";
 import {
@@ -251,6 +252,41 @@ type KnopikGameProps = {
   onSignOut: () => Promise<void>;
 };
 
+type InitialGameSnapshot = {
+  save: SaveData;
+  now: number;
+  activeFatigueUntil: number;
+  activeBoostUntil: number;
+  activeRiskFatigueUntil: number;
+  level: LevelState;
+};
+
+function createInitialGameSnapshot(initialSave: SaveData): InitialGameSnapshot {
+  const save = sanitizeSave(initialSave);
+  const now = Date.now();
+  const activeFatigueUntil = save.settings.yellow
+    ? 0
+    : Math.max(
+        save.ultraFatigueUntil > now ? save.ultraFatigueUntil : 0,
+        save.riskFatigueUntil > now ? save.riskFatigueUntil : 0,
+      );
+
+  return {
+    save,
+    now,
+    activeFatigueUntil,
+    activeBoostUntil: save.boostUntil > now ? save.boostUntil : 0,
+    activeRiskFatigueUntil:
+      !save.settings.yellow && save.riskFatigueUntil > now
+        ? save.riskFatigueUntil
+        : 0,
+    level: sanitizeLevelState({
+      level: save.level,
+      progressCoins: save.levelCoins,
+    }),
+  };
+}
+
 function KnopikGame({
   account,
   initialSave,
@@ -265,62 +301,60 @@ function KnopikGame({
   onChangePassword,
   onSignOut,
 }: KnopikGameProps) {
-  const [dogState, setDogState] = useState<DogState>("calm");
+  // The account gate remounts the game for every loaded cloud revision. Seeding
+  // state directly prevents a frame of zeroed balances and misplaced controls
+  // before an effect copies the save into the interface.
+  const [initial] = useState(() => createInitialGameSnapshot(initialSave));
+  const saved = initial.save;
+  const [dogState, setDogState] = useState<DogState>(
+    initial.activeFatigueUntil > initial.now ? "tired" : "calm",
+  );
   const [recoveryReason, setRecoveryReason] =
     useState<RecoveryReason>("rest");
   const [coins, setCoins] = useState<CoinState>({
-    walletCoins: 0,
+    walletCoins: saved.walletCoins,
     streakCoins: 0,
   });
-  const [vaultCoins, setVaultCoins] = useState(0);
-  const [foodCount, setFoodCount] = useState(0);
+  const [vaultCoins, setVaultCoins] = useState(saved.vaultCoins);
+  const [foodCount, setFoodCount] = useState(saved.foodCount);
   const [foodQuantity, setFoodQuantity] = useState(1);
-  const [drinkCount, setDrinkCount] = useState(0);
+  const [drinkCount, setDrinkCount] = useState(saved.drinkCount);
   const [drinkQuantity, setDrinkQuantity] = useState(1);
-  const [pitbullCount, setPitbullCount] = useState(0);
+  const [pitbullCount, setPitbullCount] = useState(saved.pitbullCount);
   const [pitbullQuantity, setPitbullQuantity] = useState(1);
-  const [colaCount, setColaCount] = useState(0);
+  const [colaCount, setColaCount] = useState(saved.colaCount);
   const [colaQuantity, setColaQuantity] = useState(1);
-  const [teaCount, setTeaCount] = useState(0);
+  const [teaCount, setTeaCount] = useState(saved.teaCount);
   const [teaQuantity, setTeaQuantity] = useState(1);
-  const [vitaPowerCount, setVitaPowerCount] = useState(0);
+  const [vitaPowerCount, setVitaPowerCount] = useState(saved.vitaPowerCount);
   const [vitaPowerQuantity, setVitaPowerQuantity] = useState(1);
   const [bulkBuyHolding, setBulkBuyHolding] = useState<ShopBuffKind | null>(null);
-  const [vitaPowerShield, setVitaPowerShield] = useState(false);
+  const [vitaPowerShield, setVitaPowerShield] = useState(saved.vitaPowerShield);
   const [shieldBreakVisible, setShieldBreakVisible] = useState(false);
-  const [hatOwned, setHatOwned] = useState(false);
-  const [hatEquipped, setHatEquipped] = useState(false);
-  const [mohawkOwned, setMohawkOwned] = useState(false);
-  const [mohawkEquipped, setMohawkEquipped] = useState(false);
-  const [hatLevel, setHatLevel] = useState(1);
-  const [mohawkLevel, setMohawkLevel] = useState(1);
-  const [hatUpgradeTokens, setHatUpgradeTokens] = useState(0);
-  const [mohawkUpgradeTokens, setMohawkUpgradeTokens] = useState(0);
-  const [commonCases, setCommonCases] = useState(0);
-  const [bigCases, setBigCases] = useState(0);
-  const [questIndex, setQuestIndex] = useState(0);
-  const [earInteractionCount, setEarInteractionCount] = useState(0);
-  const [hatInteractionCount, setHatInteractionCount] = useState(0);
-  const [mohawkInteractionCount, setMohawkInteractionCount] = useState(0);
-  const [boostUntil, setBoostUntil] = useState(0);
-  const [settings, setSettings] = useState<GameSettings>({
-    sound: true,
-    vibration: true,
-    suliman: false,
-    yellow: false,
-  });
+  const [hatOwned, setHatOwned] = useState(saved.hatOwned);
+  const [hatEquipped, setHatEquipped] = useState(saved.hatEquipped);
+  const [mohawkOwned, setMohawkOwned] = useState(saved.mohawkOwned);
+  const [mohawkEquipped, setMohawkEquipped] = useState(saved.mohawkEquipped);
+  const [hatLevel, setHatLevel] = useState(saved.hatLevel);
+  const [mohawkLevel, setMohawkLevel] = useState(saved.mohawkLevel);
+  const [hatUpgradeTokens, setHatUpgradeTokens] = useState(saved.hatUpgradeTokens);
+  const [mohawkUpgradeTokens, setMohawkUpgradeTokens] = useState(saved.mohawkUpgradeTokens);
+  const [commonCases, setCommonCases] = useState(saved.commonCases);
+  const [bigCases, setBigCases] = useState(saved.bigCases);
+  const [questIndex, setQuestIndex] = useState(saved.questIndex);
+  const [earInteractionCount, setEarInteractionCount] = useState(saved.earInteractionCount);
+  const [hatInteractionCount, setHatInteractionCount] = useState(saved.hatInteractionCount);
+  const [mohawkInteractionCount, setMohawkInteractionCount] = useState(saved.mohawkInteractionCount);
+  const [boostUntil, setBoostUntil] = useState(initial.activeBoostUntil);
+  const [settings, setSettings] = useState<GameSettings>(saved.settings);
   const [stats, setStats] = useState<GameStats>({
-    bestStreak: 0,
-    totalTaps: 0,
-    totalBites: 0,
+    bestStreak: saved.bestStreak,
+    totalTaps: saved.totalTaps,
+    totalBites: saved.totalBites,
   });
-  const [levelState, setLevelState] = useState<LevelState>({
-    level: 0,
-    progressCoins: 0,
-    lifetimeCoins: 0,
-  });
-  const [tutorialSeen, setTutorialSeen] = useState(false);
-  const [tutorialOpen, setTutorialOpen] = useState(true);
+  const [levelState, setLevelState] = useState<LevelState>(initial.level);
+  const [tutorialSeen, setTutorialSeen] = useState(saved.tutorialSeen);
+  const [tutorialOpen, setTutorialOpen] = useState(!saved.tutorialSeen);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
@@ -338,12 +372,13 @@ function KnopikGame({
   const [difficultyMessage, setDifficultyMessage] = useState("");
   const [difficultyPending, setDifficultyPending] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
   const [seriesTaps, setSeriesTaps] = useState(0);
   const [averageInterval, setAverageInterval] = useState(600);
-  const [fatigueUntil, setFatigueUntil] = useState(0);
-  const [fatigueVisualDuration, setFatigueVisualDuration] = useState(1);
-  const [clock, setClock] = useState(() => Date.now());
+  const [fatigueUntil, setFatigueUntil] = useState(initial.activeFatigueUntil);
+  const [fatigueVisualDuration, setFatigueVisualDuration] = useState(() =>
+    Math.max(1, initial.activeFatigueUntil - initial.now),
+  );
+  const [clock, setClock] = useState(initial.now);
   const [holding, setHolding] = useState(false);
   const [ultraActive, setUltraActive] = useState(false);
   const [ultraCharge, setUltraCharge] = useState(0);
@@ -355,12 +390,12 @@ function KnopikGame({
   const [shopMessage, setShopMessage] = useState("");
   const [cheatCode, setCheatCode] = useState("");
   const [cheatMessage, setCheatMessage] = useState("");
-  const [hasbulaRedeemed, setHasbulaRedeemed] = useState(false);
+  const [hasbulaRedeemed, setHasbulaRedeemed] = useState(saved.hasbulaRedeemed);
   const [hatBounce, setHatBounce] = useState(0);
   const [mohawkSwing, setMohawkSwing] = useState(0);
   const [saveFlight, setSaveFlight] = useState<SaveFlight | null>(null);
   const [riskPhase, setRiskPhase] = useState<RiskPhase>("normal");
-  const [riskChance, setRiskChance] = useState<RiskChance>(50);
+  const [riskChance, setRiskChance] = useState<RiskChance>(saved.lastRiskChance as RiskChance);
   const [riskBetAmount, setRiskBetAmount] = useState(0);
   const [riskRotation, setRiskRotation] = useState(0);
   const [riskSpinNonce, setRiskSpinNonce] = useState(0);
@@ -368,21 +403,21 @@ function KnopikGame({
   const [riskPayout, setRiskPayout] = useState(0);
   const [riskMessage, setRiskMessage] = useState("");
   const [riskShake, setRiskShake] = useState(0);
-  const [riskFatigueUntil, setRiskFatigueUntil] = useState(0);
+  const [riskFatigueUntil, setRiskFatigueUntil] = useState(initial.activeRiskFatigueUntil);
   const [riskStats, setRiskStats] = useState<RiskStats>({
-    spins: 0,
-    wins: 0,
-    losses: 0,
-    lastBet: 0,
+    spins: saved.riskSpins,
+    wins: saved.riskWins,
+    losses: saved.riskLosses,
+    lastBet: saved.lastRiskBet,
   });
   const [miniGame, setMiniGame] = useState<MiniGameKind | null>(null);
   const [miniGameSession, setMiniGameSession] = useState(0);
   const [miniGameStats, setMiniGameStats] = useState<MiniGameStats>({
-    slotPlays: 0,
-    slotWins: 0,
-    minePlays: 0,
-    mineWins: 0,
-    mineLosses: 0,
+    slotPlays: saved.slotPlays,
+    slotWins: saved.slotWins,
+    minePlays: saved.minePlays,
+    mineWins: saved.mineWins,
+    mineLosses: saved.mineLosses,
   });
   const [levelBurstKey, setLevelBurstKey] = useState(0);
   const [levelBurstVisible, setLevelBurstVisible] = useState(false);
@@ -391,25 +426,26 @@ function KnopikGame({
   const [joySpriteReady, setJoySpriteReady] = useState(false);
   const [rageSpriteReady, setRageSpriteReady] = useState(false);
 
-  const dogStateRef = useRef<DogState>("calm");
+  const dogStateRef = useRef<DogState>(dogState);
   const coinsRef = useRef(coins);
   const settingsRef = useRef(settings);
   const configuredDifficultyRef = useRef(clampDifficulty(difficulty));
   const difficultyRef = useRef(
     difficultyWithBalancePenalty(difficulty, coins.walletCoins),
   );
-  const hasbulaRedeemedRef = useRef(false);
+  const hasbulaRedeemedRef = useRef(saved.hasbulaRedeemed);
   const statsRef = useRef(stats);
   const levelStateRef = useRef(levelState);
-  const boostUntilRef = useRef(0);
+  const boostUntilRef = useRef(initial.activeBoostUntil);
   const bonusCarryRef = useRef(0);
-  const fatigueUntilRef = useRef(0);
-  const fatigueVisualDeadlineRef = useRef(0);
+  const fatigueUntilRef = useRef(initial.activeFatigueUntil);
+  const fatigueVisualDeadlineRef = useRef(initial.activeFatigueUntil);
   const seriesTapsRef = useRef(0);
   const tapLimitRef = useRef(0);
   const tapIntervalsRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
-  const patienceRollRef = useRef(Math.random());
+  const [initialPatienceRoll] = useState(() => Math.random());
+  const patienceRollRef = useRef(initialPatienceRoll);
   const particleIdRef = useRef(0);
   const soundRef = useRef<KnopikSoundEngine | null>(null);
   const holdStartRef = useRef(0);
@@ -501,6 +537,15 @@ function KnopikGame({
   const transitionRisk = useCallback((phase: RiskPhase) => {
     riskPhaseRef.current = phase;
     setRiskPhase(phase);
+  }, []);
+
+  const applyFatigueDeadline = useCallback((deadline: number) => {
+    const now = Date.now();
+    const safeDeadline = Number.isFinite(deadline) && deadline > now ? deadline : 0;
+    fatigueUntilRef.current = safeDeadline;
+    fatigueVisualDeadlineRef.current = safeDeadline;
+    setFatigueVisualDuration(Math.max(1, safeDeadline - now));
+    setFatigueUntil(safeDeadline);
   }, []);
 
   const updateCoins = useCallback(
@@ -607,105 +652,13 @@ function KnopikGame({
   }, [updateCoins]);
 
   useEffect(() => {
-    try {
-      const saved = sanitizeSave(initialSave);
-      const loadedCoins = {
-        walletCoins: saved.walletCoins,
-        streakCoins: 0,
-      };
-      const loadedStats = {
-        bestStreak: saved.bestStreak,
-        totalTaps: saved.totalTaps,
-        totalBites: saved.totalBites,
-      };
-      const loadedLevel = sanitizeLevelState({
-        level: saved.level,
-        progressCoins: saved.levelCoins,
-      });
-      const activeFatigue = saved.settings.yellow
-        ? 0
-        : Math.max(
-            saved.ultraFatigueUntil > Date.now() ? saved.ultraFatigueUntil : 0,
-            saved.riskFatigueUntil > Date.now() ? saved.riskFatigueUntil : 0,
-          );
-
-      coinsRef.current = loadedCoins;
-      difficultyRef.current = difficultyWithBalancePenalty(
-        configuredDifficultyRef.current,
-        loadedCoins.walletCoins,
-      );
-      settingsRef.current = saved.settings;
-      statsRef.current = loadedStats;
-      levelStateRef.current = loadedLevel;
-      boostUntilRef.current = saved.boostUntil > Date.now() ? saved.boostUntil : 0;
-      fatigueUntilRef.current = activeFatigue;
-      dogStateRef.current = activeFatigue > Date.now() ? "tired" : "calm";
-      setCoins(loadedCoins);
-      setVaultCoins(saved.vaultCoins);
-      setFoodCount(saved.foodCount);
-      setDrinkCount(saved.drinkCount);
-      setPitbullCount(saved.pitbullCount);
-      setColaCount(saved.colaCount);
-      setTeaCount(saved.teaCount);
-      setVitaPowerCount(saved.vitaPowerCount);
-      setVitaPowerShield(saved.vitaPowerShield);
-      setHatOwned(saved.hatOwned);
-      setHatEquipped(saved.hatEquipped);
-      setMohawkOwned(saved.mohawkOwned);
-      setMohawkEquipped(saved.mohawkEquipped);
-      setHatLevel(saved.hatLevel);
-      setMohawkLevel(saved.mohawkLevel);
-      setHatUpgradeTokens(saved.hatUpgradeTokens);
-      setMohawkUpgradeTokens(saved.mohawkUpgradeTokens);
-      setCommonCases(saved.commonCases);
-      setBigCases(saved.bigCases);
-      setQuestIndex(saved.questIndex);
-      setEarInteractionCount(saved.earInteractionCount);
-      setHatInteractionCount(saved.hatInteractionCount);
-      setMohawkInteractionCount(saved.mohawkInteractionCount);
-      setHasbulaRedeemed(saved.hasbulaRedeemed);
-      hasbulaRedeemedRef.current = saved.hasbulaRedeemed;
-      setBoostUntil(saved.boostUntil > Date.now() ? saved.boostUntil : 0);
-      setRiskChance(saved.lastRiskChance as RiskChance);
-      setRiskFatigueUntil(
-        !saved.settings.yellow && saved.riskFatigueUntil > Date.now()
-          ? saved.riskFatigueUntil
-          : 0,
-      );
-      setRiskStats({
-        spins: saved.riskSpins,
-        wins: saved.riskWins,
-        losses: saved.riskLosses,
-        lastBet: saved.lastRiskBet,
-      });
-      setMiniGameStats({
-        slotPlays: saved.slotPlays,
-        slotWins: saved.slotWins,
-        minePlays: saved.minePlays,
-        mineWins: saved.mineWins,
-        mineLosses: saved.mineLosses,
-      });
-      setSettings(saved.settings);
-      setStats(loadedStats);
-      setLevelState(loadedLevel);
-      setFatigueUntil(activeFatigue);
-      setDogState(activeFatigue > Date.now() ? "tired" : "calm");
-      setTutorialSeen(saved.tutorialSeen);
-      setTutorialOpen(!saved.tutorialSeen);
-    } catch {
-      localStorage.removeItem(SAVE_KEY);
-      setTutorialOpen(true);
-    } finally {
-      setHydrated(true);
-    }
-
     if (
       "serviceWorker" in navigator &&
       process.env.NODE_ENV === "production"
     ) {
       navigator.serviceWorker.register(publicAsset("/sw.js")).catch(() => undefined);
     }
-  }, [initialSave]);
+  }, []);
 
   useEffect(() => {
     settingsRef.current = settings;
@@ -719,23 +672,11 @@ function KnopikGame({
       normalized,
       coinsRef.current.walletCoins,
     );
-    setDifficultyDraft(normalized);
   }, [difficulty]);
 
   useEffect(() => {
     if (settingsOpen && account.isAdmin) void onRefreshPromoCodes();
   }, [account.isAdmin, onRefreshPromoCodes, settingsOpen]);
-
-  useEffect(() => {
-    fatigueUntilRef.current = fatigueUntil;
-    if (fatigueUntil > Date.now() && fatigueUntil !== fatigueVisualDeadlineRef.current) {
-      fatigueVisualDeadlineRef.current = fatigueUntil;
-      setFatigueVisualDuration(Math.max(1, fatigueUntil - Date.now()));
-    } else if (!fatigueUntil) {
-      fatigueVisualDeadlineRef.current = 0;
-      setFatigueVisualDuration(1);
-    }
-  }, [fatigueUntil]);
 
   useEffect(() => {
     boostUntilRef.current = boostUntil;
@@ -752,7 +693,6 @@ function KnopikGame({
   }, [boostUntil]);
 
   useEffect(() => {
-    if (!hydrated) return;
     const saveTimer = setTimeout(() => {
       try {
         const nextSave = {
@@ -836,7 +776,6 @@ function KnopikGame({
     hatInteractionCount,
     mohawkInteractionCount,
     onSave,
-    hydrated,
     levelState,
     riskChance,
     riskFatigueUntil,
@@ -903,7 +842,7 @@ function KnopikGame({
       setClock(now);
       if (now >= fatigueUntilRef.current) {
         fatigueUntilRef.current = 0;
-        setFatigueUntil(0);
+        applyFatigueDeadline(0);
         setRiskFatigueUntil((current) => (current <= now ? 0 : current));
         if (dogStateRef.current === "tired") {
           transitionTo("calm");
@@ -912,7 +851,7 @@ function KnopikGame({
       }
     }, 1_000);
     return () => clearInterval(timer);
-  }, [fatigueUntil, resetSeries, transitionTo]);
+  }, [applyFatigueDeadline, fatigueUntil, resetSeries, transitionTo]);
 
   useEffect(
     () => () => {
@@ -975,7 +914,7 @@ function KnopikGame({
     (persistent = false) => {
       if (settingsRef.current.yellow) {
         fatigueUntilRef.current = 0;
-        setFatigueUntil(0);
+        applyFatigueDeadline(0);
         setRiskFatigueUntil(0);
         transitionTo("calm");
         return;
@@ -1001,13 +940,13 @@ function KnopikGame({
         }
       }, duration);
     },
-    [getSound, resetSeries, transitionTo],
+    [applyFatigueDeadline, getSound, resetSeries, transitionTo],
   );
 
   const finishRecovery = useCallback(() => {
     if (settingsRef.current.yellow) {
       fatigueUntilRef.current = 0;
-      setFatigueUntil(0);
+      applyFatigueDeadline(0);
       setRiskFatigueUntil(0);
       transitionTo("calm");
     } else if (fatigueUntilRef.current > Date.now()) {
@@ -1018,7 +957,7 @@ function KnopikGame({
     setRecoveryReason("rest");
     resetSeries();
     getSound().rest();
-  }, [enterTiredMood, getSound, resetSeries, transitionTo]);
+  }, [applyFatigueDeadline, enterTiredMood, getSound, resetSeries, transitionTo]);
 
   const beginRecovery = useCallback(
     (reason: RecoveryReason) => {
@@ -1421,7 +1360,7 @@ function KnopikGame({
             const nextFatigueUntil =
               Date.now() + chooseFatigueDuration(difficultyRef.current);
             fatigueUntilRef.current = nextFatigueUntil;
-            setFatigueUntil(nextFatigueUntil);
+            applyFatigueDeadline(nextFatigueUntil);
             setRiskFatigueUntil(nextFatigueUntil);
             setClock(Date.now());
             resetSeries();
@@ -1457,7 +1396,7 @@ function KnopikGame({
       const nextFatigueUntil =
         Date.now() + chooseFatigueDuration(difficultyRef.current);
       fatigueUntilRef.current = nextFatigueUntil;
-      setFatigueUntil(nextFatigueUntil);
+      applyFatigueDeadline(nextFatigueUntil);
       setClock(Date.now());
       resetSeries();
       clearRoundTimers();
@@ -1467,6 +1406,7 @@ function KnopikGame({
       recoveryTimerRef.current = setTimeout(finishRecovery, 3_200);
     },
     [
+      applyFatigueDeadline,
       clearRoundTimers,
       awardCoins,
       beginRecovery,
@@ -1526,8 +1466,9 @@ function KnopikGame({
     setRiskBetAmount(bet);
     setRiskPayout(0);
     setRiskResult(null);
-  const winningDegrees = riskChance * 3.6;
-setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
+    // The static winning sector is centered at six o'clock. Rotate the hand to
+    // the outcome's matching point in that already-offset dial.
+    setRiskRotation(riskPointerRotation(riskChance, outcome.finalAngle));
     setRiskSpinNonce((current) => current + 1);
     setRiskMessage("");
     updateCoins((current) => ({
@@ -1587,14 +1528,14 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         riskReturnTimerRef.current = setTimeout(() => {
           if (settingsRef.current.yellow) {
             fatigueUntilRef.current = 0;
-            setFatigueUntil(0);
+            applyFatigueDeadline(0);
             setRiskFatigueUntil(0);
             transitionTo("calm");
           } else {
             const tiredUntil =
               Date.now() + chooseFatigueDuration(difficultyRef.current);
             fatigueUntilRef.current = tiredUntil;
-            setFatigueUntil(tiredUntil);
+            applyFatigueDeadline(tiredUntil);
             setRiskFatigueUntil(tiredUntil);
             setClock(Date.now());
             setRecoveryReason("rest");
@@ -1612,6 +1553,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       }, spinDuration);
     }, 360);
   }, [
+    applyFatigueDeadline,
     clearRoundTimers,
     getSound,
     mohawkEquipped,
@@ -1715,14 +1657,14 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     resetSeries();
     if (settingsRef.current.yellow) {
       fatigueUntilRef.current = 0;
-      setFatigueUntil(0);
+      applyFatigueDeadline(0);
       setRiskFatigueUntil(0);
       transitionTo("calm");
     } else {
       const tiredUntil =
         Date.now() + chooseFatigueDuration(difficultyRef.current);
       fatigueUntilRef.current = tiredUntil;
-      setFatigueUntil(tiredUntil);
+      applyFatigueDeadline(tiredUntil);
       setRiskFatigueUntil(tiredUntil);
       setClock(Date.now());
       setRecoveryReason("rest");
@@ -1730,7 +1672,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     }
     getSound().safe();
     vibrate([20, 28, 44], settingsRef.current.vibration);
-  }, [clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
+  }, [applyFatigueDeadline, clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
 
   const buyFood = useCallback(() => {
     const availableSlots = Math.max(0, INVENTORY_LIMIT - foodCount);
@@ -2022,14 +1964,14 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       const tiredUntil =
         Date.now() + chooseFatigueDuration(difficultyRef.current);
       fatigueUntilRef.current = tiredUntil;
-      setFatigueUntil(tiredUntil);
+      applyFatigueDeadline(tiredUntil);
       setRiskFatigueUntil(tiredUntil);
       setClock(Date.now());
       setRecoveryReason("rest");
       resetSeries();
       transitionTo("tired");
     }
-  }, [getSound, resetSeries, transitionTo, updateCoins]);
+  }, [applyFatigueDeadline, getSound, resetSeries, transitionTo, updateCoins]);
 
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
@@ -2076,7 +2018,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         stopHoldVisual("cancel");
         resetSeries();
         fatigueUntilRef.current = 0;
-        setFatigueUntil(0);
+        applyFatigueDeadline(0);
         setRiskFatigueUntil(0);
         setRecoveryReason("rest");
         transitionTo("calm");
@@ -2116,12 +2058,12 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       stopHoldVisual("cancel");
       resetSeries();
       fatigueUntilRef.current = 0;
-      setFatigueUntil(0);
+      applyFatigueDeadline(0);
       setRiskFatigueUntil(0);
       transitionTo("calm");
     }
     getSound().safe();
-  }, [cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo, updateCoins]);
+  }, [applyFatigueDeadline, cheatCode, clearRoundTimers, getSound, resetSeries, stopHoldVisual, transitionTo, updateCoins]);
 
   const bounceHat = useCallback((event: PointerEvent<HTMLSpanElement>) => {
     event.preventDefault();
@@ -2367,7 +2309,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     clearRoundTimers();
     setFoodCount((current) => Math.max(0, current - 1));
     fatigueUntilRef.current = 0;
-    setFatigueUntil(0);
+    applyFatigueDeadline(0);
     setRiskFatigueUntil(0);
     setClock(Date.now());
     setRecoveryReason("rest");
@@ -2378,7 +2320,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     vibrate([18, 24, 38], settingsRef.current.vibration);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     messageTimerRef.current = setTimeout(() => setShopMessage(""), 1_800);
-  }, [clearRoundTimers, foodCount, getSound, resetSeries, transitionTo]);
+  }, [applyFatigueDeadline, clearRoundTimers, foodCount, getSound, resetSeries, transitionTo]);
 
   const handleFoodItem = useCallback(() => {
     if (foodCount > 0) {
@@ -2392,7 +2334,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     updateCoins((current) => ({ ...current, walletCoins: current.walletCoins - DOG_FOOD_PRICE }));
     clearRoundTimers();
     fatigueUntilRef.current = 0;
-    setFatigueUntil(0);
+    applyFatigueDeadline(0);
     setRiskFatigueUntil(0);
     setClock(Date.now());
     setRecoveryReason("rest");
@@ -2400,7 +2342,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     transitionTo("calm");
     getSound().purchase();
     vibrate([16, 22, 38], settingsRef.current.vibration);
-  }, [clearRoundTimers, feedDog, foodCount, getSound, resetSeries, transitionTo, updateCoins]);
+  }, [applyFatigueDeadline, clearRoundTimers, feedDog, foodCount, getSound, resetSeries, transitionTo, updateCoins]);
 
   const handleDrinkItem = useCallback(() => {
     if (drinkCount > 0) {
@@ -2555,7 +2497,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setStats(resetStats);
     setLevelState(resetLevel);
     setSettings(defaults.settings);
-    setFatigueUntil(0);
+    applyFatigueDeadline(0);
     setTutorialSeen(false);
     setTutorialStep(0);
     setTutorialOpen(true);
@@ -2569,9 +2511,13 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setCheatMessage("");
     resetSeries();
     transitionTo("calm");
-    localStorage.removeItem(SAVE_KEY);
+    // Persist immediately so a reload directly after reset cannot restore the
+    // previous timestamped local snapshot.
+    onSave(defaults);
   }, [
+    applyFatigueDeadline,
     clearRoundTimers,
+    onSave,
     resetSeries,
     stopHoldVisual,
     transitionRisk,
@@ -2583,7 +2529,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   const isDogTired =
     !settings.yellow &&
     (dogState === "tired" ||
-      (dogState === "recovering" && fatigueUntil > Date.now()));
+      (dogState === "recovering" && fatigueUntil > clock));
   const isDogResting = !settings.yellow && fatigueUntil > clock;
   const canFeedDog = isDogTired && foodCount > 0;
   const canQuickBuyFood = isDogTired && foodCount === 0 && coins.walletCoins >= DOG_FOOD_PRICE;
@@ -2665,19 +2611,18 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     vibrate([18, 24, 48], settingsRef.current.vibration);
   };
 
-  const tempoRatio =
-    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const isHappy =
     dogState === "calm" && seriesTaps >= 3 && averageInterval <= 360;
+  const rageSequenceActive =
+    dogState === "angry" ||
+    (dogState === "recovering" && recoveryReason === "bite");
+  const displayedJoyFrame =
+    joySpriteReady && dogState === "calm" ? joyFrame : 0;
+  const displayedRageFrame =
+    rageSpriteReady && rageSequenceActive ? rageFrame : 0;
+
   useEffect(() => {
-    if (dogState !== "calm") {
-      setJoyFrame(0);
-      return;
-    }
-    if (!joySpriteReady) {
-      setJoyFrame(0);
-      return;
-    }
+    if (dogState !== "calm" || !joySpriteReady) return;
 
     const targetFrame = isHappy ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -2698,16 +2643,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   }, [dogState, isHappy, joySpriteReady]);
 
   useEffect(() => {
-    const reversingAfterBite =
-      dogState === "recovering" && recoveryReason === "bite";
-    if (dogState !== "angry" && !reversingAfterBite) {
-      setRageFrame(0);
-      return;
-    }
-    if (!rageSpriteReady) {
-      setRageFrame(0);
-      return;
-    }
+    if (!rageSequenceActive || !rageSpriteReady) return;
 
     const targetFrame = dogState === "angry" ? 4 : 0;
     const timer = window.setInterval(() => {
@@ -2725,17 +2661,17 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     }, EMOTION_FRAME_MS);
 
     return () => window.clearInterval(timer);
-  }, [dogState, rageSpriteReady, recoveryReason]);
+  }, [dogState, rageSequenceActive, rageSpriteReady]);
 
   const showRageSequence =
     rageSpriteReady &&
     (dogState === "angry" ||
-      (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0));
+      (dogState === "recovering" && recoveryReason === "bite" && displayedRageFrame > 0));
   const isEmotionShifting =
     (dogState === "calm" &&
-      ((isHappy && joyFrame < 4) || (!isHappy && joyFrame > 0))) ||
-    (dogState === "angry" && rageFrame < 4) ||
-    (dogState === "recovering" && recoveryReason === "bite" && rageFrame > 0);
+      ((isHappy && displayedJoyFrame < 4) || (!isHappy && displayedJoyFrame > 0))) ||
+    (dogState === "angry" && displayedRageFrame < 4) ||
+    (dogState === "recovering" && recoveryReason === "bite" && displayedRageFrame > 0);
   const dogImageState =
     showRageSequence
       ? "rage"
@@ -2830,14 +2766,13 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
       } ${biteFlash ? "bite-flash" : ""} ${paleCalm ? "pale-calm" : ""} ${
-        dogState === "calm" && joyFrame > 0 ? "is-happy" : ""
+        dogState === "calm" && displayedJoyFrame > 0 ? "is-happy" : ""
       } ${isEmotionShifting ? "is-emotion-shifting" : ""} ${
         riskMode ? `risk-mode risk-${riskPhase}` : ""
       } ${riskPhase === "transition" && riskResult ? "risk-returning" : ""} ${
         riskShake > 0 ? `risk-shake-${riskShake % 2}` : ""
       }`}
       data-state={dogState}
-      data-hydrated={hydrated}
       style={gameStyle}
       onPointerDownCapture={handleInterfacePress}
     >
@@ -2978,29 +2913,29 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           </div>
         )}
         <div className="boost-row" aria-label="Предметы Кнопика">
-          <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem} aria-label="Корм">
+          <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem} aria-label={canQuickBuyFood ? `Купить и использовать корм за ${DOG_FOOD_PRICE} монет` : foodCount > 0 ? `Корм, в запасе ${foodCount}` : "Корм недоступен"}>
             <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
-            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{canQuickBuyFood ? null : foodCount}</b>
+            <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyFood ? "+" : foodCount}</b>
           </button>
-          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem} aria-label={boostSeconds > 0 ? `Живчик, ${boostSeconds} секунд` : "Живчик"}>
+          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem} aria-label={canQuickBuyDrink ? `Купить и использовать Живчик за ${ZHIVCHIK_PRICE} монет` : boostSeconds > 0 ? `Живчик, в запасе ${drinkCount}, усиление ещё ${boostSeconds} секунд` : `Живчик, в запасе ${drinkCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
-            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{canQuickBuyDrink ? null : drinkCount}</b>
+            <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyDrink ? "+" : drinkCount}</b>
           </button>
-          <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem} aria-label="Питбуль">
+          <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem} aria-label={canQuickBuyPitbull ? `Купить и использовать Питбуль за ${PITBULL_PRICE} монет` : `Питбуль, в запасе ${pitbullCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
-            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{canQuickBuyPitbull ? null : pitbullCount}</b>
+            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyPitbull ? "+" : pitbullCount}</b>
           </button>
-          <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")} aria-label="Какао-Кола">
+          <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")} aria-label={canQuickBuyCola ? `Купить Какао-Колу за ${COCOA_COLA_PRICE} монет и открыть барабаны` : `Какао-Кола, в запасе ${colaCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
-            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{canQuickBuyCola ? null : colaCount}</b>
+            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyCola ? "+" : colaCount}</b>
           </button>
-          <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")} aria-label="Чай с бергамотом">
+          <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")} aria-label={canQuickBuyTea ? `Купить чай с бергамотом за ${BERGAMOT_TEA_PRICE} монет и открыть пять кнопок` : `Чай с бергамотом, в запасе ${teaCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
-            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{canQuickBuyTea ? null : teaCount}</b>
+            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyTea ? "+" : teaCount}</b>
           </button>
-          <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem} aria-label={vitaPowerShield ? "Щит активен" : "Пепси"}>
+          <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem} aria-label={vitaPowerShield ? "Щит активен" : canQuickBuyVitaPower ? `Купить и активировать Пепси за ${VITA_POWER_PRICE} монет` : `Пепси, в запасе ${vitaPowerCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
-            <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? null : vitaPowerCount}</b>
+            <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`} aria-hidden="true">{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? "+" : vitaPowerCount}</b>
           </button>
         </div>
       </header>
@@ -3067,7 +3002,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 draggable={false}
                 loading="eager"
                 decoding="async"
-                style={{ transform: `translate3d(-${joyFrame * 20}%, 0, 0)` }}
+                style={{ transform: `translate3d(-${displayedJoyFrame * 20}%, 0, 0)` }}
                 onLoad={() => setJoySpriteReady(true)}
               />
               <img
@@ -3086,7 +3021,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 draggable={false}
                 loading="eager"
                 decoding="async"
-                style={{ transform: `translate3d(-${rageFrame * 20}%, 0, 0)` }}
+                style={{ transform: `translate3d(-${displayedRageFrame * 20}%, 0, 0)` }}
                 onLoad={() => setRageSpriteReady(true)}
               />
             </span>
@@ -3241,7 +3176,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           >
             <span className="coin-mark" aria-hidden="true"><i>К</i></span>
             <div>
-              <small>АКТИВНЫЕ МОНЕТЫ</small>
               <strong className="balance-number" key={`balance-${balancePulse}`}>
                 {coins.walletCoins.toLocaleString("ru-RU")}
               </strong>

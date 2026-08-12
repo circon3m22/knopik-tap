@@ -17,7 +17,11 @@ import {
   addLevelCoins,
   levelMultiplier,
 } from "../app/level-engine.ts";
-import { createRiskOutcome, riskMultiplier } from "../app/risk-engine.ts";
+import {
+  createRiskOutcome,
+  riskMultiplier,
+  riskPointerRotation,
+} from "../app/risk-engine.ts";
 import { createCaseRewards } from "../app/case-engine.ts";
 import {
   DEFAULT_DIFFICULTY,
@@ -276,6 +280,12 @@ test("risk wheel resolves payout and final angle from the configured chance", ()
   assert.equal(boostedWin.chance, 50);
   assert.equal(boostedWin.won, true);
   assert.equal(boostedWin.payout, 175);
+
+  const winningPointer = riskPointerRotation(20, win.finalAngle) % 360;
+  const losingPointer = riskPointerRotation(90, loss.finalAngle) % 360;
+  // The visible sector is centered at 180° (six o'clock).
+  assert.ok(winningPointer >= 144 && winningPointer < 216);
+  assert.ok(losingPointer < 18 || losingPointer >= 342);
 });
 
 test("difficulty 50 preserves every current gameplay coefficient exactly", () => {

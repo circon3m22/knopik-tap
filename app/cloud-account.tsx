@@ -30,6 +30,12 @@ type ProfileRow = {
 type GameSaveRow = {
   user_id: string;
   save: unknown;
+  updated_at: string;
+};
+
+type LocalSaveSnapshot = {
+  save: SaveData;
+  savedAt: number;
 };
 
 type PromoCodeRow = {
@@ -100,18 +106,34 @@ function localSaveKey(userId: string) {
   return `${SAVE_KEY}:${userId}`;
 }
 
-function readLocalSave(userId: string) {
+function readLocalSave(userId: string): LocalSaveSnapshot {
   try {
     const raw = localStorage.getItem(localSaveKey(userId));
-    return sanitizeSave(raw ? JSON.parse(raw) : createDefaultSave());
+    if (!raw) return { save: createDefaultSave(), savedAt: 0 };
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && "save" in parsed) {
+      const envelope = parsed as { save?: unknown; savedAt?: unknown };
+      return {
+        save: sanitizeSave(envelope.save),
+        savedAt:
+          typeof envelope.savedAt === "number" && Number.isFinite(envelope.savedAt)
+            ? Math.max(0, envelope.savedAt)
+            : 0,
+      };
+    }
+    // Migrate saves written before the timestamped local envelope existed.
+    return { save: sanitizeSave(parsed), savedAt: 0 };
   } catch {
-    return createDefaultSave();
+    return { save: createDefaultSave(), savedAt: 0 };
   }
 }
 
-function writeLocalSave(userId: string, save: SaveData) {
+function writeLocalSave(userId: string, save: SaveData, savedAt = Date.now()) {
   try {
-    localStorage.setItem(localSaveKey(userId), JSON.stringify(save));
+    localStorage.setItem(
+      localSaveKey(userId),
+      JSON.stringify({ save, savedAt }),
+    );
   } catch {
     // The cloud copy remains available if local storage is unavailable.
   }
@@ -136,6 +158,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [account, setAccount] = useState<CloudAccount | null>(null);
+  const [loadRevision, setLoadRevision] = useState(0);
   const [initialSave, setInitialSave] = useState<SaveData | null>(null);
   const [gameRevision, setGameRevision] = useState(0);
   const [username, setUsername] = useState("");
@@ -150,7 +173,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveVersionRef = useRef(0);
   const flushedVersionRef = useRef(0);
-  const flushInFlightRef = useRef<Promise<void> | null>(null);
+  const flushInFlightRef = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -174,15 +197,19 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
 
     void supabase.auth.getUser().then(({ data }) => {
       if (!active) return;
-      setUser(data.user ?? null);
-      setAuthLoading(false);
+      const nextUser = data.user ?? null;
+      setUser(nextUser);
+      // Keep the loader visible while the profile and save are being fetched;
+      // otherwise authenticated players briefly see the login form.
+      setAuthLoading(Boolean(nextUser));
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-      if (!session?.user) {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      setAuthLoading(Boolean(nextUser));
+      if (!nextUser) {
         accountRef.current = null;
         setAccount(null);
         setInitialSave(null);
@@ -218,7 +245,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
             .single<ProfileRow>(),
           supabase
             .from("game_saves")
-            .select("user_id, save")
+            .select("user_id, save, updated_at")
             .eq("user_id", user!.id)
             .maybeSingle<GameSaveRow>(),
           supabase
@@ -241,18 +268,46 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
         return;
       }
 
-      const loadedSave = cloudSave
-        ? sanitizeSave(cloudSave.save)
-        : readLocalSave(user!.id);
+      const localSave = readLocalSave(user!.id);
+      const cloudSavedAt = cloudSave
+        ? Date.parse(cloudSave.updated_at) || 0
+        : 0;
+      const localIsNewer = Boolean(
+        cloudSave && localSave.savedAt > cloudSavedAt,
+      );
+      const loadedSave =
+        cloudSave && !localIsNewer
+          ? sanitizeSave(cloudSave.save)
+          : localSave.save;
+      let authoritativeSavedAt = cloudSavedAt;
 
       if (!cloudSave) {
+        authoritativeSavedAt = Date.now();
         const { error } = await supabase.from("game_saves").insert({
           user_id: user!.id,
           save: loadedSave,
           source_id: CLOUD_SOURCE_ID,
+          updated_at: new Date(authoritativeSavedAt).toISOString(),
         });
         if (error) {
           setLoginError("Не удалось создать облачное сохранение.");
+          setAuthLoading(false);
+          return;
+        }
+      } else if (localIsNewer) {
+        authoritativeSavedAt = Date.now();
+        const { data, error } = await supabase
+          .from("game_saves")
+          .update({
+            save: loadedSave,
+            source_id: CLOUD_SOURCE_ID,
+            updated_at: new Date(authoritativeSavedAt).toISOString(),
+          })
+          .eq("user_id", user!.id)
+          .select("user_id")
+          .maybeSingle<{ user_id: string }>();
+        if (error || !data) {
+          setLoginError("Не удалось восстановить локальный прогресс в облаке.");
           setAuthLoading(false);
           return;
         }
@@ -263,7 +318,7 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
         username: profile.username,
         isAdmin: profile.is_admin,
       };
-      writeLocalSave(user!.id, loadedSave);
+      writeLocalSave(user!.id, loadedSave, authoritativeSavedAt);
       accountRef.current = nextAccount;
       latestSaveRef.current = loadedSave;
       saveVersionRef.current = 0;
@@ -291,9 +346,9 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [loadRevision, user]);
 
-  const flushProgress = useCallback(async (): Promise<void> => {
+  const flushProgress = useCallback(async (): Promise<boolean> => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
     if (flushInFlightRef.current) return flushInFlightRef.current;
@@ -304,7 +359,10 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
         const currentAccount = accountRef.current;
         const latestSave = latestSaveRef.current;
         const version = saveVersionRef.current;
-        if (!currentAccount || !latestSave) return;
+        if (!currentAccount || !latestSave) {
+          setSyncState("error");
+          return false;
+        }
         const { data, error } = await getSupabaseClient()
           .from("game_saves")
           .update({
@@ -317,15 +375,16 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
           .maybeSingle<{ user_id: string }>();
         if (error || !data) {
           setSyncState("error");
-          return;
+          return false;
         }
         flushedVersionRef.current = version;
       }
       setSyncState("saved");
+      return true;
     })();
     flushInFlightRef.current = operation;
     try {
-      await operation;
+      return await operation;
     } finally {
       if (flushInFlightRef.current === operation) flushInFlightRef.current = null;
     }
@@ -403,7 +462,10 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
       return { message: "Проверь формат промокода." };
     }
 
-    await flushProgress();
+    const progressSaved = await flushProgress();
+    if (!progressSaved) {
+      return { message: "Не удалось синхронизировать прогресс. Проверь соединение и попробуй снова." };
+    }
     const { data, error } = await getSupabaseClient().rpc("redeem_promo_code", {
       promo_code: normalizedCode,
     });
@@ -474,6 +536,34 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     );
   }
 
+  if (user && (!account || !initialSave)) {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card" aria-labelledby="cloud-load-title">
+          <p className="auth-kicker">KNOPIK TAP</p>
+          <h1 id="cloud-load-title">Не удалось открыть профиль</h1>
+          <p>{loginError || "Проверь соединение и попробуй загрузить прогресс ещё раз."}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthLoading(true);
+              setLoadRevision((current) => current + 1);
+            }}
+          >
+            Повторить
+          </button>
+          <button
+            className="auth-secondary-button"
+            type="button"
+            onClick={() => void getSupabaseClient().auth.signOut()}
+          >
+            Выйти из аккаунта
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   if (!user || !account || !initialSave) {
     return (
       <main className="auth-screen">
@@ -511,6 +601,9 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     );
   }
 
+  // The render callback only receives stable actions; it cannot access this
+  // component's private refs. React's generic refs rule cannot infer that.
+  // eslint-disable-next-line react-hooks/refs
   return children({
     account,
     initialSave,

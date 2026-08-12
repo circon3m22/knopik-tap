@@ -80,52 +80,55 @@
   user-select: none;
 }
 
-/* Счётчик — компактный бейдж в правом верхнем углу плашки */
-.game-shell .boost-row .inventory-count:not(.is-price) {
+/*
+ * Счётчик и «+» используют одну геометрию и одну точку привязки.
+ * Селектор намеренно включает `.inventory-item`: в старых слоях интерфейса
+ * остались более специфичные правила цены, которые иначе скрывают «+».
+ */
+.game-shell .boost-row .inventory-item > .inventory-count:not(.is-price),
+.game-shell .boost-row .inventory-item > .inventory-count.is-price {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: -2px;
+  right: -2px;
+  bottom: auto;
+  left: auto;
   z-index: 2;
   display: grid;
+  width: 18px;
   min-width: 18px;
   height: 18px;
   place-items: center;
-  padding: 0 5px;
+  padding: 0;
   border: 1.5px solid rgb(255 255 255 / 92%);
-  border-radius: 999px;
+  border-radius: 50%;
   color: #0c2940;
   background: linear-gradient(145deg, #fff, #e6eef5);
   box-shadow:
     0 2px 5px rgb(8 24 38 / 22%),
     inset 0 1px 0 #fff;
-  font-size: 9px;
+  font-size: 8px;
   font-variant-numeric: tabular-nums;
   font-weight: 950;
   letter-spacing: -0.02em;
   line-height: 1;
+  transform: none;
 }
 
-.game-shell .boost-row .inventory-count.is-price {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  z-index: 2;
-  display: grid;
-  min-width: 18px;
-  height: 18px;
-  place-items: center;
-  padding: 0 5px;
-  border: 1.5px solid rgb(255 226 132 / 95%);
-  border-radius: 999px;
-  color: #5b3700;
-  background: linear-gradient(145deg, #fff0a8, #ffc02a);
+.game-shell .boost-row .inventory-item > .inventory-count.is-price {
+  border-color: rgb(255 235 166 / 96%);
+  color: #563300;
+  background: linear-gradient(145deg, #ffe98b, #f7b91e);
   box-shadow:
-    0 2px 5px rgb(72 41 0 / 22%),
-    inset 0 1px 0 #fff;
-  font-size: 9px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 950;
-  line-height: 1;
+    0 2px 5px rgb(72 41 0 / 20%),
+    inset 0 1px 0 rgb(255 255 255 / 72%);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.game-shell .boost-row .inventory-item > .inventory-count.is-price::before {
+  display: none;
+  content: none;
 }
 
 /* Подсветка «купить сразу» — кольцо вокруг плашки */
@@ -152,7 +155,102 @@
 }
 
 /* ----------------------------------------------------------------------------
-   2. Нижнее меню — полупрозрачный «стеклянный» фон с блюром.
+   2. Компактная строка сейфа — одна аккуратная группа без лишней высоты.
+   ---------------------------------------------------------------------------- */
+
+.game-shell .game-data {
+  gap: 4px;
+}
+
+.game-shell .vault-row {
+  display: grid;
+  width: min(100%, 310px);
+  grid-template-columns: minmax(0, 1fr) minmax(122px, 0.76fr);
+  align-items: stretch;
+  justify-self: center;
+  gap: 6px;
+}
+
+.game-shell .quick-save-button,
+.game-shell .saved-balance {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: 36px;
+  margin: 0;
+  border-radius: 12px;
+}
+
+.game-shell .quick-save-button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-self: stretch;
+  gap: 5px;
+  padding: 0 9px;
+  font-size: 7.5px;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.game-shell .quick-save-button small {
+  display: none;
+}
+
+.game-shell .quick-save-button .safe-icon,
+.game-shell .saved-balance .safe-icon {
+  display: inline-block;
+  width: 18px;
+  height: 16px;
+  flex-basis: 18px;
+  transform: none;
+}
+
+.game-shell .quick-save-button .safe-icon::before,
+.game-shell .saved-balance .safe-icon::before {
+  top: 3px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+}
+
+.game-shell .quick-save-button .safe-icon i,
+.game-shell .saved-balance .safe-icon i {
+  top: 5px;
+  right: 2px;
+  height: 5px;
+}
+
+.game-shell .saved-balance {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 5px;
+  padding: 0 8px;
+  overflow: hidden;
+}
+
+.game-shell .saved-balance > span:last-child {
+  overflow: hidden;
+}
+
+.game-shell .saved-balance small {
+  font-size: 5.5px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.game-shell .saved-balance strong {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------------------
+   3. Нижнее меню — полупрозрачный «стеклянный» фон с блюром.
    Сохраняем текущую форму (скруглённый «капсула»), палец-индикатор и
    контраст, но добавляем размытие того, что под ним.
    ---------------------------------------------------------------------------- */
@@ -262,7 +360,7 @@
 }
 
 /* ----------------------------------------------------------------------------
-   3. Подгонка под узкие экраны, чтобы круглые плашки оставались
+   4. Подгонка под узкие экраны, чтобы круглые плашки оставались
    одинаковыми по размеру и не ломали сетку.
    ---------------------------------------------------------------------------- */
 
@@ -291,6 +389,14 @@
   }
 }
 
+@media (max-height: 580px) {
+  .game-shell .dog-button,
+  .game-shell .risk-ear-arrows {
+    width: min(64vw, 154px);
+    min-width: 140px;
+  }
+}
+
 /* Снижение эффекта, если пользователь предпочитает меньше движения */
 @media (prefers-reduced-motion: reduce) {
   .game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
@@ -304,7 +410,7 @@
 }
 
 /* ----------------------------------------------------------------------------
-   4. В меню «Настройки» заголовок «Настройки» не фиксируется наверху,
+   5. В меню «Настройки» заголовок «Настройки» не фиксируется наверху,
    а скроллится вместе со всем содержимым. По умолчанию в globals.css
    .sheet-heading использует position: sticky с градиентной подложкой —
    переопределяем это только для экрана настроек, не затрагивая
