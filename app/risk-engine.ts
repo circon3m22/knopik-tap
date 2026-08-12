@@ -30,6 +30,22 @@ export function riskMultiplier(chance: number): number {
   return RISK_OPTIONS.find((option) => option.chance === chance)?.multiplier ?? 0;
 }
 
+/**
+ * Maps an outcome angle onto the UI dial, whose winning sector is centered at
+ * six o'clock. Whole turns are kept so the hand visibly spins before stopping.
+ */
+export function riskPointerRotation(
+  chance: RiskChance,
+  finalAngle: number,
+  fullTurns = 5,
+): number {
+  const winningDegrees = chance * 3.6;
+  const sectorOffset = 180 - winningDegrees / 2;
+  const safeAngle = Number.isFinite(finalAngle) ? finalAngle : 0;
+  const turns = Number.isFinite(fullTurns) ? Math.max(0, Math.floor(fullTurns)) : 0;
+  return turns * 360 + sectorOffset + safeAngle;
+}
+
 export function createRiskOutcome(
   chance: RiskChance,
   bet: number,

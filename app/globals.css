@@ -77,6 +77,11 @@
 }
 
 .auth-card button:disabled { opacity: 0.5; }
+.auth-card .auth-secondary-button {
+  border: 1px solid rgb(255 255 255 / 18%);
+  color: rgb(255 255 255 / 78%);
+  background: rgb(255 255 255 / 8%);
+}
 .auth-error { color: #ff9898 !important; font-size: 0.82rem; font-weight: 800; }
 
 .auth-loader {

@@ -14,7 +14,7 @@ async function render() {
   );
 }
 
-test("server-renders the complete Knopik Tap game", async () => {
+test("server-renders the secure boot shell and preloads all game art", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -25,7 +25,10 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /apple-touch-icon-v2\.png/);
   assert.match(html, /icon-192-v2\.png/);
   assert.match(html, /og\.png/);
-  assert.match(html, /data-testid="knopik"/);
+  assert.match(html, /class="boot-splash(?:\s|\")/);
+  assert.match(html, /class="auth-screen(?:\s|\")/);
+  assert.match(html, /class="auth-loader(?:\s|\")/);
+  assert.doesNotMatch(html, /data-testid="knopik"/);
   assert.match(html, /knopik-joy-sprite-earless\.webp/);
   assert.match(html, /knopik-rage-sprite-earless\.webp/);
   assert.match(html, /knopik-ear-left\.png/);
@@ -49,18 +52,32 @@ test("server-renders the complete Knopik Tap game", async () => {
   ]) {
     assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
-  assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
-  assert.match(html, /class="saved-balance(?:\s|\")/);
-  assert.match(html, /class="bottom-bar"/);
-  assert.match(html, /class="quick-save-button"/);
-  assert.match(html, /class="boost-row"/);
-  assert.match(html, /drink-pitbull/);
-  assert.match(html, /class="nav-thumb"/);
-  assert.doesNotMatch(html, /НЕЗАЩИЩЁННЫЕ МОНЕТЫ/);
-  assert.doesNotMatch(html, /state-copy|moment-message/);
-  assert.doesNotMatch(html, /series-track/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
+});
+
+test("main interface keeps the requested compact balance and aligned buy badges", async () => {
+  const [pageSource, menuStyles] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/menu-refresh.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.doesNotMatch(pageSource, /<small>АКТИВНЫЕ МОНЕТЫ<\/small>/);
+  for (const quickBuyFlag of [
+    "canQuickBuyFood",
+    "canQuickBuyDrink",
+    "canQuickBuyPitbull",
+    "canQuickBuyCola",
+    "canQuickBuyTea",
+    "canQuickBuyVitaPower",
+  ]) {
+    assert.match(pageSource, new RegExp(`${quickBuyFlag} \\? "\\+"`));
+  }
+  assert.match(menuStyles, /\.inventory-item > \.inventory-count\.is-price\s*\{[\s\S]*?top:\s*-2px;[\s\S]*?right:\s*-2px;[\s\S]*?display:\s*grid;[\s\S]*?width:\s*18px;[\s\S]*?height:\s*18px;/);
+  assert.match(menuStyles, /\.inventory-count\.is-price::before\s*\{[\s\S]*?content:\s*none;/);
+  assert.match(menuStyles, /\.vault-row\s*\{[\s\S]*?width:\s*min\(100%,\s*310px\);[\s\S]*?minmax\(122px,\s*0\.76fr\)/);
+  assert.match(menuStyles, /\.quick-save-button,[\s\S]*?\.saved-balance\s*\{[\s\S]*?height:\s*36px;/);
+  assert.match(menuStyles, /\.saved-balance \.safe-icon\s*\{[\s\S]*?display:\s*inline-block;/);
+  assert.match(menuStyles, /@media \(max-height:\s*580px\)[\s\S]*?\.dog-button,[\s\S]*?width:\s*min\(64vw,\s*154px\)/);
 });
 
 test("ships PWA assets and removes the temporary starter", async () => {
