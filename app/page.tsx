@@ -189,31 +189,31 @@ const publicAsset = (path: string) => `${PUBLIC_BASE_PATH}${path}`;
 const tutorialSlides = [
   {
     symbol: "TAP",
-    eyebrow: "ОСНОВА",
+    eyebrow: "Основа",
     title: "Тапай по Кнопику и следи за его настроением",
-    copy: "Быстрый ровный темп радует Кнопика и окрашивает фон в синий. Медленные нажатия и паузы утомляют его.",
+    copy: "Быстрый ровный темп радует Кнопика, и фон светлеет в синеву. Медленные нажатия и паузы утомляют его.",
   },
   {
     symbol: "MOOD",
-    eyebrow: "ЭМОЦИИ",
+    eyebrow: "Эмоции",
     title: "Лицо Кнопика и цвет фона предупреждают об опасности",
     copy: "Весёлый Кнопик терпеливее. Напряжённый или уставший может быстро рассердиться, а при проигрыше пропадут незащищённые монеты и уровни.",
   },
   {
     symbol: "HOLD",
-    eyebrow: "УЛЬТРА-ТАП",
+    eyebrow: "Ультра-тап",
     title: "Зажми Кнопика, чтобы зарядить мощную добычу",
     copy: "Чем дольше удержание, тем выше награда и риск. Отпусти вовремя: передержка сжигает добычу. Когда Кнопик устал, ультра-тап недоступен.",
   },
   {
     symbol: "REST",
-    eyebrow: "УСТАЛОСТЬ",
+    eyebrow: "Усталость",
     title: "Усталость делает игру опаснее",
     copy: "Кнопик устаёт от рискованной игры и иногда просто теряет терпение. Купленный за активные монеты корм можно использовать прямо на главном экране.",
   },
   {
     symbol: "SAVE",
-    eyebrow: "ПРОГРЕСС",
+    eyebrow: "Прогресс",
     title: "Развивай уровень и вовремя защищай добычу",
     copy: "Уровни усиливают заработок, но сбрасываются после проигрыша. Монеты в сейфе сохраняются навсегда, хотя при переводе защищается только часть суммы.",
   },
@@ -225,12 +225,17 @@ function vibrate(pattern: number | number[], enabled: boolean) {
   }
 }
 
+/**
+ * Темп подсвечивает сцену, оставаясь светлым: интерфейс тёмными чернилами на
+ * бумаге, поэтому насыщенная заливка увела бы подписи ниже порога контраста.
+ * Крайняя точка — #cfe2fa: ink 12:1, приглушённый текст 4.5:1.
+ */
 function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
-  if (!hasTaps) return "rgb(247 249 252)";
+  if (!hasTaps) return "rgb(245 248 251)";
 
   const ratio = Math.min(1, Math.max(0, (500 - averageInterval) / 240));
-  const light = [247, 249, 252];
-  const deep = [10, 82, 199];
+  const light = [245, 248, 251];
+  const deep = [207, 226, 250];
   const channels = light.map((channel, index) =>
     Math.round(channel + (deep[index] - channel) * ratio),
   );
@@ -2708,27 +2713,27 @@ function KnopikGame({
   const calmScene = tempoSceneColor(averageInterval, seriesTaps > 0);
   const currentScene =
     riskMode
-      ? "#25272b"
+      ? "#23262b"
       : dogState === "angry"
-      ? "#ec5148"
+      ? "#c02c24"
       : dogState === "tired"
-        ? "#e8c65d"
+        ? "#fdf1d2"
         : dogState === "warning" ||
             (dogState === "recovering" && fatigueRatio > 0)
-          ? "#f4c94d"
+          ? "#ffe9b4"
           : dogState === "calm"
             ? calmScene
             : "#1478ed";
   const moodLabel =
     dogState === "angry"
-      ? "СЕРДИТСЯ"
+      ? "Сердится"
       : dogState === "warning"
-        ? "НА ГРАНИ"
+        ? "На грани"
         : dogState === "tired" || dogState === "recovering"
-          ? "ОТДЫХАЕТ"
+          ? "Отдыхает"
           : isHappy
-            ? "РАДУЕТСЯ"
-            : "СПОКОЕН";
+            ? "Радуется"
+            : "Спокоен";
 
   const handleInterfacePress = useCallback((event: PointerEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
@@ -2853,19 +2858,22 @@ function KnopikGame({
             </div>
             <div className="level-progress-block">
               <div className="level-progress-copy">
-                <span>{levelState.level >= MAX_LEVEL ? "МАКСИМУМ" : "ДО НОВОГО УРОВНЯ"}</span>
-                <strong>{levelState.level >= MAX_LEVEL ? "ГОТОВО" : `${levelDetails.coinsToNext.toLocaleString("ru-RU")} монет`}</strong>
+                <span>
+                  {levelState.level >= MAX_LEVEL
+                    ? "Максимальный уровень"
+                    : `${levelDetails.coinsToNext.toLocaleString("ru-RU")} монет до ${levelState.level + 1} уровня`}
+                </span>
               </div>
               <div className="level-track"><span /></div>
             </div>
             <div className="level-reward">
-              <small>БОНУС</small>
+              <small>Бонус</small>
               <strong>+{levelBonus}%</strong>
             </div>
           </div>
         ) : (
           <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
-            <span className="risk-strip-label">СЕКТОР {riskChance}%</span>
+            <span className="risk-strip-label">Сектор {riskChance}%</span>
             <input
               type="range"
               min="10"
@@ -2887,7 +2895,7 @@ function KnopikGame({
           <div className={`quest-strip ${questComplete ? "is-complete" : ""}`}>
             <span className="quest-symbol" aria-hidden="true">✓</span>
             <span className="quest-copy">
-              <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ВСЕ ЗАДАНИЯ ВЫПОЛНЕНЫ"}</small>
+              <small>{currentQuest ? `Задание ${questIndex + 1} из ${QUESTS.length}` : "Все задания выполнены"}</small>
               <strong>{currentQuest?.title ?? "Новые задания появятся позже"}</strong>
             </span>
             {currentQuest && (
@@ -2899,7 +2907,7 @@ function KnopikGame({
         )}
         {riskPhase === "selecting" && mohawkEquipped && (
           <div className="risk-bet-control" aria-label="Размер ставки рулетки">
-            <span><small>СТАВКА</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
+            <span><small>Ставка</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
             <input
               type="range"
               min="1"
@@ -2909,7 +2917,7 @@ function KnopikGame({
               aria-label="Активных монет на прокрутку"
               onChange={(event) => setRiskBetAmount(Number(event.currentTarget.value))}
             />
-            <button type="button" onClick={() => setRiskBetAmount(coins.walletCoins)}>ВСЁ</button>
+            <button type="button" onClick={() => setRiskBetAmount(coins.walletCoins)}>Всё</button>
           </div>
         )}
         <div className="boost-row" aria-label="Предметы Кнопика">
@@ -3191,8 +3199,7 @@ function KnopikGame({
               onClick={saveAllToVault}
             >
               <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span>ПЕРЕНЕСТИ В СЕЙФ</span>
-              <small>50% БАЛАНСА</small>
+              <span>В сейф · 50%</span>
             </button>
             <div
               ref={savedBalanceRef}
@@ -3200,7 +3207,7 @@ function KnopikGame({
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
               <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+              <span><small>В сейфе</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
             </div>
           </div>
         </div>
@@ -3301,13 +3308,13 @@ function KnopikGame({
         >
           <section className="sheet cases-sheet" role="dialog" aria-modal="true" aria-labelledby="cases-title">
             <div className="cases-heading">
-              <div><p className="sheet-kicker">НАГРАДЫ</p><h2 id="cases-title">Кейсы</h2></div>
-              <span><strong>{commonCases + bigCases}</strong><small>доступно</small></span>
+              <div><p className="sheet-kicker">Награды</p><h2 id="cases-title">Кейсы</h2></div>
+              <span><strong>{commonCases + bigCases}</strong><small>Доступно</small></span>
             </div>
             <div className="case-list">
               <article className="case-card case-common-card">
                 <div className="case-miniature" aria-hidden="true"><i /><b>3</b></div>
-                <div><small>ЗА НОВЫЙ УРОВЕНЬ</small><h3>Обычный кейс</h3><p>Три награды: монеты, бафы или улучшения.</p></div>
+                <div><small>За новый уровень</small><h3>Обычный кейс</h3><p>Три награды: монеты, бафы или улучшения.</p></div>
                 <div className="case-card-actions">
                   <button type="button" disabled={commonCases < 1} onClick={() => openCase("common")}>Открыть · {commonCases}</button>
                   <button type="button" disabled={coins.walletCoins < COMMON_CASE_PRICE || commonCases >= 99} onClick={buyCommonCase}>Купить · {COMMON_CASE_PRICE.toLocaleString("ru-RU")}</button>
@@ -3315,7 +3322,7 @@ function KnopikGame({
               </article>
               <article className="case-card case-big-card">
                 <div className="case-miniature" aria-hidden="true"><i /><b>5</b></div>
-                <div><small>ЗА ЗАДАНИЯ</small><h3>Большой кейс</h3><p>Пять наград и шанс получить одежду целиком.</p></div>
+                <div><small>За задания</small><h3>Большой кейс</h3><p>Пять наград и шанс получить одежду целиком.</p></div>
                 <div className="case-card-actions">
                   <button type="button" disabled={bigCases < 1} onClick={() => openCase("big")}>Открыть · {bigCases}</button>
                   <button type="button" disabled={coins.walletCoins < BIG_CASE_PRICE || bigCases >= 99} onClick={buyBigCase}>Купить · {BIG_CASE_PRICE.toLocaleString("ru-RU")}</button>
@@ -3325,7 +3332,7 @@ function KnopikGame({
             <div className={`case-quest-card ${questComplete ? "is-complete" : ""}`}>
               <span aria-hidden="true">✓</span>
               <div>
-                <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ЦЕПОЧКА ЗАВЕРШЕНА"}</small>
+                <small>{currentQuest ? `Задание ${questIndex + 1} из ${QUESTS.length}` : "Цепочка завершена"}</small>
                 <strong>{currentQuest?.title ?? "Все задания выполнены"}</strong>
                 {currentQuest && <progress max={currentQuest.target} value={Math.min(questProgress, currentQuest.target)} />}
               </div>
@@ -3470,7 +3477,6 @@ function KnopikGame({
             </div>
 
             <div className="shop-section-copy">
-              <strong>{shopCategory === "food" ? "Бафы" : "Одежда"}</strong>
               <span>{shopCategory === "food" ? "Усиления, восстановление и игровые режимы." : "Предметы с постоянными способностями."}</span>
             </div>
 
@@ -3482,7 +3488,7 @@ function KnopikGame({
                 <img className="shop-buff-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
               </span>
               <div className="food-copy">
-                <small>ЗАПАС {foodCount}/{INVENTORY_LIMIT}</small>
+                <small>В запасе {foodCount}/{INVENTORY_LIMIT}</small>
                 <h3>Корм для Кнопика</h3>
                 <p>Полностью снимает усталость.</p>
               </div>
@@ -3496,7 +3502,7 @@ function KnopikGame({
             <article className="shop-card shop-product-card drink-card">
               <span className="drink-pack zhivchik-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {drinkCount}/{INVENTORY_LIMIT}</small>
+                <small>В запасе {drinkCount}/{INVENTORY_LIMIT}</small>
                 <h3>Напиток «Живчик»</h3>
                 <p>Умножает обычные тапы на 4 на одну минуту.</p>
               </div>
@@ -3510,7 +3516,7 @@ function KnopikGame({
             <article className="shop-card shop-product-card pitbull-card">
               <span className="drink-pack pitbull-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {pitbullCount}/{INVENTORY_LIMIT}</small>
+                <small>В запасе {pitbullCount}/{INVENTORY_LIMIT}</small>
                 <h3>Напиток «Питбуль»</h3>
                 <p>Открывает одну игру в рулетку.</p>
               </div>
@@ -3524,7 +3530,7 @@ function KnopikGame({
             <article className="shop-card shop-product-card cola-card">
               <span className="drink-pack cola-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {colaCount}/{INVENTORY_LIMIT}</small>
+                <small>В запасе {colaCount}/{INVENTORY_LIMIT}</small>
                 <h3>Напиток «Какао-Кола»</h3>
                 <p>Открывает слот-машину с тремя барабанами.</p>
               </div>
@@ -3538,7 +3544,7 @@ function KnopikGame({
             <article className="shop-card shop-product-card tea-card">
               <span className="drink-pack tea-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {teaCount}/{INVENTORY_LIMIT}</small>
+                <small>В запасе {teaCount}/{INVENTORY_LIMIT}</small>
                 <h3>Чай с бергамотом</h3>
                 <p>Открывает игру с пятью кнопками и миной.</p>
               </div>
@@ -3551,7 +3557,7 @@ function KnopikGame({
             <article className="shop-card shop-product-card vita-card">
               <span className="drink-pack vita-pack" aria-hidden="true"><img className="shop-buff-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} /></span>
               <div className="food-copy">
-                <small>ЗАПАС {vitaPowerCount}/{INVENTORY_LIMIT} {vitaPowerShield ? "· ЩИТ АКТИВЕН" : ""}</small>
+                <small>В запасе {vitaPowerCount}/{INVENTORY_LIMIT} {vitaPowerShield ? " · щит активен" : ""}</small>
                 <h3>Напиток «Пепси»</h3>
                 <p>Защищает активный баланс от одной неудачи.</p>
               </div>
@@ -3764,7 +3770,7 @@ function KnopikGame({
               {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
               {account.isAdmin && (
                 <div className="promo-list" aria-label="Созданные промокоды">
-                  <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
+                  <div className="promo-list-title"><span>Все коды</span><strong>{promoCodes.length}</strong></div>
                   {promoCodes.length === 0 ? (
                     <p className="promo-empty">Пока нет созданных промокодов.</p>
                   ) : promoCodes.map((promo) => (
@@ -3816,7 +3822,7 @@ function KnopikGame({
               </div>
             )}
             <p className="settings-section-title">Статистика</p>
-            <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
+            <div className="stats-line"><span>Лучшая серия <strong>{stats.bestStreak}</strong></span><span>Тапов <strong>{stats.totalTaps}</strong></span><span>Укусов <strong>{stats.totalBites}</strong></span></div>
           </section>
         </div>
       )}

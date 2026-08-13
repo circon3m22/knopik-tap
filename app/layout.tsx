@@ -3,6 +3,7 @@ import { BOOT_IMAGE_ASSETS, bootImageMimeType } from "./boot-assets";
 import "./globals.css";
 import "./interface-v2.css";
 import "./menu-refresh.css";
+import "./air.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
@@ -13,7 +14,7 @@ const publicAsset = (path: string) => `${basePath}${path}`;
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f7f9fc",
+  themeColor: "#f5f8fb",
 };
 
 export const metadata: Metadata = {

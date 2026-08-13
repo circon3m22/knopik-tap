@@ -1,0 +1,1705 @@
+/* ============================================================================
+   AIR — финальный слой интерфейса «Кнопик Тап».
+   Концепция: минимализм и воздух. Один акцент, одна шкала шрифта,
+   одна шкала радиусов, поверхности только там, где нужен слой.
+   Загружается последним и намеренно перекрывает globals.css,
+   interface-v2.css и menu-refresh.css.
+   ============================================================================ */
+
+:root {
+  /* Шрифт: системный, скруглённый на Apple — родной для iOS, без веб-загрузки */
+  --ui-font:
+    ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded",
+    "Segoe UI Variable Display", system-ui, Inter, "Helvetica Neue", sans-serif;
+
+  /* Цвет: бумага, белый слой, чернила, один акцент */
+  --air-canvas: #f5f8fb;
+  --air-surface: #fff;
+  --air-veil: rgb(255 255 255 / 76%);
+  --air-mist: #eef3f7;
+
+  --air-ink: #0f2438;          /* 14.7:1 на канве */
+  --air-soft: #55667a;         /* 5.5:1 на канве  */
+  --air-accent: #0b62cc;       /* 5.4:1 на канве  */
+  --air-accent-quiet: #e9f1fd;
+  --air-danger: #c9332b;       /* 5.3:1 на белом  */
+  --air-success: #12795a;      /* 5.4:1 на белом  */
+
+  --air-line: rgb(15 36 56 / 9%);
+  --air-line-strong: rgb(15 36 56 / 14%);
+
+  /* Глубина: только у плавающих слоёв */
+  --air-lift: 0 1px 2px rgb(15 36 56 / 4%), 0 10px 28px -14px rgb(15 36 56 / 14%);
+  --air-float: 0 2px 6px rgb(15 36 56 / 5%), 0 22px 54px -20px rgb(15 36 56 / 26%);
+
+  /* Радиусы: концентричная шкала */
+  --r-xs: 10px;
+  --r-sm: 14px;
+  --r-md: 18px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --r-full: 999px;
+
+  /* Шкала текста: роль = размер + межстрочный + начертание */
+  --t-micro: 11px;
+  --t-caption: 12px;
+  --t-body: 14px;
+  --t-body-lg: 15px;
+  --t-heading: 17px;
+  --t-title: 22px;
+  --t-display: 30px;
+
+  /* Ритм отступов */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+
+  --air-ease: cubic-bezier(.2, .8, .2, 1);
+  --ui-focus: #0b62cc;
+}
+
+/* ---------------------------------------------------------------------------
+   1. Основа: типографика и общий тон
+   --------------------------------------------------------------------------- */
+
+html,
+body,
+button,
+input {
+  font-family: var(--ui-font);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--air-ink);
+  font-synthesis-weight: none;
+}
+
+html,
+body {
+  background: var(--air-canvas);
+}
+
+/* Числа не должны «прыгать» при пересчёте баланса */
+.balance-number,
+.saved-balance strong,
+.level-title strong,
+.level-reward strong,
+.quest-strip > b,
+.shop-wallet strong,
+.stats-line strong,
+.food-price strong,
+.mini-bet-card strong,
+.mine-progress strong,
+.risk-multiplier {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Фокус виден всегда и не срезается родителем */
+:where(a, button, input, [role="tab"], [role="switch"], [tabindex]):focus-visible {
+  outline: 3px solid var(--ui-focus) !important;
+  outline-offset: 3px !important;
+  border-radius: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+   2. Сцена: светлая и спокойная в любом обычном состоянии
+   --------------------------------------------------------------------------- */
+
+.game-shell {
+  padding:
+    calc(env(safe-area-inset-top) + var(--s-3))
+    clamp(16px, 5vw, 24px)
+    calc(env(safe-area-inset-bottom) + var(--s-3));
+  color: var(--air-ink);
+}
+
+.game-shell.state-calm,
+.game-shell.state-calm.pale-calm,
+.game-shell.state-tired,
+.game-shell.state-warning,
+.game-shell.state-recovering {
+  --adaptive-ink: var(--air-ink);
+  --adaptive-muted: var(--air-soft);
+  --adaptive-surface: var(--air-surface);
+  --adaptive-border: var(--air-line);
+  --on-scene: var(--air-ink);
+  color: var(--air-ink);
+}
+
+/* Усталость и предупреждение — тёплая бумага, а не заливка жёлтым */
+.game-shell.state-tired {
+  --scene: #fdf1d2;
+}
+
+.game-shell.state-warning,
+.game-shell.state-recovering.has-fatigue {
+  --scene: #ffe9b4;
+}
+
+/* Гнев остаётся тревожным, но читаемым: белый текст на глубоком красном */
+.game-shell.state-angry {
+  --scene: #c02c24;
+  --adaptive-ink: #fff;
+  --adaptive-muted: rgb(255 255 255 / 82%);
+  --adaptive-surface: rgb(255 255 255 / 16%);
+  --adaptive-border: rgb(255 255 255 / 28%);
+}
+
+.game-shell.risk-mode {
+  --scene: #23262b;
+  --adaptive-ink: #fff;
+  --adaptive-muted: #b3bcc6;
+  --adaptive-surface: rgb(255 255 255 / 8%);
+  --adaptive-border: rgb(255 255 255 / 16%);
+  background-color: #23262b;
+}
+
+.game-motion-layer {
+  gap: var(--s-3);
+}
+
+/* ---------------------------------------------------------------------------
+   3. Шапка: плоские строки на канве вместо стопки карточек
+   --------------------------------------------------------------------------- */
+
+.app-header {
+  gap: var(--s-4);
+}
+
+.top-bar {
+  min-height: 40px;
+  gap: var(--s-2);
+}
+
+.account-identity {
+  min-height: 44px;
+  gap: var(--s-2);
+  padding: 2px 8px 2px 2px;
+  border-radius: var(--r-full);
+}
+
+.game-shell .account-identity .account-shortcut {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  border: 0;
+  border-radius: var(--r-full);
+  color: #fff;
+  background: var(--air-accent);
+  box-shadow: none;
+  font-size: var(--t-caption);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.game-shell .account-identity > strong,
+.game-shell .status-cluster > strong {
+  max-width: none;
+  color: var(--adaptive-muted);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Имя может быть длинным, статус — нет: сжимается только имя */
+.game-shell .account-identity > strong {
+  min-width: 0;
+}
+
+.game-shell .status-cluster > strong {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.game-shell .brand-lockup strong,
+.game-shell .wordmark strong {
+  color: var(--adaptive-ink) !important;
+  font-size: clamp(19px, 5.4vw, 23px);
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-shadow: none !important;
+}
+
+.status-cluster {
+  gap: var(--s-2);
+}
+
+/* Настроение: точка рядом с подписью. Цвет дублирует текст, а не заменяет его */
+.game-shell .mood-indicator {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.game-shell .mood-indicator > i {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-full);
+  background: currentcolor;
+  box-shadow: none;
+}
+
+.game-shell .mood-indicator { color: var(--air-success); }
+.game-shell .mood-tired,
+.game-shell .mood-recovering,
+.game-shell .mood-warning { color: #a56a00; }
+
+/* На тёмной сцене точка светлая: цвет только дублирует подпись рядом */
+.game-shell.state-angry .mood-indicator,
+.game-shell.risk-mode .mood-indicator { color: #fff; }
+
+/* Уровень: одна строка, тонкая полоса прогресса, без плашки */
+.game-shell .level-strip,
+.game-shell.state-calm.pale-calm .level-strip,
+.state-calm.pale-calm .level-strip {
+  min-height: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+
+.game-shell .level-title {
+  gap: 5px;
+}
+
+.game-shell .level-title > span,
+.game-shell .level-reward small,
+.game-shell .level-progress-copy span {
+  color: var(--adaptive-muted);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+  opacity: 1;
+}
+
+.game-shell .level-title strong,
+.game-shell .level-reward strong {
+  color: var(--adaptive-ink);
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.game-shell .level-title strong small {
+  margin-left: 3px;
+  color: var(--adaptive-muted);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  opacity: 1;
+}
+
+.game-shell .level-progress-block {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+/* Подпись прогресса — одна строка целиком, без обрезки */
+.game-shell .level-progress-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+}
+
+.game-shell .level-progress-copy > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-shell .level-track {
+  height: 4px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, currentcolor 14%, transparent);
+  box-shadow: none;
+}
+
+.game-shell .level-track > span {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--air-accent);
+  box-shadow: none;
+}
+
+.game-shell.state-angry .level-track > span,
+.game-shell.risk-mode .level-track > span {
+  background: currentcolor;
+}
+
+.game-shell .level-reward strong {
+  color: var(--air-accent);
+}
+
+.game-shell.state-angry .level-reward strong,
+.game-shell.risk-mode .level-reward strong {
+  color: var(--adaptive-ink);
+}
+
+/* Задание: строка с чек-меткой, без карточки */
+.game-shell .quest-strip {
+  min-height: 0;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.game-shell .quest-symbol {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-full);
+  color: color-mix(in srgb, currentcolor 45%, transparent);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentcolor;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.game-shell .quest-strip.is-complete .quest-symbol {
+  color: #fff;
+  background: var(--air-success);
+  box-shadow: none;
+}
+
+.game-shell .quest-copy small {
+  color: var(--adaptive-muted);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.game-shell .quest-copy strong {
+  margin-top: 1px;
+  color: var(--adaptive-ink);
+  font-size: var(--t-body);
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
+
+.game-shell .quest-strip > b {
+  color: var(--adaptive-muted);
+  font-size: var(--t-caption);
+  font-weight: 600;
+}
+
+.game-shell .quest-strip > button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-full);
+  color: #fff;
+  background: var(--air-accent);
+  font-size: var(--t-caption);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* Бафы: ровные круги, воздух между ними, ничего лишнего */
+.game-shell .boost-row {
+  gap: var(--s-2);
+  padding: 2px 0;
+}
+
+.game-shell .boost-row .inventory-item,
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled),
+.game-shell.state-calm.pale-calm .boost-row .inventory-item,
+.game-shell.state-tired .boost-row .inventory-item,
+.game-shell.state-warning .boost-row .inventory-item,
+.game-shell.state-recovering.has-fatigue .boost-row .inventory-item {
+  min-height: 48px;
+  border: 1px solid var(--air-line);
+  border-radius: var(--r-full);
+  background: var(--adaptive-surface);
+  box-shadow: none;
+  backdrop-filter: none;
+  animation: none;
+}
+
+.game-shell.state-angry .boost-row .inventory-item,
+.game-shell.risk-mode .boost-row .inventory-item {
+  border-color: var(--adaptive-border);
+}
+
+.game-shell .boost-row .inventory-item.is-quick-buy:not(:disabled) {
+  border-color: color-mix(in srgb, var(--air-accent) 34%, transparent);
+}
+
+.game-shell .boost-row .inventory-item.is-active {
+  border-color: var(--air-accent) !important;
+  box-shadow: 0 0 0 1px var(--air-accent) !important;
+}
+
+.game-shell .boost-row .buff-icon-image {
+  width: 60%;
+  height: 60%;
+  filter: none;
+}
+
+.game-shell .boost-row .inventory-item > .inventory-count:not(.is-price),
+.game-shell .boost-row .inventory-item > .inventory-count.is-price {
+  top: -1px;
+  right: -1px;
+  width: 17px;
+  min-width: 17px;
+  height: 17px;
+  border: 2px solid var(--air-canvas);
+  border-radius: var(--r-full);
+  color: #fff;
+  background: var(--air-ink);
+  box-shadow: none;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.game-shell .boost-row .inventory-item > .inventory-count.is-price {
+  background: var(--air-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   4. Сцена игры: портрет и баланс
+   --------------------------------------------------------------------------- */
+
+.game-stage {
+  gap: var(--s-4);
+}
+
+.portrait-surface {
+  border: 0;
+  background: var(--air-surface);
+  box-shadow: 0 24px 60px -28px rgb(15 36 56 / 34%);
+}
+
+.dog-button {
+  filter: none;
+}
+
+.game-data {
+  gap: var(--s-3);
+}
+
+.game-shell .wallet-balance {
+  min-height: 0;
+  gap: var(--s-3);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.game-shell .wallet-balance strong,
+.game-shell.state-calm:not(.pale-calm) .wallet-balance strong,
+.game-shell.state-recovering:not(.has-fatigue) .wallet-balance strong {
+  color: var(--adaptive-ink) !important;
+  font-size: clamp(34px, 10vw, 44px);
+  font-weight: 600;
+  letter-spacing: -.03em;
+  text-shadow: none;
+}
+
+.game-shell .wallet-balance small {
+  color: var(--adaptive-muted) !important;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.game-shell .coin-mark {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  border: 0;
+  border-radius: var(--r-full);
+  color: #fff;
+  background: #e0a11b;
+  box-shadow: none;
+}
+
+.game-shell .coin-mark::before,
+.game-shell .coin-mark::after {
+  display: none;
+}
+
+.game-shell .coin-mark i {
+  color: #fff;
+  font-size: var(--t-caption);
+  font-style: normal;
+  font-weight: 700;
+  opacity: 1;
+}
+
+.game-shell .vault-row {
+  width: min(100%, 340px);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--s-2);
+}
+
+.game-shell .quick-save-button,
+.game-shell .saved-balance {
+  min-height: 50px;
+  height: 50px;
+  border-radius: var(--r-full);
+}
+
+.game-shell .quick-save-button {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 var(--s-4);
+  border: 0;
+  color: #fff;
+  background: var(--air-accent);
+  box-shadow: none;
+  font-size: var(--t-body);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.game-shell .quick-save-button .safe-icon,
+.game-shell .saved-balance .safe-icon {
+  display: none;
+}
+
+.game-shell .quick-save-button:disabled {
+  color: var(--air-soft);
+  background: var(--air-mist);
+  opacity: 1;
+}
+
+.game-shell .saved-balance {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--air-line);
+  background: var(--adaptive-surface);
+  box-shadow: none;
+}
+
+.game-shell .saved-balance > span:last-child {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.game-shell .saved-balance small {
+  color: var(--adaptive-muted);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 1;
+}
+
+.game-shell .saved-balance strong {
+  color: var(--adaptive-ink);
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.risk-notice {
+  color: var(--adaptive-muted);
+  font-size: var(--t-caption);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------------
+   5. Нижнее меню: плавающая капсула в духе iOS 26
+   Радиус = половине высоты, поэтому фигура остаётся капсулой на любой высоте.
+   Внутренние кнопки тоже капсулы — концентрика сохраняется при padding 6px.
+   --------------------------------------------------------------------------- */
+
+.game-shell .bottom-bar,
+.bottom-bar,
+.game-shell.state-calm.pale-calm .bottom-bar,
+.state-calm.pale-calm .bottom-bar,
+.game-shell.state-tired .bottom-bar,
+.game-shell.state-warning .bottom-bar,
+.game-shell.state-recovering.has-fatigue .bottom-bar,
+.state-tired .bottom-bar,
+.state-warning .bottom-bar,
+.state-recovering.has-fatigue .bottom-bar {
+  min-height: 66px;
+  margin: var(--s-1) 0 0;
+  padding: 6px;
+  border: 1px solid rgb(255 255 255 / 70%) !important;
+  border-radius: var(--r-full) !important;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 82%), rgb(255 255 255 / 62%)) !important;
+  box-shadow:
+    0 1px 1px rgb(15 36 56 / 4%),
+    0 18px 40px -18px rgb(15 36 56 / 30%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+}
+
+/* На тёмной сцене стекло затемняющее: иначе белые подписи теряют контраст */
+.game-shell.state-angry .bottom-bar,
+.state-angry .bottom-bar,
+.game-shell.risk-mode .bottom-bar,
+.risk-mode .bottom-bar {
+  border-color: rgb(255 255 255 / 20%) !important;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 18%), rgb(0 0 0 / 26%)) !important;
+  box-shadow: 0 18px 40px -18px rgb(0 0 0 / 45%) !important;
+  /* Насыщение усилило бы красный фон под панелью — на тёмном только размытие */
+  -webkit-backdrop-filter: blur(28px) !important;
+  backdrop-filter: blur(28px) !important;
+}
+
+.bottom-bar::before {
+  display: none;
+}
+
+.game-shell .bottom-bar button,
+.bottom-bar button {
+  min-height: 54px;
+  border-radius: var(--r-full);
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-shadow: none;
+  opacity: 1;
+  animation: none !important;
+}
+
+.game-shell .bottom-bar button.active,
+.bottom-bar button.active {
+  color: var(--air-ink);
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.game-shell.state-angry .bottom-bar button,
+.game-shell.risk-mode .bottom-bar button,
+.risk-mode .bottom-bar button {
+  color: rgb(255 255 255 / 78%);
+}
+
+.game-shell.state-angry .bottom-bar button.active,
+.game-shell.risk-mode .bottom-bar button.active,
+.risk-mode .bottom-bar button.active {
+  color: #fff;
+}
+
+.game-shell .home-nav {
+  font-weight: 500 !important;
+}
+
+.game-shell .bottom-bar button.active.home-nav {
+  font-weight: 600 !important;
+}
+
+.nav-thumb {
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  width: calc((100% - 12px) / 3);
+  border: 0;
+  border-radius: var(--r-full);
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 2px 8px -2px rgb(15 36 56 / 16%);
+}
+
+.game-shell.state-angry .nav-thumb,
+.game-shell.risk-mode .nav-thumb {
+  background: rgb(255 255 255 / 24%);
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Шиты: магазин, кейсы, настройки
+   --------------------------------------------------------------------------- */
+
+.modal-backdrop,
+.mini-game-backdrop {
+  background: rgb(15 36 56 / 28%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  backdrop-filter: blur(20px) saturate(120%);
+}
+
+.sheet,
+.tutorial-sheet,
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet,
+.modal-backdrop:not(.tutorial-backdrop) .cases-sheet,
+.modal-backdrop:not(.tutorial-backdrop) .settings-sheet {
+  border: 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  color: var(--air-ink);
+  background: var(--air-canvas);
+  box-shadow: 0 -20px 60px -30px rgb(15 36 56 / 40%);
+}
+
+.tutorial-sheet {
+  border-radius: var(--r-xl);
+}
+
+.sheet-heading h2,
+.tutorial-sheet h2,
+.cases-heading h2 {
+  color: var(--air-ink);
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+
+.shop-sheet .sheet-heading h2,
+.settings-sheet .sheet-heading h2,
+.cases-heading h2 {
+  font-size: var(--t-display);
+}
+
+.sheet-kicker {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .08em;
+}
+
+/* Кошелёк в магазине — спокойная плашка, а не синий блок */
+.shop-sheet .shop-wallet,
+.modal-backdrop:not(.tutorial-backdrop) .shop-sheet > .shop-wallet {
+  min-height: 52px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--air-line);
+  border-radius: var(--r-full);
+  color: var(--air-ink) !important;
+  background: var(--air-surface) !important;
+  box-shadow: none;
+}
+
+.shop-sheet .shop-hero-row .shop-wallet {
+  min-width: 128px;
+  min-height: 52px;
+}
+
+.shop-sheet .shop-wallet small {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.shop-sheet .shop-wallet strong {
+  color: var(--air-ink);
+  font-size: var(--t-heading);
+  font-weight: 600;
+}
+
+.shop-sheet .shop-wallet .coin-mark {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+}
+
+/* Переключатель разделов — сегмент в духе iOS */
+.shop-sheet .shop-categories {
+  min-height: 44px;
+  margin-bottom: var(--s-4);
+  padding: 3px;
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--air-mist);
+}
+
+.shop-sheet .shop-categories button {
+  min-height: 38px;
+  border-radius: var(--r-full);
+  color: var(--air-soft);
+  font-size: var(--t-body);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.shop-sheet .shop-categories button.active {
+  color: var(--air-ink);
+  background: var(--air-surface);
+  box-shadow: 0 1px 3px rgb(15 36 56 / 10%);
+  font-weight: 600;
+}
+
+.shop-sheet .shop-section-copy {
+  gap: var(--s-1);
+  padding: 0 2px var(--s-4);
+}
+
+.shop-sheet .shop-section-copy strong {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.shop-sheet .shop-section-copy span {
+  color: var(--air-soft);
+  font-size: var(--t-caption);
+  line-height: 1.4;
+}
+
+/* Карточки товара: белый слой, волосяная граница, никакого блеска */
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card,
+.case-card,
+.case-quest-card,
+.settings-sheet .account-settings,
+.settings-sheet .setting-row,
+.settings-sheet .difficulty-panel,
+.settings-sheet .promo-panel,
+.settings-sheet .cheat-row,
+.settings-sheet .settings-action,
+.settings-sheet .reset-confirm,
+.settings-sheet .stats-line {
+  border: 1px solid var(--air-line);
+  border-radius: var(--r-lg);
+  background: var(--air-surface);
+  box-shadow: none;
+}
+
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card {
+  padding: var(--s-3);
+  gap: var(--s-3);
+}
+
+.shop-product-card > .food-pack,
+.shop-product-card > .drink-pack,
+.shop-clothes-grid .shop-product-card > .hat-preview,
+.shop-clothes-grid .shop-product-card > .mohawk-preview {
+  /* Концентрика: 24 внешний − 12 padding = 12 внутренний */
+  border-radius: var(--r-sm);
+  background: var(--air-mist);
+  box-shadow: none;
+}
+
+.shop-product-card .food-copy small {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.shop-product-card .food-copy h3 {
+  margin: 6px 0 4px;
+  font-size: var(--t-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.01em;
+}
+
+.shop-product-card .food-copy p {
+  color: var(--air-soft);
+  font-size: var(--t-caption);
+  line-height: 1.4;
+}
+
+.shop-product-card > .food-price,
+.shop-product-card > .quantity-picker {
+  border-radius: var(--r-sm);
+  background: var(--air-mist);
+}
+
+.shop-product-card > .quantity-picker button {
+  border-radius: var(--r-xs);
+  font-weight: 500;
+}
+
+.shop-product-card > .shop-buy-button,
+.shop-product-card > .shop-buy-button[class*="-action"],
+.clothing-actions button,
+.case-card-actions button {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--r-full);
+  color: #fff;
+  background: var(--air-accent);
+  box-shadow: none;
+  font-size: var(--t-body);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.case-card-actions button + button,
+.clothing-actions button:not(.clothing-upgrade-button) {
+  border: 1px solid var(--air-line-strong);
+  color: var(--air-ink);
+  background: var(--air-surface);
+}
+
+.shop-product-card > .shop-buy-button:disabled,
+.clothing-actions button:disabled,
+.case-card-actions button:disabled {
+  border-color: transparent;
+  color: var(--air-soft);
+  background: var(--air-mist);
+  opacity: 1;
+}
+
+/* Кейсы */
+.cases-sheet .case-card {
+  padding: var(--s-4);
+  gap: var(--s-3);
+}
+
+.case-card h3 {
+  font-size: var(--t-title);
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+.case-card p,
+.case-hint {
+  color: var(--air-soft);
+  font-size: var(--t-body);
+  line-height: 1.45;
+}
+
+.case-miniature {
+  border-radius: var(--r-md);
+  box-shadow: none;
+}
+
+/* Настройки */
+.settings-sheet .settings-section-title {
+  margin: var(--s-6) 0 var(--s-2);
+  padding: 0 2px;
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .08em;
+}
+
+.settings-sheet .account-summary strong,
+.settings-sheet .difficulty-heading strong,
+.settings-sheet .promo-heading strong,
+.settings-sheet .cheat-row strong,
+.settings-sheet .setting-row strong {
+  font-size: var(--t-heading);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.settings-sheet .account-summary > div span,
+.settings-sheet .difficulty-heading span,
+.settings-sheet .promo-heading span,
+.settings-sheet .cheat-row > div span,
+.settings-sheet .setting-row > div span {
+  color: var(--air-soft);
+  font-size: var(--t-caption);
+  line-height: 1.4;
+}
+
+.settings-sheet .account-avatar {
+  border-radius: var(--r-full);
+  background: var(--air-accent);
+  box-shadow: none;
+  font-size: var(--t-heading);
+  font-weight: 600;
+}
+
+.settings-sheet input,
+.auth-card input {
+  border: 1px solid var(--air-line-strong);
+  border-radius: var(--r-sm);
+  background: var(--air-surface);
+  font-size: var(--t-body-lg);
+}
+
+.settings-sheet input::placeholder {
+  color: var(--air-soft);
+  font-size: var(--t-body);
+  font-weight: 400;
+}
+
+.settings-sheet .password-form button,
+.settings-sheet .promo-form button,
+.settings-sheet .cheat-row label button,
+.settings-sheet .difficulty-save,
+.settings-sheet .settings-sign-out,
+.primary-button,
+.mini-primary {
+  min-height: 48px;
+  border-radius: var(--r-full);
+  box-shadow: none;
+  font-size: var(--t-body);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.settings-sheet .settings-sign-out {
+  color: var(--air-danger);
+  background: #fdeeed;
+}
+
+.settings-sheet .danger-action {
+  color: var(--air-danger);
+}
+
+.settings-sheet .switch {
+  background: #c3ccd5;
+}
+
+.settings-sheet .stats-line strong {
+  font-size: var(--t-title);
+  font-weight: 600;
+}
+
+.settings-sheet .stats-line span {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+/* Экран входа */
+.auth-screen {
+  background: var(--air-canvas);
+}
+
+.auth-card {
+  border: 1px solid var(--air-line);
+  border-radius: var(--r-xl);
+  background: var(--air-surface);
+  box-shadow: var(--air-lift);
+  backdrop-filter: none;
+}
+
+.auth-card h1 {
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+
+.auth-card .auth-kicker {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .08em;
+}
+
+.auth-card > button {
+  border-radius: var(--r-full);
+  background: var(--air-accent);
+  font-size: var(--t-body);
+  font-weight: 600;
+}
+
+.auth-card .auth-secondary-button {
+  border: 1px solid var(--air-line-strong);
+  color: var(--air-ink);
+  background: var(--air-surface);
+}
+
+.auth-error {
+  color: var(--air-danger) !important;
+  font-size: var(--t-caption);
+  font-weight: 500;
+}
+
+/* Заставка */
+.boot-splash {
+  background: var(--air-canvas);
+}
+
+.boot-splash-word {
+  color: var(--air-ink);
+  font-weight: 600;
+  letter-spacing: .16em;
+}
+
+.boot-splash-status {
+  color: var(--air-soft);
+  font-size: var(--t-caption);
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: none;
+}
+
+/* ---------------------------------------------------------------------------
+   7. Движение: только отклик на нажатие, без бесконечного декора
+   --------------------------------------------------------------------------- */
+
+.game-shell button:not(:disabled):not(.dog-button) {
+  transition: transform 150ms ease-out, background-color 150ms ease-out,
+    color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.game-shell button:not(:disabled):not(.dog-button):active {
+  filter: none;
+  transform: scale(.96);
+}
+
+/* Блик по кнопке при нажатии — шум, который ничего не сообщает */
+.game-shell .inventory-item:not(:disabled)::before,
+.game-shell .quick-save-button:not(:disabled)::after,
+.game-shell .mini-primary:not(:disabled)::after,
+.game-shell .mine-actions button:not(:disabled)::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell button:not(:disabled):not(.dog-button):active {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   8. Узкие и низкие экраны: воздух убывает по шагам, ничего не обрезается
+   --------------------------------------------------------------------------- */
+
+@media (max-height: 740px) {
+  .game-motion-layer { gap: var(--s-2); }
+  .app-header { gap: var(--s-3); }
+  .game-stage { gap: var(--s-3); }
+  .game-shell .level-progress-copy { display: flex; }
+  .game-shell .wallet-balance strong { font-size: clamp(30px, 9vw, 38px); }
+  .game-shell .quick-save-button,
+  .game-shell .saved-balance { min-height: 46px; height: 46px; }
+  .game-shell .bottom-bar { min-height: 62px; }
+  .game-shell .bottom-bar button { min-height: 50px; }
+}
+
+@media (max-width: 370px) {
+  .game-shell .level-strip { gap: var(--s-2); }
+  .game-shell .level-progress-copy strong { display: none; }
+  .game-shell .vault-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .game-shell .quick-save-button { font-size: var(--t-caption); }
+}
+
+/* ---------------------------------------------------------------------------
+   9. Шиты: правки после проверки в браузере
+   --------------------------------------------------------------------------- */
+
+/* Заголовок магазина и кейсов — обычный вес, а не «жирнее некуда» */
+.shop-sheet .sheet-heading h2,
+.settings-sheet .sheet-heading h2,
+.cases-heading h2,
+.tutorial-sheet h2 {
+  font-weight: 600 !important;
+}
+
+/* Карточка товара: колонка, описание целиком, действие прижато вниз.
+   Сетка из старых слоёв схлопывала строку описания, поэтому здесь flex. */
+.shop-product-grid .shop-product-card,
+.shop-product-grid .shop-card + .shop-card,
+.shop-clothes-grid .shop-product-card {
+  display: flex;
+  height: auto !important;
+  min-height: 0 !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-3);
+  overflow: visible;
+  background: var(--air-surface);
+  backdrop-filter: none;
+}
+
+/* Строка сетки растёт под содержимое, а не режет его */
+.shop-product-grid,
+.shop-clothes-grid {
+  grid-auto-rows: max-content;
+  align-items: stretch;
+}
+
+.shop-product-card > .food-pack,
+.shop-product-card > .drink-pack,
+.shop-clothes-grid .shop-product-card > .hat-preview,
+.shop-clothes-grid .shop-product-card > .mohawk-preview {
+  height: 96px;
+  min-height: 96px;
+  flex: 0 0 96px;
+}
+
+.shop-product-card > .food-copy {
+  display: block;
+  min-height: 0;
+  height: auto !important;
+  flex: 0 0 auto;
+  overflow: visible !important;
+}
+
+.shop-product-card > .food-price,
+.shop-product-card > .quantity-picker,
+.shop-product-card > .shop-buy-button,
+.shop-product-card > .clothing-actions {
+  flex: 0 0 auto;
+}
+
+.shop-product-card .food-copy small {
+  color: var(--air-soft) !important;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+.shop-product-card .food-copy h3 {
+  color: var(--air-ink);
+  font-size: var(--t-body-lg);
+  font-weight: 600;
+}
+
+.shop-product-card .food-copy p {
+  display: block;
+  overflow: visible;
+  color: var(--air-soft) !important;
+  font-size: var(--t-caption);
+  font-weight: 400;
+  line-height: 1.45;
+  -webkit-line-clamp: unset;
+}
+
+.shop-product-card > .shop-buy-button,
+.shop-product-card > .shop-buy-button[class*="-action"] {
+  margin-top: auto;
+  color: #fff;
+  background: var(--air-accent);
+  font-size: var(--t-body);
+}
+
+.clothing-actions {
+  display: grid;
+  margin-top: auto;
+  gap: var(--s-2);
+}
+
+/* Счётчик «доступно» в кейсах — тихая плашка, не второй акцент */
+.cases-heading > span {
+  min-height: 52px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--air-line);
+  border-radius: var(--r-full);
+  color: var(--air-ink) !important;
+  background: var(--air-surface) !important;
+  box-shadow: none;
+}
+
+.cases-heading > span strong {
+  color: var(--air-ink);
+  font-size: var(--t-heading);
+  font-weight: 600;
+}
+
+.cases-heading > span small {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+/* Карточки кейсов */
+.case-card > div > small,
+.case-quest-card small {
+  color: var(--air-soft) !important;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+.case-card h3 {
+  color: var(--air-ink);
+}
+
+.case-card p {
+  color: var(--air-soft) !important;
+  font-weight: 400;
+}
+
+.case-quest-card strong {
+  font-size: var(--t-body);
+  font-weight: 500;
+}
+
+.case-quest-card > b {
+  color: var(--air-soft);
+  font-size: var(--t-caption);
+  font-weight: 600;
+}
+
+.case-quest-card progress {
+  height: 4px;
+  border: 0;
+  border-radius: var(--r-full);
+  accent-color: var(--air-accent);
+}
+
+.case-quest-card progress::-webkit-progress-bar {
+  border-radius: var(--r-full);
+  background: var(--air-mist);
+}
+
+.case-quest-card progress::-webkit-progress-value {
+  border-radius: var(--r-full);
+  background: var(--air-accent);
+}
+
+.case-quest-card > span[aria-hidden] {
+  border-radius: var(--r-full);
+  background: var(--air-accent);
+}
+
+.case-hint {
+  color: var(--air-soft) !important;
+  font-size: var(--t-caption);
+  font-weight: 400;
+}
+
+/* Кнопка «Купить» второстепенна рядом с «Открыть» */
+.case-card-actions button:first-child:not(:disabled) {
+  color: #fff;
+  background: var(--air-accent);
+}
+
+.case-card-actions button:last-child:not(:disabled) {
+  border: 1px solid var(--air-line-strong);
+  color: var(--air-ink);
+  background: var(--air-surface);
+}
+
+/* Сообщение о покупке */
+.purchase-message {
+  color: var(--air-ink);
+  font-size: var(--t-caption);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------------
+   10. Капитель: подписи набраны обычным регистром
+   Заглавные оставлены только у логотипа и LVL — там это знак, а не текст.
+   --------------------------------------------------------------------------- */
+
+.settings-sheet .settings-section-title,
+.settings-sheet .promo-code-row > span,
+.cases-heading > span small,
+.shop-sheet .shop-categories button,
+.stats-line span,
+.promo-panel .promo-list-title,
+.boot-splash-status,
+.food-copy small,
+.shop-product-card .food-copy small,
+.case-card > div > small {
+  text-transform: none;
+}
+
+/* Промокод — единственное поле, где верхний регистр несёт смысл */
+.settings-sheet .promo-form input {
+  text-transform: uppercase;
+}
+
+/* Статистика: подпись под числом, числа выровнены по колонкам */
+.settings-sheet .stats-line span {
+  display: grid;
+  gap: 2px;
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.settings-sheet .stats-line strong {
+  color: var(--air-ink);
+  font-size: var(--t-title);
+}
+
+/* Панель сложности: значение не должно наезжать на описание */
+.settings-sheet .difficulty-heading {
+  min-width: 0;
+  gap: var(--s-3);
+}
+
+.settings-sheet .difficulty-value {
+  flex: 0 0 auto;
+  border-radius: var(--r-full);
+  background: var(--air-accent);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.settings-sheet .difficulty-scale {
+  color: var(--air-soft);
+  font-size: var(--t-micro);
+  font-weight: 500;
+}
+
+.settings-sheet .difficulty-scale strong,
+.settings-sheet .difficulty-scale b {
+  font-weight: 600;
+}
+
+/* Строка-ссылка «Повторить обучение» */
+.settings-sheet .settings-action {
+  border-radius: var(--r-lg);
+  font-size: var(--t-body-lg);
+  font-weight: 500;
+}
+
+/* Промокоды */
+.settings-sheet .promo-code-row {
+  border-radius: var(--r-sm);
+  background: var(--air-mist);
+}
+
+.promo-empty {
+  color: var(--air-soft);
+  font-size: var(--t-caption);
+}
+
+/* ---------------------------------------------------------------------------
+   11. Узкие экраны (320 px): ничего не обрезается и не исчезает
+   Статус Кнопика — это состояние игры. Точка без подписи означала бы
+   состояние одним цветом, поэтому на узких экранах прячется имя, а не статус.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 420px) {
+  .game-shell .account-identity > strong,
+  .game-shell .status-cluster > strong {
+    max-width: none;
+    font-size: var(--t-micro);
+  }
+}
+
+@media (max-width: 360px) {
+  .game-shell .account-identity > strong {
+    display: none;
+  }
+
+  .game-shell .status-cluster > strong {
+    display: block;
+  }
+
+  /* Сейф на узком экране: подпись над числом, без переноса слов */
+  .game-shell .saved-balance > span:last-child {
+    display: grid;
+    gap: 0;
+    text-align: left;
+  }
+
+  .game-shell .saved-balance {
+    justify-content: flex-start;
+    padding-inline: var(--s-3);
+  }
+
+  .game-shell .saved-balance strong {
+    overflow: hidden;
+    font-size: var(--t-body-lg);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   12. Тёмная сцена: контраст подписей в рулетке и в гневе
+   --------------------------------------------------------------------------- */
+
+.game-shell.risk-mode .bottom-bar button,
+.game-shell.state-angry .bottom-bar button,
+.risk-mode .bottom-bar button,
+.state-angry .bottom-bar button {
+  color: rgb(255 255 255 / 85%) !important;
+}
+
+.game-shell.risk-mode .bottom-bar button.active,
+.game-shell.state-angry .bottom-bar button.active,
+.risk-mode .bottom-bar button.active,
+.state-angry .bottom-bar button.active {
+  color: #fff !important;
+}
+
+.game-shell.risk-mode .bottom-bar .shop-icon,
+.game-shell.risk-mode .bottom-bar .home-icon,
+.game-shell.risk-mode .bottom-bar .case-nav-icon,
+.game-shell.state-angry .bottom-bar .shop-icon,
+.game-shell.state-angry .bottom-bar .home-icon,
+.game-shell.state-angry .bottom-bar .case-nav-icon {
+  opacity: 1;
+}
+
+.game-shell.risk-mode .quest-copy strong,
+.game-shell.state-angry .quest-copy strong,
+.game-shell.risk-mode .level-title strong,
+.game-shell.state-angry .level-title strong {
+  color: #fff;
+}
+
+.game-shell.risk-mode .quest-copy small,
+.game-shell.state-angry .quest-copy small,
+.game-shell.risk-mode .level-progress-copy span,
+.game-shell.state-angry .level-progress-copy span,
+.game-shell.risk-mode .level-title > span,
+.game-shell.state-angry .level-title > span,
+.game-shell.risk-mode .level-reward small,
+.game-shell.state-angry .level-reward small,
+.game-shell.risk-mode .account-identity > strong,
+.game-shell.state-angry .account-identity > strong,
+.game-shell.risk-mode .status-cluster > strong,
+.game-shell.state-angry .status-cluster > strong,
+.game-shell.risk-mode .saved-balance small,
+.game-shell.state-angry .saved-balance small {
+  color: rgb(255 255 255 / 82%);
+}
+
+/* Аватар и сейф на тёмном: светлая обводка вместо синей заливки */
+.game-shell.risk-mode .account-identity .account-shortcut,
+.game-shell.state-angry .account-identity .account-shortcut {
+  color: #fff;
+  background: rgb(255 255 255 / 20%);
+}
+
+.game-shell.risk-mode .saved-balance,
+.game-shell.state-angry .saved-balance {
+  border-color: rgb(255 255 255 / 24%);
+  background: rgb(255 255 255 / 12%);
+}
+
+.game-shell.risk-mode .saved-balance strong,
+.game-shell.state-angry .saved-balance strong {
+  color: #fff;
+}
+
+/* Кнопка сейфа: на красном синий тонет, поэтому белая с тёмной надписью */
+.game-shell.state-angry .quick-save-button:not(:disabled) {
+  color: #a5271f;
+  background: #fff;
+}
+
+.game-shell.risk-mode .quick-save-button:disabled,
+.game-shell.state-angry .quick-save-button:disabled {
+  color: rgb(255 255 255 / 62%);
+  background: rgb(255 255 255 / 12%);
+}
+
+/* Круги бафов на тёмном */
+.game-shell.risk-mode .boost-row .inventory-item > .inventory-count:not(.is-price),
+.game-shell.state-angry .boost-row .inventory-item > .inventory-count:not(.is-price) {
+  border-color: transparent;
+  color: var(--air-ink);
+  background: #fff;
+}
+
+/* Заставка: одна дыхательная анимация вместо трёх, спокойный текст */
+.boot-splash-word {
+  text-shadow: none;
+  animation: splash-word-in 1.05s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.boot-splash-dots i {
+  background: var(--air-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   13. Обучение и мини-игры
+   --------------------------------------------------------------------------- */
+
+.tutorial-sheet {
+  padding: var(--s-6);
+  gap: var(--s-4);
+  background: var(--air-surface);
+}
+
+.tutorial-sheet h2 {
+  font-size: var(--t-title);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.tutorial-sheet > p:not(.sheet-kicker) {
+  color: var(--air-soft);
+  font-size: var(--t-body-lg);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.tutorial-visual {
+  border-radius: var(--r-lg);
+  background: var(--air-accent);
+  box-shadow: none;
+}
+
+.tutorial-dots i {
+  background: var(--air-line-strong);
+}
+
+.tutorial-dots i.is-active {
+  background: var(--air-accent);
+}
+
+.primary-button {
+  background: var(--air-accent);
+}
+
+/* Мини-игры остаются тёмными: это отдельный «стол», но без лишнего декора */
+.mini-game-panel {
+  border: 0;
+  border-radius: var(--r-xl);
+  box-shadow: 0 30px 70px -30px rgb(0 0 0 / 60%);
+}
+
+.mini-game-topline h2 {
+  font-size: var(--t-title);
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+.mini-game-topline small,
+.mini-bet-card small,
+.mine-progress small {
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: none;
+}
+
+.mini-close {
+  border-radius: var(--r-full);
+}
+
+.mini-bet-card > span,
+.mine-progress > span {
+  border-radius: var(--r-md);
+}
+
+.mini-primary,
+.mine-actions button,
+.mini-bet-control button {
+  border-radius: var(--r-full);
+  font-weight: 600;
+}
+
+.mine-tile {
+  border-radius: var(--r-md);
+}
+
+.mine-hint,
+.mini-stats {
+  font-size: var(--t-caption);
+  font-weight: 400;
+  line-height: 1.45;
+}
