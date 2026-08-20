@@ -56,9 +56,10 @@ test("server-renders the secure boot shell and preloads all game art", async () 
 });
 
 test("main interface keeps the requested compact balance and aligned buy badges", async () => {
-  const [pageSource, menuStyles] = await Promise.all([
+  const [pageSource, menuStyles, interfaceStyles] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/menu-refresh.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/interface-v2.css", import.meta.url), "utf8"),
   ]);
 
   assert.doesNotMatch(pageSource, /<small>АКТИВНЫЕ МОНЕТЫ<\/small>/);
@@ -74,9 +75,12 @@ test("main interface keeps the requested compact balance and aligned buy badges"
   }
   assert.match(menuStyles, /\.inventory-item > \.inventory-count\.is-price\s*\{[\s\S]*?top:\s*-2px;[\s\S]*?right:\s*-2px;[\s\S]*?display:\s*grid;[\s\S]*?width:\s*18px;[\s\S]*?height:\s*18px;/);
   assert.match(menuStyles, /\.inventory-count\.is-price::before\s*\{[\s\S]*?content:\s*none;/);
-  assert.match(menuStyles, /\.vault-row\s*\{[\s\S]*?width:\s*min\(100%,\s*310px\);[\s\S]*?minmax\(122px,\s*0\.76fr\)/);
-  assert.match(menuStyles, /\.quick-save-button,[\s\S]*?\.saved-balance\s*\{[\s\S]*?height:\s*36px;/);
-  assert.match(menuStyles, /\.saved-balance \.safe-icon\s*\{[\s\S]*?display:\s*inline-block;/);
+  assert.match(pageSource, /className=\{`balance-transfer /);
+  assert.match(pageSource, /onPointerDown=\{beginVaultSwipe\}/);
+  assert.match(pageSource, /Проведи вправо, чтобы защитить 50% активного баланса/);
+  assert.match(interfaceStyles, /\.balance-transfer\s*\{[\s\S]*?grid-template-columns:[\s\S]*?touch-action:\s*none;/);
+  assert.match(interfaceStyles, /\.vault-transfer-button\s*\{[\s\S]*?transform:\s*translateX\(var\(--vault-swipe-x\)\)/);
+  assert.match(interfaceStyles, /\.balance-transfer \.safe-icon\s*\{[\s\S]*?filter:\s*brightness\(0\) invert\(1\)/);
   assert.match(menuStyles, /@media \(max-height:\s*580px\)[\s\S]*?\.dog-button,[\s\S]*?width:\s*min\(64vw,\s*154px\)/);
 });
 
