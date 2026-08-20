@@ -79,7 +79,6 @@ type CloudGameSession = {
   updateDifficulty: (difficulty: number) => Promise<string>;
   createPromoCode: (code: string, amount: number) => Promise<string>;
   redeemPromoCode: (code: string) => Promise<PromoResult>;
-  changePassword: (password: string) => Promise<string>;
   signOut: () => Promise<void>;
 };
 
@@ -89,6 +88,10 @@ type CloudAccountGateProps = {
 
 const SAVE_DELAY_MS = 4_000;
 const MAX_PROMO_AMOUNT = 1_000_000_000;
+const LOGIN_ACCOUNTS = [
+  { username: "Kamrad", role: "Администратор" },
+  { username: "salaga", role: "Игрок" },
+] as const;
 const CLOUD_SOURCE_ID =
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -136,7 +139,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const [account, setAccount] = useState<CloudAccount | null>(null);
   const [initialSave, setInitialSave] = useState<SaveData | null>(null);
   const [gameRevision, setGameRevision] = useState(0);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState<(typeof LOGIN_ACCOUNTS)[number]["username"]>("Kamrad");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginPending, setLoginPending] = useState(false);
@@ -149,6 +152,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const saveVersionRef = useRef(0);
   const flushedVersionRef = useRef(0);
   const flushInFlightRef = useRef<Promise<void> | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
   const refreshPromoCodes = useCallback(async () => {
     if (!accountRef.current?.isAdmin) return;
@@ -431,6 +435,13 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
   async function submitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const selectedAccount = LOGIN_ACCOUNTS.find(
+      (account) => account.username.toLowerCase() === username.trim().toLowerCase(),
+    );
+    if (!selectedAccount) {
+      setLoginError("Выбери один из двух профилей.");
+      return;
+    }
     const email = usernameToEmail(username);
     if (!email) {
       setLoginError("Логин должен содержать от 3 до 32 латинских букв или цифр.");
@@ -438,21 +449,22 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     }
     setLoginPending(true);
     setLoginError("");
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setLoginError("Неверный логин или пароль.");
-    setLoginPending(false);
+    try {
+      const { error } = await getSupabaseClient().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        setLoginError("Проверь пароль и попробуй снова.");
+        passwordInputRef.current?.focus();
+      }
+    } catch {
+      setLoginError("Не удалось подключиться. Проверь интернет и попробуй снова.");
+      passwordInputRef.current?.focus();
+    } finally {
+      setLoginPending(false);
+    }
   }
-
-  const changePassword = useCallback(async (nextPassword: string) => {
-    if (nextPassword.length < 6) return "Пароль должен содержать минимум 6 символов.";
-    const { error } = await getSupabaseClient().auth.updateUser({
-      password: nextPassword,
-    });
-    return error ? "Не удалось изменить пароль." : "Пароль изменён.";
-  }, []);
 
   const signOut = useCallback(async () => {
     await flushProgress();
@@ -471,33 +483,53 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     return (
       <main className="auth-screen">
         <form className="auth-card" onSubmit={submitLogin}>
-          <p className="auth-kicker">KNOPIK TAP</p>
-          <h1>Вход в игру</h1>
-          <p>Войди в профиль — прогресс загрузится из облака.</p>
-          <label>
-            <span>Логин</span>
-            <input
-              value={username}
-              onChange={(event) => setUsername(event.currentTarget.value)}
-              autoCapitalize="none"
-              autoCorrect="off"
-              autoComplete="username"
-              required
-            />
-          </label>
+          <div className="auth-brand" aria-label="Knopik Tap">
+            <span aria-hidden="true">K</span>
+            <p className="auth-kicker">KNOPIK TAP</p>
+          </div>
+          <h1>Выбери профиль</h1>
+          <p>Прогресс загрузится из облака и сохранится автоматически.</p>
+          <fieldset className="auth-profiles">
+            <legend>Профиль</legend>
+            {LOGIN_ACCOUNTS.map((loginAccount) => {
+              const selected = loginAccount.username === username;
+              return (
+                <button
+                  className={selected ? "is-selected" : ""}
+                  type="button"
+                  key={loginAccount.username}
+                  aria-pressed={selected}
+                  onClick={() => {
+                    setUsername(loginAccount.username);
+                    setPassword("");
+                    setLoginError("");
+                  }}
+                >
+                  <span aria-hidden="true">{loginAccount.username.slice(0, 1).toUpperCase()}</span>
+                  <span><strong>{loginAccount.username}</strong><small>{loginAccount.role}</small></span>
+                  <i aria-hidden="true" />
+                </button>
+              );
+            })}
+          </fieldset>
           <label>
             <span>Пароль</span>
             <input
+              ref={passwordInputRef}
               type="password"
               value={password}
               onChange={(event) => setPassword(event.currentTarget.value)}
               autoComplete="current-password"
+              inputMode="numeric"
+              placeholder="Введите пароль"
+              aria-invalid={Boolean(loginError)}
+              aria-describedby={loginError ? "login-error" : undefined}
               required
             />
           </label>
-          {loginError && <p className="auth-error" role="alert">{loginError}</p>}
+          {loginError && <p className="auth-error" id="login-error" role="alert">{loginError}</p>}
           <button type="submit" disabled={loginPending}>
-            {loginPending ? "Входим…" : "Войти"}
+            {loginPending ? "Загружаем профиль…" : `Войти как ${username}`}
           </button>
         </form>
       </main>
@@ -516,7 +548,6 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     updateDifficulty,
     createPromoCode,
     redeemPromoCode,
-    changePassword,
     signOut,
   });
 }

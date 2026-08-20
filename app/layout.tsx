@@ -11,7 +11,7 @@ const publicAsset = (path: string) => `${basePath}${path}`;
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f7f9fc",
+  themeColor: "#0b43a5",
 };
 
 export const metadata: Metadata = {
