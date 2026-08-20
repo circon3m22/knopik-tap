@@ -131,14 +131,26 @@ body {
   color: var(--air-ink);
 }
 
+/* Спокойствие — светлый небесный тон. Он остаётся узнаваемо синим,
+   но не спорит с портретом и даёт тёмному тексту уверенный контраст. */
+.game-shell.state-calm,
+.game-shell.state-calm.pale-calm {
+  --scene: #dcecff;
+  background-image:
+    radial-gradient(circle at 50% 45%, rgb(255 255 255 / 78%), transparent 34%),
+    linear-gradient(180deg, rgb(255 255 255 / 30%), transparent 42%);
+}
+
 /* Усталость и предупреждение — тёплая бумага, а не заливка жёлтым */
 .game-shell.state-tired {
   --scene: #fdf1d2;
+  background-image: radial-gradient(circle at 50% 46%, rgb(255 255 255 / 58%), transparent 38%);
 }
 
 .game-shell.state-warning,
 .game-shell.state-recovering.has-fatigue {
   --scene: #ffe9b4;
+  background-image: radial-gradient(circle at 50% 46%, rgb(255 255 255 / 48%), transparent 38%);
 }
 
 /* Гнев остаётся тревожным, но читаемым: белый текст на глубоком красном */
@@ -148,6 +160,9 @@ body {
   --adaptive-muted: rgb(255 255 255 / 82%);
   --adaptive-surface: rgb(255 255 255 / 16%);
   --adaptive-border: rgb(255 255 255 / 28%);
+  background-image:
+    radial-gradient(circle at 50% 44%, rgb(255 255 255 / 12%), transparent 34%),
+    linear-gradient(180deg, rgb(77 0 0 / 3%), rgb(77 0 0 / 16%));
 }
 
 .game-shell.risk-mode {
@@ -168,7 +183,7 @@ body {
    --------------------------------------------------------------------------- */
 
 .app-header {
-  gap: var(--s-4);
+  gap: var(--s-3);
 }
 
 .top-bar {
@@ -433,7 +448,7 @@ body {
 .game-shell.state-tired .boost-row .inventory-item,
 .game-shell.state-warning .boost-row .inventory-item,
 .game-shell.state-recovering.has-fatigue .boost-row .inventory-item {
-  min-height: 48px;
+  min-height: 44px;
   border: 1px solid var(--air-line);
   border-radius: var(--r-full);
   background: var(--adaptive-surface);
@@ -488,7 +503,15 @@ body {
    --------------------------------------------------------------------------- */
 
 .game-stage {
-  gap: var(--s-4);
+  gap: var(--s-5);
+}
+
+/* Портрет остаётся героем экрана, но больше не заходит на баланс на
+   средних и низких iPhone. На высоких экранах он вырастает до 318 px. */
+.game-shell .dog-button,
+.game-shell .ultra-aura {
+  width: min(74vw, 318px, calc(100dvh - 575px));
+  min-width: 184px;
 }
 
 .portrait-surface {

@@ -365,8 +365,6 @@ function KnopikGame({
   const [casesOpen, setCasesOpen] = useState(false);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
   const [accountPending, setAccountPending] = useState(false);
-  const [vaultSwipeActive, setVaultSwipeActive] = useState(false);
-  const [vaultStatus, setVaultStatus] = useState("");
   const [promoCode, setPromoCode] = useState("");
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
@@ -486,14 +484,6 @@ function KnopikGame({
   const rageSpriteImageRef = useRef<HTMLImageElement | null>(null);
   const walletBalanceRef = useRef<HTMLDivElement | null>(null);
   const savedBalanceRef = useRef<HTMLDivElement | null>(null);
-  const balanceTransferRef = useRef<HTMLDivElement | null>(null);
-  const vaultSwipeRef = useRef({
-    pointerId: -1,
-    startX: 0,
-    maxDistance: 1,
-    progress: 0,
-    suppressClick: false,
-  });
   const navDragStartRef = useRef(0);
   const navDidDragRef = useRef(false);
   const earTapStateRef = useRef({
@@ -1635,9 +1625,7 @@ function KnopikGame({
     const activeCoins = coinsRef.current.walletCoins;
     if (
       dogStateRef.current !== "calm" ||
-      riskPhaseRef.current !== "normal" ||
       holdingRef.current ||
-      miniGame !== null ||
       activeCoins < 2
     ) {
       return;
@@ -1661,7 +1649,6 @@ function KnopikGame({
 
     updateCoins((current) => ({ ...current, walletCoins: 0 }));
     setVaultCoins((current) => current + protectedCoins);
-    setVaultStatus(`В сейф перенесено ${protectedCoins.toLocaleString("ru-RU")} монет.`);
     clearRoundTimers();
     resetSeries();
     if (settingsRef.current.yellow) {
@@ -1681,79 +1668,7 @@ function KnopikGame({
     }
     getSound().safe();
     vibrate([20, 28, 44], settingsRef.current.vibration);
-  }, [applyFatigueDeadline, clearRoundTimers, getSound, miniGame, resetSeries, transitionTo, updateCoins]);
-
-  const resetVaultSwipeVisual = useCallback((panel: HTMLDivElement | null) => {
-    if (!panel) return;
-    panel.style.setProperty("--vault-swipe-x", "0px");
-    panel.style.setProperty("--vault-swipe-fill", "0%");
-  }, []);
-
-  const beginVaultSwipe = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    const activeCoins = coinsRef.current.walletCoins;
-    if (
-      dogStateRef.current !== "calm" ||
-      riskPhaseRef.current !== "normal" ||
-      holdingRef.current ||
-      miniGame !== null ||
-      activeCoins < 2
-    ) {
-      return;
-    }
-
-    const panel = event.currentTarget;
-    const bounds = panel.getBoundingClientRect();
-    const handleBounds = panel
-      .querySelector<HTMLElement>(".vault-transfer-button")
-      ?.getBoundingClientRect();
-    vaultSwipeRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      maxDistance: Math.max(
-        1,
-        handleBounds ? bounds.right - handleBounds.right - 9 : bounds.width * 0.34,
-      ),
-      progress: 0,
-      suppressClick: false,
-    };
-    panel.setPointerCapture(event.pointerId);
-    resetVaultSwipeVisual(panel);
-    setVaultSwipeActive(true);
-  }, [miniGame, resetVaultSwipeVisual]);
-
-  const moveVaultSwipe = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    const swipe = vaultSwipeRef.current;
-    if (swipe.pointerId !== event.pointerId) return;
-    const distance = Math.min(swipe.maxDistance, Math.max(0, event.clientX - swipe.startX));
-    const progress = distance / swipe.maxDistance;
-    swipe.progress = progress;
-    event.currentTarget.style.setProperty("--vault-swipe-x", `${distance}px`);
-    event.currentTarget.style.setProperty("--vault-swipe-fill", `${progress * 100}%`);
-  }, []);
-
-  const finishVaultSwipe = useCallback((event: PointerEvent<HTMLDivElement>, cancelled = false) => {
-    const swipe = vaultSwipeRef.current;
-    if (swipe.pointerId !== event.pointerId) return;
-    const panel = event.currentTarget;
-    const completed = !cancelled && swipe.progress >= 0.68;
-    if (panel.hasPointerCapture(event.pointerId)) panel.releasePointerCapture(event.pointerId);
-    vaultSwipeRef.current.pointerId = -1;
-    setVaultSwipeActive(false);
-
-    if (completed) {
-      swipe.suppressClick = true;
-      panel.style.setProperty("--vault-swipe-x", `${swipe.maxDistance}px`);
-      panel.style.setProperty("--vault-swipe-fill", "100%");
-      saveAllToVault();
-      window.setTimeout(() => resetVaultSwipeVisual(panel), 260);
-      window.setTimeout(() => {
-        vaultSwipeRef.current.suppressClick = false;
-      }, 0);
-      return;
-    }
-    requestAnimationFrame(() => resetVaultSwipeVisual(panel));
-  }, [resetVaultSwipeVisual, saveAllToVault]);
+  }, [applyFatigueDeadline, clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
 
   const buyFood = useCallback(() => {
     const availableSlots = Math.max(0, INVENTORY_LIMIT - foodCount);
@@ -3253,57 +3168,39 @@ function KnopikGame({
         </div>
 
         <div className="game-data">
-          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
           <div
-            ref={balanceTransferRef}
-            className={`balance-transfer ${vaultSwipeActive ? "is-swiping" : ""} ${canSave ? "can-transfer" : "is-locked"}`}
-            onPointerDown={beginVaultSwipe}
-            onPointerMove={moveVaultSwipe}
-            onPointerUp={(event) => finishVaultSwipe(event)}
-            onPointerCancel={(event) => finishVaultSwipe(event, true)}
+            ref={walletBalanceRef}
+            className={`wallet-balance ${balanceVariant}`}
+            aria-label={`Активные монеты ${coins.walletCoins}`}
           >
-            <span className="vault-swipe-fill" aria-hidden="true" />
-            <div
-              ref={walletBalanceRef}
-              className={`wallet-balance ${balanceVariant}`}
-              aria-label={`Активный баланс: ${coins.walletCoins.toLocaleString("ru-RU")} монет`}
-            >
-              <span className="coin-mark" aria-hidden="true"><i>К</i></span>
-              <span>
-                <small>Активный баланс</small>
-                <strong className="balance-number" key={`balance-${balancePulse}`}>
-                  {coins.walletCoins.toLocaleString("ru-RU")}
-                </strong>
-              </span>
+            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+            <div>
+              <strong className="balance-number" key={`balance-${balancePulse}`}>
+                {coins.walletCoins.toLocaleString("ru-RU")}
+              </strong>
             </div>
+          </div>
+          {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
+          <div className="vault-row">
             <button
-              className="vault-transfer-button"
+              className="quick-save-button"
               type="button"
               disabled={!canSave}
               aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
-              aria-describedby="vault-transfer-hint"
-              onClick={() => {
-                if (vaultSwipeRef.current.suppressClick) {
-                  vaultSwipeRef.current.suppressClick = false;
-                  return;
-                }
-                saveAllToVault();
-              }}
+              onClick={saveAllToVault}
             >
-              <span aria-hidden="true"><i /></span>
-              <small>{canSave ? "Проведи" : "Недоступно"}</small>
+              <span className="safe-icon" aria-hidden="true"><i /></span>
+              <span>В сейф · 50%</span>
             </button>
             <div
               ref={savedBalanceRef}
               className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
-              aria-label={`Баланс сейфа: ${vaultCoins.toLocaleString("ru-RU")} монет`}
+              aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
               <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span><small>Баланс сейфа</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+              <span><small>В сейфе</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
             </div>
-            <p id="vault-transfer-hint">Проведи вправо, чтобы защитить 50% активного баланса</p>
           </div>
-          <p className="vault-status" role="status" aria-live="polite">{vaultStatus}</p>
         </div>
       </section>
 

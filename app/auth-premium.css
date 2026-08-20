@@ -1,0 +1,189 @@
+/* Premium two-profile entry. Kept isolated from the game scene. */
+.auth-screen {
+  position: relative;
+  overflow: hidden auto;
+  color: #fff;
+  background:
+    radial-gradient(circle at 16% 8%, rgb(55 216 255 / 38%), transparent 31%),
+    radial-gradient(circle at 90% 88%, rgb(117 70 255 / 48%), transparent 36%),
+    linear-gradient(145deg, #07163d 0%, #093b9c 48%, #351381 100%);
+}
+
+.auth-screen::before,
+.auth-screen::after {
+  position: fixed;
+  width: min(62vw, 420px);
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 38%;
+  content: "";
+  pointer-events: none;
+  transform: rotate(24deg);
+}
+
+.auth-screen::before { top: -24%; right: -18%; }
+.auth-screen::after { bottom: -30%; left: -20%; transform: rotate(-18deg); }
+
+.auth-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 440px);
+  gap: 18px;
+  padding: clamp(24px, 7vw, 38px);
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 34px;
+  color: #fff;
+  background: rgb(5 18 55 / 72%);
+  box-shadow: 0 34px 90px rgb(0 7 34 / 52%), inset 0 1px 0 rgb(255 255 255 / 18%);
+  backdrop-filter: blur(26px) saturate(150%);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.auth-brand > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 40%);
+  border-radius: 14px;
+  color: #082359;
+  background: linear-gradient(145deg, #fff07a, #ffbd24);
+  box-shadow: 0 9px 22px rgb(255 190 36 / 27%), inset 0 1px 0 #fff7ba;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.auth-card .auth-kicker {
+  color: #9eeeff;
+  font-size: 12px;
+}
+
+.auth-card h1 {
+  color: #fff;
+  font-size: clamp(32px, 10vw, 44px);
+  text-wrap: balance;
+}
+
+.auth-card > p:not(.auth-kicker):not(.auth-error) {
+  max-width: 36ch;
+  color: rgb(255 255 255 / 72%);
+  font-size: 15px;
+  text-wrap: pretty;
+}
+
+.auth-profiles {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.auth-profiles legend {
+  margin-bottom: 8px;
+  color: rgb(255 255 255 / 72%);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.auth-profiles > button {
+  display: grid;
+  min-height: 64px;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 13px 9px 9px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 19px;
+  color: #fff;
+  background: rgb(255 255 255 / 8%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+  text-align: start;
+  transition-property: border-color, background-color, box-shadow, scale;
+  transition-duration: 150ms;
+}
+
+.auth-profiles > button > span:first-child {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(145deg, #229dff, #5c43ff);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.auth-profiles > button > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.auth-profiles strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.auth-profiles small { color: rgb(255 255 255 / 62%); font-size: 12px; }
+
+.auth-profiles i {
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgb(255 255 255 / 33%);
+  border-radius: 50%;
+}
+
+.auth-profiles > button.is-selected {
+  border-color: #6ee7ff;
+  background: rgb(43 131 255 / 27%);
+  box-shadow: 0 10px 24px rgb(0 28 90 / 22%), inset 0 1px 0 rgb(255 255 255 / 14%);
+}
+
+.auth-profiles > button.is-selected i {
+  border: 5px solid #fff;
+  background: #28bdf4;
+  box-shadow: 0 0 0 3px rgb(55 216 255 / 20%);
+}
+
+.auth-card label,
+.auth-card label span { color: rgb(255 255 255 / 78%); }
+
+.auth-card input {
+  border-color: rgb(255 255 255 / 18%);
+  color: #fff;
+  background: rgb(255 255 255 / 9%);
+  caret-color: #9eeeff;
+}
+
+.auth-card input::placeholder { color: rgb(255 255 255 / 42%); }
+.auth-card input:focus { border-color: #68dcff; background: rgb(255 255 255 / 13%); box-shadow: 0 0 0 4px rgb(55 216 255 / 16%); }
+
+.auth-card > button {
+  min-height: 56px;
+  border-radius: 18px;
+  color: #092356;
+  background: linear-gradient(135deg, #68e7ff, #47b9ff 44%, #ffd84e 140%);
+  box-shadow: 0 13px 28px rgb(35 181 255 / 32%), inset 0 1px 0 rgb(255 255 255 / 62%);
+  font-size: 15px;
+  font-weight: 850;
+  transition-property: scale, filter, opacity;
+  transition-duration: 140ms;
+}
+
+.auth-card > button:active:not(:disabled),
+.auth-profiles > button:active:not(:disabled) { scale: .96; }
+.auth-error { color: #68131a !important; background: #ffd9dc; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-screen::before { animation: auth-float 11s ease-in-out infinite alternate; }
+  .auth-screen::after { animation: auth-float 14s ease-in-out -3s infinite alternate-reverse; }
+}
+
+@keyframes auth-float {
+  to { translate: 20px 28px; rotate: 12deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card * { animation: none !important; transition-duration: 0ms !important; }
+}
+
