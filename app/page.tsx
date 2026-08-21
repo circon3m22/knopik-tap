@@ -3265,31 +3265,33 @@ function KnopikGame({
         </div>
       </section>
 
-      <footer
-        className="bottom-bar"
-        style={{ "--nav-index": navIndex } as CSSProperties}
-        onPointerDown={handleNavigationDown}
-        onPointerMove={handleNavigationMove}
-        onPointerUp={(event) => {
-          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          }
-        }}
-      >
-        <span className="nav-thumb" aria-hidden="true" />
-        <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
-          <span className="shop-icon" aria-hidden="true"><i /></span>
-          <span>Магазин</span>
-        </button>
-        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
-          <span className="home-icon" aria-hidden="true"><i /></span>
-          <span>Играть</span>
-        </button>
-        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
-          <span className="case-nav-icon" aria-hidden="true"><i /></span>
-          <span>Кейсы</span>
-        </button>
-      </footer>
+      {!shopOpen && !casesOpen && (
+        <footer
+          className="bottom-bar"
+          style={{ "--nav-index": navIndex } as CSSProperties}
+          onPointerDown={handleNavigationDown}
+          onPointerMove={handleNavigationMove}
+          onPointerUp={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+          }}
+        >
+          <span className="nav-thumb" aria-hidden="true" />
+          <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
+            <span className="shop-icon" aria-hidden="true"><i /></span>
+            <span>Магазин</span>
+          </button>
+          <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
+            <span className="home-icon" aria-hidden="true"><i /></span>
+            <span>Играть</span>
+          </button>
+          <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
+            <span className="case-nav-icon" aria-hidden="true"><i /></span>
+            <span>Кейсы</span>
+          </button>
+        </footer>
+      )}
       </div>
 
       {miniGame && (
@@ -3678,6 +3680,14 @@ function KnopikGame({
           <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="sheet-heading">
               <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
+              <button
+                className="settings-close"
+                type="button"
+                aria-label="Закрыть настройки"
+                onClick={() => selectNavigation(1)}
+              >
+                <span aria-hidden="true" />
+              </button>
             </div>
 
             <p className="settings-section-title">Аккаунт</p>

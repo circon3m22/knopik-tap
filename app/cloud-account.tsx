@@ -540,10 +540,17 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     await getSupabaseClient().auth.signOut();
   }, [flushProgress]);
 
-  if (authLoading) {
+  if (authLoading || loginPending) {
     return (
-      <main className="auth-screen">
-        <div className="auth-loader" aria-label="Загрузка профиля" />
+      <main className="auth-screen auth-loading-screen">
+        <div className="auth-loading-brand" role="status" aria-live="polite">
+          <div className="auth-loading-logo" aria-label="Knopik Tap">
+            <span>KNOPIK</span>
+            <strong>TAP</strong>
+          </div>
+          <div className="auth-loading-progress" aria-hidden="true"><i /></div>
+          <p>{loginPending ? `Входим как ${username}…` : "Загружаем профиль…"}</p>
+        </div>
       </main>
     );
   }
