@@ -225,17 +225,13 @@ function vibrate(pattern: number | number[], enabled: boolean) {
   }
 }
 
-/**
- * Темп подсвечивает сцену, оставаясь светлым: интерфейс тёмными чернилами на
- * бумаге, поэтому насыщенная заливка увела бы подписи ниже порога контраста.
- * Крайняя точка — #cfe2fa: ink 12:1, приглушённый текст 4.5:1.
- */
+/** Темп делает синюю сцену глубже и насыщеннее, не меняя семантику состояния. */
 function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
-  if (!hasTaps) return "rgb(245 248 251)";
+  if (!hasTaps) return "rgb(9 100 245)";
 
   const ratio = Math.min(1, Math.max(0, (500 - averageInterval) / 240));
-  const light = [245, 248, 251];
-  const deep = [207, 226, 250];
+  const light = [9, 100, 245];
+  const deep = [53, 39, 221];
   const channels = light.map((channel, index) =>
     Math.round(channel + (deep[index] - channel) * ratio),
   );
@@ -365,6 +361,8 @@ function KnopikGame({
   const [casesOpen, setCasesOpen] = useState(false);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
   const [accountPending, setAccountPending] = useState(false);
+  const [vaultSwipeActive, setVaultSwipeActive] = useState(false);
+  const [vaultStatus, setVaultStatus] = useState("");
   const [promoCode, setPromoCode] = useState("");
   const [promoAmount, setPromoAmount] = useState("");
   const [promoMessage, setPromoMessage] = useState("");
@@ -484,6 +482,13 @@ function KnopikGame({
   const rageSpriteImageRef = useRef<HTMLImageElement | null>(null);
   const walletBalanceRef = useRef<HTMLDivElement | null>(null);
   const savedBalanceRef = useRef<HTMLDivElement | null>(null);
+  const balanceTransferRef = useRef<HTMLDivElement | null>(null);
+  const vaultSwipeRef = useRef({
+    pointerId: -1,
+    startX: 0,
+    maxDistance: 1,
+    progress: 0,
+  });
   const navDragStartRef = useRef(0);
   const navDidDragRef = useRef(false);
   const earTapStateRef = useRef({
@@ -1625,7 +1630,9 @@ function KnopikGame({
     const activeCoins = coinsRef.current.walletCoins;
     if (
       dogStateRef.current !== "calm" ||
+      riskPhaseRef.current !== "normal" ||
       holdingRef.current ||
+      miniGame !== null ||
       activeCoins < 2
     ) {
       return;
@@ -1649,6 +1656,7 @@ function KnopikGame({
 
     updateCoins((current) => ({ ...current, walletCoins: 0 }));
     setVaultCoins((current) => current + protectedCoins);
+    setVaultStatus(`В сейф перенесено ${protectedCoins.toLocaleString("ru-RU")} монет.`);
     clearRoundTimers();
     resetSeries();
     if (settingsRef.current.yellow) {
@@ -1668,7 +1676,62 @@ function KnopikGame({
     }
     getSound().safe();
     vibrate([20, 28, 44], settingsRef.current.vibration);
-  }, [applyFatigueDeadline, clearRoundTimers, getSound, resetSeries, transitionTo, updateCoins]);
+  }, [applyFatigueDeadline, clearRoundTimers, getSound, miniGame, resetSeries, transitionTo, updateCoins]);
+
+  const vaultLocked = dogState !== "calm" || riskPhase !== "normal" || miniGame !== null;
+  const canSave = !vaultLocked && coins.walletCoins >= 2;
+
+  const resetVaultSwipeVisual = useCallback((panel: HTMLDivElement | null) => {
+    if (!panel) return;
+    panel.style.setProperty("--vault-swipe-progress", "0%");
+  }, []);
+
+  const beginVaultSwipe = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || event.button !== 0 || !canSave) return;
+    const panel = event.currentTarget;
+    const bounds = panel.getBoundingClientRect();
+    vaultSwipeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      maxDistance: Math.max(1, bounds.width * 0.5),
+      progress: 0,
+    };
+    panel.setPointerCapture(event.pointerId);
+    resetVaultSwipeVisual(panel);
+    setVaultSwipeActive(true);
+  }, [canSave, resetVaultSwipeVisual]);
+
+  const moveVaultSwipe = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    const swipe = vaultSwipeRef.current;
+    if (swipe.pointerId !== event.pointerId) return;
+    const distance = Math.min(swipe.maxDistance, Math.max(0, event.clientX - swipe.startX));
+    swipe.progress = distance / swipe.maxDistance;
+    event.currentTarget.style.setProperty("--vault-swipe-progress", `${swipe.progress * 100}%`);
+  }, []);
+
+  const finishVaultSwipe = useCallback((event: PointerEvent<HTMLDivElement>, cancelled = false) => {
+    const swipe = vaultSwipeRef.current;
+    if (swipe.pointerId !== event.pointerId) return;
+    const panel = event.currentTarget;
+    const completed = !cancelled && swipe.progress >= 0.58;
+    if (panel.hasPointerCapture(event.pointerId)) panel.releasePointerCapture(event.pointerId);
+    vaultSwipeRef.current.pointerId = -1;
+    setVaultSwipeActive(false);
+
+    if (completed) {
+      panel.style.setProperty("--vault-swipe-progress", "100%");
+      saveAllToVault();
+      window.setTimeout(() => resetVaultSwipeVisual(panel), 420);
+      return;
+    }
+    requestAnimationFrame(() => resetVaultSwipeVisual(panel));
+  }, [resetVaultSwipeVisual, saveAllToVault]);
+
+  const handleVaultKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    if (canSave) saveAllToVault();
+  }, [canSave, saveAllToVault]);
 
   const buyFood = useCallback(() => {
     const availableSlots = Math.max(0, INVENTORY_LIMIT - foodCount);
@@ -2521,7 +2584,6 @@ function KnopikGame({
   ]);
 
   // A normal tap briefly sets `holding`; it must not toggle the vault button.
-  const vaultLocked = dogState !== "calm" || riskPhase !== "normal" || miniGame !== null;
   const isDogTired =
     !settings.yellow &&
     (dogState === "tired" ||
@@ -2534,7 +2596,6 @@ function KnopikGame({
   const canQuickBuyCola = colaCount === 0 && riskPhase === "normal" && dogState === "calm" && miniGame === null && coins.walletCoins > COCOA_COLA_PRICE;
   const canQuickBuyTea = teaCount === 0 && riskPhase === "normal" && dogState === "calm" && miniGame === null && coins.walletCoins > BERGAMOT_TEA_PRICE;
   const canQuickBuyVitaPower = !vitaPowerShield && vitaPowerCount === 0 && riskPhase === "normal" && coins.walletCoins >= VITA_POWER_PRICE;
-  const canSave = !vaultLocked && coins.walletCoins >= 2;
   const saveAmount = Math.floor(coins.walletCoins / 2);
   const foodTotalPrice = foodQuantity * DOG_FOOD_PRICE;
   const remainingFoodSlots = Math.max(0, INVENTORY_LIMIT - foodCount);

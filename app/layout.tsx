@@ -5,6 +5,7 @@ import "./interface-v2.css";
 import "./menu-refresh.css";
 import "./air.css";
 import "./auth-premium.css";
+import "./home-vibrant.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
