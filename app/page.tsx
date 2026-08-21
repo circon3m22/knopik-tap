@@ -2819,9 +2819,9 @@ function KnopikGame({
     "--fatigue-angle": `${Math.round(fatigueCountdownRatio * 360)}deg`,
   } as CSSProperties;
 
-  const renderBottomNavigation = (overlay = false) => (
+  const renderBottomNavigation = () => (
     <footer
-      className={`bottom-bar${overlay ? " overlay-bottom-bar" : ""}`}
+      className={`bottom-bar persistent-bottom-bar${shopOpen || casesOpen ? " is-overlay-visible" : ""}`}
       aria-label="Основная навигация"
       style={{ "--nav-index": navIndex } as CSSProperties}
       onPointerDown={handleNavigationDown}
@@ -3302,8 +3302,10 @@ function KnopikGame({
         </div>
       </section>
 
-      {!shopOpen && !casesOpen && renderBottomNavigation()}
+      <div className="bottom-bar-space" aria-hidden="true" />
       </div>
+
+      {renderBottomNavigation()}
 
       {miniGame && (
         <MiniGamePanel
@@ -3680,8 +3682,6 @@ function KnopikGame({
           </section>
         </div>
       )}
-
-      {(shopOpen || casesOpen) && renderBottomNavigation(true)}
 
       {settingsOpen && (
         <div

@@ -911,17 +911,26 @@ body {
   transform: scale(.96);
 }
 
-.game-shell .bottom-bar.overlay-bottom-bar,
-.bottom-bar.overlay-bottom-bar {
-  position: fixed;
-  z-index: 180;
-  right: 0;
-  bottom: max(10px, env(safe-area-inset-bottom));
-  left: 0;
-  width: min(calc(100vw - 24px), 500px);
-  margin-inline: auto;
+.game-shell .bottom-bar.persistent-bottom-bar,
+.bottom-bar.persistent-bottom-bar {
+  position: absolute;
+  z-index: 70;
+  inset-inline: clamp(12px, 4.2vw, 24px);
+  bottom: calc(env(safe-area-inset-bottom) + clamp(10px, 1.8dvh, 16px));
+  width: auto;
+  margin: 0;
   transform: none;
   animation: none;
+}
+
+.game-shell .bottom-bar.persistent-bottom-bar.is-overlay-visible,
+.bottom-bar.persistent-bottom-bar.is-overlay-visible {
+  z-index: 180;
+}
+
+.bottom-bar-space {
+  min-height: 68px;
+  pointer-events: none;
 }
 
 .nav-thumb {
@@ -1091,7 +1100,7 @@ body {
   .boot-content.is-revealed .boost-row,
   .boot-content.is-revealed .dog-stage,
   .boot-content.is-revealed .game-data,
-  .boot-content.is-revealed .bottom-bar:not(.overlay-bottom-bar) {
+  .boot-content.is-revealed .bottom-bar:not(.persistent-bottom-bar) {
     animation: vibrant-enter 640ms var(--v-ease-out) both;
   }
 
@@ -1100,7 +1109,7 @@ body {
   .boot-content.is-revealed .boost-row { animation-delay: 170ms; }
   .boot-content.is-revealed .dog-stage { animation-delay: 220ms; }
   .boot-content.is-revealed .game-data { animation-delay: 290ms; }
-  .boot-content.is-revealed .bottom-bar:not(.overlay-bottom-bar) { animation-delay: 350ms; }
+  .boot-content.is-revealed .bottom-bar:not(.persistent-bottom-bar) { animation-delay: 350ms; }
 }
 
 @keyframes vibrant-aurora {
@@ -1143,6 +1152,10 @@ body {
 @media (max-width: 380px) {
   .game-shell {
     padding-inline: 11px;
+  }
+
+  .game-shell .bottom-bar.persistent-bottom-bar {
+    inset-inline: 11px;
   }
 
   .game-shell .account-identity > strong,
@@ -1222,6 +1235,14 @@ body {
 
   .game-shell .bottom-bar,
   .bottom-bar {
+    min-height: 62px;
+  }
+
+  .game-shell .bottom-bar.persistent-bottom-bar {
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+  }
+
+  .bottom-bar-space {
     min-height: 62px;
   }
 

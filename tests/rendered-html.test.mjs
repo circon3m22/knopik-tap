@@ -81,11 +81,15 @@ test("main interface keeps the requested compact balance and aligned buy badges"
   assert.match(menuStyles, /\.saved-balance \.safe-icon\s*\{[\s\S]*?display:\s*inline-block;/);
   assert.match(menuStyles, /@media \(max-height:\s*580px\)[\s\S]*?\.dog-button,[\s\S]*?width:\s*min\(64vw,\s*154px\)/);
   assert.match(pageSource, /className="inventory-timer"/);
-  assert.match(pageSource, /renderBottomNavigation\(true\)/);
-  assert.match(pageSource, /\{!shopOpen && !casesOpen && renderBottomNavigation\(\)\}/);
-  assert.match(pageSource, /overlay \? " overlay-bottom-bar" : ""/);
+  assert.match(pageSource, /bottom-bar persistent-bottom-bar\$\{shopOpen \|\| casesOpen \? " is-overlay-visible" : ""\}/);
+  assert.match(pageSource, /className="bottom-bar-space"/);
+  assert.match(pageSource, /\{renderBottomNavigation\(\)\}/);
+  assert.equal(pageSource.match(/\{renderBottomNavigation\(\)\}/g)?.length, 1);
+  assert.doesNotMatch(pageSource, /renderBottomNavigation\(true\)|!shopOpen && !casesOpen && renderBottomNavigation/);
   assert.match(vibrantStyles, /\.boost-row \.inventory-item[\s\S]*?border-radius:\s*50%;/);
-  assert.match(vibrantStyles, /\.bottom-bar\.overlay-bottom-bar[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*180;[\s\S]*?right:\s*0;[\s\S]*?left:\s*0;[\s\S]*?margin-inline:\s*auto;[\s\S]*?transform:\s*none;[\s\S]*?animation:\s*none;/);
+  assert.match(vibrantStyles, /\.bottom-bar\.persistent-bottom-bar[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*70;[\s\S]*?inset-inline:\s*clamp\(12px,[\s\S]*?width:\s*auto;[\s\S]*?transform:\s*none;[\s\S]*?animation:\s*none;/);
+  assert.match(vibrantStyles, /\.bottom-bar\.persistent-bottom-bar\.is-overlay-visible[\s\S]*?z-index:\s*180;/);
+  assert.match(vibrantStyles, /\.bottom-bar-space\s*\{[\s\S]*?min-height:\s*68px;/);
   assert.match(vibrantStyles, /\.modal-backdrop:not\(\.tutorial-backdrop\) \.settings-sheet \.sheet-heading,[\s\S]*?justify-content:\s*space-between;/);
   assert.match(vibrantStyles, /\.settings-close\s*\{[\s\S]*?position:\s*relative;[\s\S]*?flex:\s*0 0 44px;/);
   assert.match(vibrantStyles, /\.settings-close span::before,[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;/);
@@ -93,7 +97,7 @@ test("main interface keeps the requested compact balance and aligned buy badges"
   assert.match(pageSource, /className="boot-splash-progress"/);
   assert.match(vibrantStyles, /\.boot-splash-logo span[\s\S]*?font-size:\s*clamp\(64px,/);
   assert.match(vibrantStyles, /\.boot-splash-status\s*\{[\s\S]*?width:\s*min\(100%,\s*300px\);[\s\S]*?white-space:\s*normal;[\s\S]*?animation:\s*none !important;/);
-  assert.match(vibrantStyles, /\.boot-content\.is-revealed \.bottom-bar:not\(\.overlay-bottom-bar\)/);
+  assert.match(vibrantStyles, /\.boot-content\.is-revealed \.bottom-bar:not\(\.persistent-bottom-bar\)/);
 });
 
 test("keeps the minimal game scene mood-driven and isolates premium styles to auth", async () => {
@@ -128,7 +132,7 @@ test("ships PWA assets and removes the temporary starter", async () => {
   const manifest = JSON.parse(manifestText);
 
   assert.match(pageSource, /register\(publicAsset\("\/sw\.js"\), \{ updateViaCache: "none" \}\)/);
-  assert.match(serviceWorkerSource, /const CACHE_NAME = "knopik-tap-v90";/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = "knopik-tap-v91";/);
   assert.equal(manifest.name, "Knopik Tap");
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.orientation, "portrait");
