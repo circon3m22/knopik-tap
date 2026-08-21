@@ -27,7 +27,8 @@ test("server-renders the secure boot shell and preloads all game art", async () 
   assert.match(html, /og\.png/);
   assert.match(html, /class="boot-splash(?:\s|\")/);
   assert.match(html, /class="auth-screen(?:\s|\")/);
-  assert.match(html, /class="auth-loader(?:\s|\")/);
+  assert.match(html, /class="auth-loading-brand(?:\s|\")/);
+  assert.match(html, /class="auth-loading-logo(?:\s|\")/);
   assert.doesNotMatch(html, /data-testid="knopik"/);
   assert.match(html, /knopik-joy-sprite-earless\.webp/);
   assert.match(html, /knopik-rage-sprite-earless\.webp/);
@@ -56,9 +57,10 @@ test("server-renders the secure boot shell and preloads all game art", async () 
 });
 
 test("main interface keeps the requested compact balance and aligned buy badges", async () => {
-  const [pageSource, menuStyles] = await Promise.all([
+  const [pageSource, menuStyles, vibrantStyles] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/menu-refresh.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/home-vibrant.css", import.meta.url), "utf8"),
   ]);
 
   assert.doesNotMatch(pageSource, /<small>АКТИВНЫЕ МОНЕТЫ<\/small>/);
@@ -78,6 +80,11 @@ test("main interface keeps the requested compact balance and aligned buy badges"
   assert.match(menuStyles, /\.quick-save-button,[\s\S]*?\.saved-balance\s*\{[\s\S]*?height:\s*36px;/);
   assert.match(menuStyles, /\.saved-balance \.safe-icon\s*\{[\s\S]*?display:\s*inline-block;/);
   assert.match(menuStyles, /@media \(max-height:\s*580px\)[\s\S]*?\.dog-button,[\s\S]*?width:\s*min\(64vw,\s*154px\)/);
+  assert.match(pageSource, /className="inventory-timer"/);
+  assert.match(pageSource, /bottom-bar\$\{shopOpen \|\| casesOpen \? " is-overlay-nav" : ""\}/);
+  assert.match(vibrantStyles, /\.boost-row \.inventory-item[\s\S]*?border-radius:\s*50%;/);
+  assert.match(vibrantStyles, /\.bottom-bar\.is-overlay-nav[\s\S]*?z-index:\s*130;/);
+  assert.match(vibrantStyles, /\.settings-close\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?top:\s*max\(14px,[\s\S]*?right:\s*max\(14px,/);
 });
 
 test("keeps the minimal game scene mood-driven and isolates premium styles to auth", async () => {

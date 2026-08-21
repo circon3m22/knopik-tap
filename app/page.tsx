@@ -2977,9 +2977,14 @@ function KnopikGame({
             <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
             <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyFood ? "+" : foodCount}</b>
           </button>
-          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem} aria-label={canQuickBuyDrink ? `Купить и использовать Живчик за ${ZHIVCHIK_PRICE} монет` : boostSeconds > 0 ? `Живчик, в запасе ${drinkCount}, усиление ещё ${boostSeconds} секунд` : `Живчик, в запасе ${drinkCount}`}>
+          <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""} ${boostSeconds > 0 ? "is-active" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem} aria-label={canQuickBuyDrink ? `Купить и использовать Живчик за ${ZHIVCHIK_PRICE} монет` : boostSeconds > 0 ? `Живчик, в запасе ${drinkCount}, усиление ещё ${boostSeconds} секунд` : `Живчик, в запасе ${drinkCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
             <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`} aria-hidden="true">{canQuickBuyDrink ? "+" : drinkCount}</b>
+            {boostSeconds > 0 && (
+              <span className="inventory-timer" aria-hidden="true">
+                {Math.floor(boostSeconds / 60)}:{String(boostSeconds % 60).padStart(2, "0")}
+              </span>
+            )}
           </button>
           <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem} aria-label={canQuickBuyPitbull ? `Купить и использовать Питбуль за ${PITBULL_PRICE} монет` : `Питбуль, в запасе ${pitbullCount}`}>
             <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
@@ -3265,33 +3270,31 @@ function KnopikGame({
         </div>
       </section>
 
-      {!shopOpen && !casesOpen && (
-        <footer
-          className="bottom-bar"
-          style={{ "--nav-index": navIndex } as CSSProperties}
-          onPointerDown={handleNavigationDown}
-          onPointerMove={handleNavigationMove}
-          onPointerUp={(event) => {
-            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-              event.currentTarget.releasePointerCapture(event.pointerId);
-            }
-          }}
-        >
-          <span className="nav-thumb" aria-hidden="true" />
-          <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
-            <span className="shop-icon" aria-hidden="true"><i /></span>
-            <span>Магазин</span>
-          </button>
-          <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
-            <span className="home-icon" aria-hidden="true"><i /></span>
-            <span>Играть</span>
-          </button>
-          <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
-            <span className="case-nav-icon" aria-hidden="true"><i /></span>
-            <span>Кейсы</span>
-          </button>
-        </footer>
-      )}
+      <footer
+        className={`bottom-bar${shopOpen || casesOpen ? " is-overlay-nav" : ""}`}
+        style={{ "--nav-index": navIndex } as CSSProperties}
+        onPointerDown={handleNavigationDown}
+        onPointerMove={handleNavigationMove}
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        }}
+      >
+        <span className="nav-thumb" aria-hidden="true" />
+        <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
+          <span className="shop-icon" aria-hidden="true"><i /></span>
+          <span>Магазин</span>
+        </button>
+        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
+          <span className="home-icon" aria-hidden="true"><i /></span>
+          <span>Играть</span>
+        </button>
+        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
+          <span className="case-nav-icon" aria-hidden="true"><i /></span>
+          <span>Кейсы</span>
+        </button>
+      </footer>
       </div>
 
       {miniGame && (

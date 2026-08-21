@@ -263,7 +263,10 @@ body {
 }
 
 .settings-sheet .settings-close {
-  position: relative;
+  position: fixed;
+  z-index: 20;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
   display: grid;
   width: 44px;
   min-width: 44px;
@@ -520,7 +523,7 @@ body {
   padding: 5px;
   overflow: visible;
   border: 1px solid var(--adaptive-border);
-  border-radius: 17px;
+  border-radius: 50%;
   color: var(--adaptive-ink);
   background: var(--adaptive-surface);
   box-shadow: 0 8px 18px rgb(0 4 30 / 10%), inset 0 1px 0 rgb(255 255 255 / 14%);
@@ -586,6 +589,30 @@ body {
 .game-shell .boost-row .inventory-item > .inventory-count.is-price {
   color: #fff;
   background: var(--v-pink);
+}
+
+.game-shell .boost-row .inventory-timer {
+  position: absolute;
+  z-index: 3;
+  bottom: -7px;
+  left: 50%;
+  display: grid;
+  min-width: 38px;
+  height: 19px;
+  place-items: center;
+  padding-inline: 6px;
+  border: 2px solid color-mix(in srgb, var(--scene) 72%, #fff 28%);
+  border-radius: 999px;
+  color: #07163d;
+  background: #fff;
+  box-shadow: 0 5px 12px rgb(0 4 30 / 24%), 0 0 16px rgb(44 232 255 / 32%);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: .01em;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 
 /* Hero -------------------------------------------------------------------- */
@@ -872,6 +899,11 @@ body {
 
 .game-shell .bottom-bar button:active {
   transform: scale(.96);
+}
+
+.game-shell .bottom-bar.is-overlay-nav,
+.bottom-bar.is-overlay-nav {
+  z-index: 130;
 }
 
 .nav-thumb {
