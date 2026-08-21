@@ -662,7 +662,10 @@ function KnopikGame({
       "serviceWorker" in navigator &&
       process.env.NODE_ENV === "production"
     ) {
-      navigator.serviceWorker.register(publicAsset("/sw.js")).catch(() => undefined);
+      navigator.serviceWorker
+        .register(publicAsset("/sw.js"), { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => undefined);
     }
   }, []);
 
@@ -2816,6 +2819,35 @@ function KnopikGame({
     "--fatigue-angle": `${Math.round(fatigueCountdownRatio * 360)}deg`,
   } as CSSProperties;
 
+  const renderBottomNavigation = (overlay = false) => (
+    <footer
+      className={`bottom-bar${overlay ? " overlay-bottom-bar" : ""}`}
+      aria-label="Основная навигация"
+      style={{ "--nav-index": navIndex } as CSSProperties}
+      onPointerDown={handleNavigationDown}
+      onPointerMove={handleNavigationMove}
+      onPointerUp={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      }}
+    >
+      <span className="nav-thumb" aria-hidden="true" />
+      <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
+        <span className="shop-icon" aria-hidden="true"><i /></span>
+        <span>Магазин</span>
+      </button>
+      <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
+        <span className="home-icon" aria-hidden="true"><i /></span>
+        <span>Играть</span>
+      </button>
+      <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
+        <span className="case-nav-icon" aria-hidden="true"><i /></span>
+        <span>Кейсы</span>
+      </button>
+    </footer>
+  );
+
   return (
     <main
       className={`game-shell state-${dogState} ${
@@ -3270,31 +3302,7 @@ function KnopikGame({
         </div>
       </section>
 
-      <footer
-        className={`bottom-bar${shopOpen || casesOpen ? " is-overlay-nav" : ""}`}
-        style={{ "--nav-index": navIndex } as CSSProperties}
-        onPointerDown={handleNavigationDown}
-        onPointerMove={handleNavigationMove}
-        onPointerUp={(event) => {
-          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          }
-        }}
-      >
-        <span className="nav-thumb" aria-hidden="true" />
-        <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
-          <span className="shop-icon" aria-hidden="true"><i /></span>
-          <span>Магазин</span>
-        </button>
-        <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
-          <span className="home-icon" aria-hidden="true"><i /></span>
-          <span>Играть</span>
-        </button>
-        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
-          <span className="case-nav-icon" aria-hidden="true"><i /></span>
-          <span>Кейсы</span>
-        </button>
-      </footer>
+      {!shopOpen && !casesOpen && renderBottomNavigation()}
       </div>
 
       {miniGame && (
@@ -3673,6 +3681,8 @@ function KnopikGame({
         </div>
       )}
 
+      {(shopOpen || casesOpen) && renderBottomNavigation(true)}
+
       {settingsOpen && (
         <div
           className="modal-backdrop"
@@ -3996,12 +4006,11 @@ export default function Home() {
           aria-hidden={splashPhase === "leaving"}
         >
           <div className="boot-splash-inner">
-            <div className="boot-splash-word">KNOPIK</div>
-            <div className="boot-splash-dots" aria-hidden="true">
-              <i />
-              <i />
-              <i />
+            <div className="boot-splash-logo" aria-label="Knopik Tap">
+              <span>KNOPIK</span>
+              <strong>TAP</strong>
             </div>
+            <div className="boot-splash-progress" aria-hidden="true"><i /></div>
             <p className="boot-splash-status">{splashStatus}</p>
           </div>
         </div>

@@ -255,6 +255,7 @@ body {
   box-shadow: none;
 }
 
+.modal-backdrop:not(.tutorial-backdrop) .settings-sheet .sheet-heading,
 .settings-sheet .sheet-heading {
   display: flex;
   align-items: center;
@@ -263,10 +264,9 @@ body {
 }
 
 .settings-sheet .settings-close {
-  position: fixed;
-  z-index: 20;
-  top: max(14px, env(safe-area-inset-top));
-  right: max(14px, env(safe-area-inset-right));
+  position: relative;
+  z-index: 1;
+  flex: 0 0 44px;
   display: grid;
   width: 44px;
   min-width: 44px;
@@ -283,18 +283,28 @@ body {
   transition-duration: 140ms;
 }
 
-.settings-sheet .settings-close span,
-.settings-sheet .settings-close span::after {
+.settings-sheet .settings-close span {
+  position: relative;
   display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.settings-sheet .settings-close span::before,
+.settings-sheet .settings-close span::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 18px;
   height: 2px;
   border-radius: 999px;
   background: currentColor;
   content: "";
+  transform-origin: center;
 }
 
-.settings-sheet .settings-close span { transform: rotate(45deg); }
-.settings-sheet .settings-close span::after { transform: rotate(90deg); }
+.settings-sheet .settings-close span::before { transform: translate(-50%, -50%) rotate(45deg); }
+.settings-sheet .settings-close span::after { transform: translate(-50%, -50%) rotate(-45deg); }
 .settings-sheet .settings-close:active { transform: scale(.96); }
 
 .settings-sheet .settings-close:focus-visible {
@@ -901,9 +911,16 @@ body {
   transform: scale(.96);
 }
 
-.game-shell .bottom-bar.is-overlay-nav,
-.bottom-bar.is-overlay-nav {
-  z-index: 130;
+.game-shell .bottom-bar.overlay-bottom-bar,
+.bottom-bar.overlay-bottom-bar {
+  position: fixed;
+  z-index: 180;
+  right: auto;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(calc(100vw - 24px), 500px);
+  margin: 0;
+  transform: translateX(-50%);
 }
 
 .nav-thumb {
@@ -967,10 +984,52 @@ body {
     linear-gradient(155deg, #107cff, #3622bd 58%, #120743);
 }
 
-.boot-splash-word {
+.boot-splash-inner {
+  width: min(calc(100% - 40px), 560px);
+  gap: 28px;
+  transform: none;
+}
+
+.boot-splash-logo {
+  display: grid;
+  justify-items: center;
+  color: #fff;
+  filter: drop-shadow(0 22px 48px rgb(0 8 58 / 44%));
+  line-height: .76;
+  text-wrap: nowrap;
+}
+
+.boot-splash-logo span {
+  font-size: clamp(64px, 21vw, 128px);
   font-weight: 950;
-  letter-spacing: .11em;
-  text-shadow: 0 3px 0 rgb(0 0 0 / 10%), 0 18px 42px rgb(0 0 0 / 25%);
+  letter-spacing: -.075em;
+}
+
+.boot-splash-logo strong {
+  margin-inline-start: .08em;
+  font-size: clamp(46px, 15vw, 88px);
+  font-weight: 950;
+  letter-spacing: .13em;
+}
+
+.boot-splash-progress {
+  position: relative;
+  width: min(58vw, 224px);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+  box-shadow: inset 0 1px 2px rgb(0 12 52 / 22%), 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+.boot-splash-progress i {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 42%;
+  border-radius: inherit;
+  background: #fff;
+  box-shadow: 0 0 20px rgb(255 255 255 / 72%);
 }
 
 .boot-splash-dots i {
@@ -1003,6 +1062,14 @@ body {
 
   .game-shell .mood-indicator > i {
     animation: vibrant-status 2.4s ease-in-out infinite;
+  }
+
+  .boot-splash-logo {
+    animation: auth-logo-breathe 2.8s cubic-bezier(.2, 0, 0, 1) infinite alternate;
+  }
+
+  .boot-splash-progress i {
+    animation: auth-progress 1.15s cubic-bezier(.2, 0, 0, 1) infinite;
   }
 
   .boot-content.is-revealed .top-bar,

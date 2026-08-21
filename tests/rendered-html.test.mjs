@@ -81,10 +81,17 @@ test("main interface keeps the requested compact balance and aligned buy badges"
   assert.match(menuStyles, /\.saved-balance \.safe-icon\s*\{[\s\S]*?display:\s*inline-block;/);
   assert.match(menuStyles, /@media \(max-height:\s*580px\)[\s\S]*?\.dog-button,[\s\S]*?width:\s*min\(64vw,\s*154px\)/);
   assert.match(pageSource, /className="inventory-timer"/);
-  assert.match(pageSource, /bottom-bar\$\{shopOpen \|\| casesOpen \? " is-overlay-nav" : ""\}/);
+  assert.match(pageSource, /renderBottomNavigation\(true\)/);
+  assert.match(pageSource, /\{!shopOpen && !casesOpen && renderBottomNavigation\(\)\}/);
+  assert.match(pageSource, /overlay \? " overlay-bottom-bar" : ""/);
   assert.match(vibrantStyles, /\.boost-row \.inventory-item[\s\S]*?border-radius:\s*50%;/);
-  assert.match(vibrantStyles, /\.bottom-bar\.is-overlay-nav[\s\S]*?z-index:\s*130;/);
-  assert.match(vibrantStyles, /\.settings-close\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?top:\s*max\(14px,[\s\S]*?right:\s*max\(14px,/);
+  assert.match(vibrantStyles, /\.bottom-bar\.overlay-bottom-bar[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*180;[\s\S]*?bottom:\s*max\(10px,[\s\S]*?left:\s*50%;/);
+  assert.match(vibrantStyles, /\.modal-backdrop:not\(\.tutorial-backdrop\) \.settings-sheet \.sheet-heading,[\s\S]*?justify-content:\s*space-between;/);
+  assert.match(vibrantStyles, /\.settings-close\s*\{[\s\S]*?position:\s*relative;[\s\S]*?flex:\s*0 0 44px;/);
+  assert.match(vibrantStyles, /\.settings-close span::before,[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;/);
+  assert.match(pageSource, /className="boot-splash-logo"[\s\S]*?<span>KNOPIK<\/span>[\s\S]*?<strong>TAP<\/strong>/);
+  assert.match(pageSource, /className="boot-splash-progress"/);
+  assert.match(vibrantStyles, /\.boot-splash-logo span[\s\S]*?font-size:\s*clamp\(64px,/);
 });
 
 test("keeps the minimal game scene mood-driven and isolates premium styles to auth", async () => {
@@ -110,11 +117,16 @@ test("keeps the minimal game scene mood-driven and isolates premium styles to au
 });
 
 test("ships PWA assets and removes the temporary starter", async () => {
-  const [manifestText, packageText] = await Promise.all([
+  const [manifestText, packageText, pageSource, serviceWorkerSource] = await Promise.all([
     readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
   ]);
   const manifest = JSON.parse(manifestText);
+
+  assert.match(pageSource, /register\(publicAsset\("\/sw\.js"\), \{ updateViaCache: "none" \}\)/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = "knopik-tap-v89";/);
   assert.equal(manifest.name, "Knopik Tap");
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.orientation, "portrait");
