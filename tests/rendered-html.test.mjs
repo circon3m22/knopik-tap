@@ -85,13 +85,15 @@ test("main interface keeps the requested compact balance and aligned buy badges"
   assert.match(pageSource, /\{!shopOpen && !casesOpen && renderBottomNavigation\(\)\}/);
   assert.match(pageSource, /overlay \? " overlay-bottom-bar" : ""/);
   assert.match(vibrantStyles, /\.boost-row \.inventory-item[\s\S]*?border-radius:\s*50%;/);
-  assert.match(vibrantStyles, /\.bottom-bar\.overlay-bottom-bar[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*180;[\s\S]*?bottom:\s*max\(10px,[\s\S]*?left:\s*50%;/);
+  assert.match(vibrantStyles, /\.bottom-bar\.overlay-bottom-bar[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*180;[\s\S]*?right:\s*0;[\s\S]*?left:\s*0;[\s\S]*?margin-inline:\s*auto;[\s\S]*?transform:\s*none;[\s\S]*?animation:\s*none;/);
   assert.match(vibrantStyles, /\.modal-backdrop:not\(\.tutorial-backdrop\) \.settings-sheet \.sheet-heading,[\s\S]*?justify-content:\s*space-between;/);
   assert.match(vibrantStyles, /\.settings-close\s*\{[\s\S]*?position:\s*relative;[\s\S]*?flex:\s*0 0 44px;/);
   assert.match(vibrantStyles, /\.settings-close span::before,[\s\S]*?top:\s*50%;[\s\S]*?left:\s*50%;/);
   assert.match(pageSource, /className="boot-splash-logo"[\s\S]*?<span>KNOPIK<\/span>[\s\S]*?<strong>TAP<\/strong>/);
   assert.match(pageSource, /className="boot-splash-progress"/);
   assert.match(vibrantStyles, /\.boot-splash-logo span[\s\S]*?font-size:\s*clamp\(64px,/);
+  assert.match(vibrantStyles, /\.boot-splash-status\s*\{[\s\S]*?width:\s*min\(100%,\s*300px\);[\s\S]*?white-space:\s*normal;[\s\S]*?animation:\s*none !important;/);
+  assert.match(vibrantStyles, /\.boot-content\.is-revealed \.bottom-bar:not\(\.overlay-bottom-bar\)/);
 });
 
 test("keeps the minimal game scene mood-driven and isolates premium styles to auth", async () => {
@@ -126,7 +128,7 @@ test("ships PWA assets and removes the temporary starter", async () => {
   const manifest = JSON.parse(manifestText);
 
   assert.match(pageSource, /register\(publicAsset\("\/sw\.js"\), \{ updateViaCache: "none" \}\)/);
-  assert.match(serviceWorkerSource, /const CACHE_NAME = "knopik-tap-v89";/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = "knopik-tap-v90";/);
   assert.equal(manifest.name, "Knopik Tap");
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.orientation, "portrait");

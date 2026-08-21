@@ -915,12 +915,13 @@ body {
 .bottom-bar.overlay-bottom-bar {
   position: fixed;
   z-index: 180;
-  right: auto;
+  right: 0;
   bottom: max(10px, env(safe-area-inset-bottom));
-  left: 50%;
+  left: 0;
   width: min(calc(100vw - 24px), 500px);
-  margin: 0;
-  transform: translateX(-50%);
+  margin-inline: auto;
+  transform: none;
+  animation: none;
 }
 
 .nav-thumb {
@@ -1038,8 +1039,20 @@ body {
 }
 
 .boot-splash-status {
-  color: rgb(255 255 255 / 72%);
+  width: min(100%, 300px);
+  min-height: 2.8em;
+  margin: -8px auto 0;
+  overflow: visible;
+  color: rgb(255 255 255 / 78%);
+  font-size: clamp(12px, 3.8vw, 14px);
   font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  text-transform: none;
+  text-wrap: balance;
+  white-space: normal;
+  opacity: 1;
+  animation: none !important;
 }
 
 /* Motion ------------------------------------------------------------------ */
@@ -1078,7 +1091,7 @@ body {
   .boot-content.is-revealed .boost-row,
   .boot-content.is-revealed .dog-stage,
   .boot-content.is-revealed .game-data,
-  .boot-content.is-revealed .bottom-bar {
+  .boot-content.is-revealed .bottom-bar:not(.overlay-bottom-bar) {
     animation: vibrant-enter 640ms var(--v-ease-out) both;
   }
 
@@ -1087,7 +1100,7 @@ body {
   .boot-content.is-revealed .boost-row { animation-delay: 170ms; }
   .boot-content.is-revealed .dog-stage { animation-delay: 220ms; }
   .boot-content.is-revealed .game-data { animation-delay: 290ms; }
-  .boot-content.is-revealed .bottom-bar { animation-delay: 350ms; }
+  .boot-content.is-revealed .bottom-bar:not(.overlay-bottom-bar) { animation-delay: 350ms; }
 }
 
 @keyframes vibrant-aurora {
