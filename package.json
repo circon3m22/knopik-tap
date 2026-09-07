@@ -10,7 +10,8 @@
     "build": "vinext build",
     "build:pages": "next build",
     "start": "vinext start",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run build:pages && node --test tests/*.test.mjs",
+    "test:unit": "node --test tests/game-logic.test.mjs tests/arcade-engine.test.mjs tests/account-client.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

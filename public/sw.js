@@ -1,4 +1,4 @@
-const CACHE_NAME = "knopik-tap-v91";
+const CACHE_NAME = "knopik-tap-arcade-v100";
 const BASE_PATH = new URL("./", self.location.href).pathname.replace(/\/$/, "");
 const asset = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
@@ -34,7 +34,7 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(keys.filter((key) => key.startsWith('knopik-tap-') && key !== CACHE_NAME).map((key) => caches.delete(key))),
       ),
   );
   self.clients.claim();
@@ -50,8 +50,10 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(asset("/"), copy)));
+          if (response.ok) {
+            const copy = response.clone();
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(asset("/"), copy)));
+          }
           return response;
         })
         .catch(() => caches.match(asset("/"))),

@@ -1,15 +1,5 @@
 export default function Loading() {
   return (
-    <div className="boot-splash" role="status" aria-label="Загрузка">
-      <div className="boot-splash-inner">
-        <div className="boot-splash-word">KNOPIK</div>
-        <div className="boot-splash-dots" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </div>
-        <p className="boot-splash-status">Подготавливаем игру…</p>
-      </div>
-    </div>
+    <main className="login-screen"><div className="loading-mark" role="status"><span className="brand">knopik<span>tap</span><i /></span><div className="loading-track" /><p>Загружаем игру…</p></div></main>
   );
 }

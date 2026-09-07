@@ -20,6 +20,8 @@ export type GameStats = {
 
 export type SaveData = {
   version: 15;
+  arcade?: { heat: number; happiness: number; combo: number; lastTap: number; updatedAt: number; angryUntil: number };
+  arcadeMine?: { bet: number; round: number; previous: number | null };
   vaultCoins: number;
   walletCoins: number;
   foodCount: number;
@@ -167,6 +169,18 @@ export function sanitizeSave(value: unknown): SaveData {
 
   return {
     version: SAVE_VERSION,
+    arcade: candidate.arcade && typeof candidate.arcade === "object" ? {
+      heat: Math.min(100, safeInteger(candidate.arcade.heat)),
+      happiness: Math.min(100, safeInteger(candidate.arcade.happiness)),
+      combo: Math.min(50, safeInteger(candidate.arcade.combo)),
+      lastTap: safeInteger(candidate.arcade.lastTap),
+      updatedAt: safeInteger(candidate.arcade.updatedAt),
+      angryUntil: safeInteger(candidate.arcade.angryUntil),
+    } : undefined,
+    arcadeMine: candidate.arcadeMine && typeof candidate.arcadeMine === "object" && safeInteger(candidate.arcadeMine.bet) > 0 ? {
+      bet: safeInteger(candidate.arcadeMine.bet), round: Math.min(9, safeInteger(candidate.arcadeMine.round)),
+      previous: typeof candidate.arcadeMine.previous === 'number' ? Math.min(4, safeInteger(candidate.arcadeMine.previous)) : null,
+    } : undefined,
     vaultCoins:
       isVersion(5)
         ? safeInteger(candidate.vaultCoins)
