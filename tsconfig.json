@@ -33,8 +33,6 @@
   ],
   "exclude": [
     "node_modules",
-    "knopik-tap",
-    "tmp",
     "build",
     "db",
     "examples",

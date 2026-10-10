@@ -12,9 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    "knopik-tap/**",
-    "tmp/**",
-    ".pnpm-store/**",
   ]),
 ]);
 

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { BOOT_IMAGE_ASSETS, bootImageMimeType } from "./boot-assets";
-import "./arcade.css";
+import "./globals.css";
+import "./interface-v2.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
@@ -11,7 +11,7 @@ const publicAsset = (path: string) => `${basePath}${path}`;
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#ffffff",
+  themeColor: "#f7f9fc",
 };
 
 export const metadata: Metadata = {
@@ -59,16 +59,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <head>
-        {BOOT_IMAGE_ASSETS.map((path, index) => (
-          <link
-            key={path}
-            rel="preload"
-            href={publicAsset(path)}
-            as="image"
-            type={bootImageMimeType(path)}
-            fetchPriority={index === 0 ? "high" : "auto"}
-          />
-        ))}
+        <link rel="preload" href={publicAsset("/knopik-calm-earless.webp")} as="image" type="image/webp" fetchPriority="high" />
       </head>
       <body>{children}</body>
     </html>

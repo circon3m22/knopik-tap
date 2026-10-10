@@ -84,7 +84,6 @@ export function MiniGamePanel({
   const [mineTiles, setMineTiles] = useState<MineTile[]>(
     () => Array.from({ length: 5 }, () => "hidden"),
   );
-  const [committed, setCommitted] = useState(false);
   const committedRef = useRef(false);
   const resolvedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,7 +104,6 @@ export function MiniGamePanel({
     if (!onCommitBet(kind, selectedBet)) return false;
     setLockedBet(selectedBet);
     committedRef.current = true;
-    setCommitted(true);
     return true;
   };
 
@@ -182,7 +180,7 @@ export function MiniGamePanel({
   };
 
   const finished = slotPhase === "result" || minePhase === "lost" || minePhase === "cashed";
-  const canClose = !committed || finished;
+  const canClose = !committedRef.current || finished;
 
   return (
     <div className={`mini-game-backdrop mini-${kind}`}>
@@ -201,7 +199,7 @@ export function MiniGamePanel({
           <span><small>АКТИВНЫЙ БАЛАНС</small><strong>{balance.toLocaleString("ru-RU")}</strong></span>
         </div>
 
-        {canChooseBet && !committed && (
+        {canChooseBet && !committedRef.current && (
           <div className="mini-bet-control">
             <input
               type="range"
