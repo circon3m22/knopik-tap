@@ -246,7 +246,6 @@ type KnopikGameProps = {
   onUpdateDifficulty: (difficulty: number) => Promise<string>;
   onCreatePromoCode: (code: string, amount: number) => Promise<string>;
   onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
-  onChangePassword: (password: string) => Promise<string>;
   onSignOut: () => Promise<void>;
 };
 
@@ -261,7 +260,6 @@ function KnopikGame({
   onUpdateDifficulty,
   onCreatePromoCode,
   onRedeemPromoCode,
-  onChangePassword,
   onSignOut,
 }: KnopikGameProps) {
   const [dogState, setDogState] = useState<DogState>("calm");
@@ -326,8 +324,6 @@ function KnopikGame({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [casesOpen, setCasesOpen] = useState(false);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [accountMessage, setAccountMessage] = useState("");
   const [accountPending, setAccountPending] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoAmount, setPromoAmount] = useState("");
@@ -846,15 +842,6 @@ function KnopikGame({
     tutorialSeen,
     vaultCoins,
   ]);
-
-  const submitPasswordChange = useCallback(async () => {
-    setAccountPending(true);
-    setAccountMessage("");
-    const message = await onChangePassword(newPassword);
-    setAccountMessage(message);
-    if (message === "Пароль изменён.") setNewPassword("");
-    setAccountPending(false);
-  }, [newPassword, onChangePassword]);
 
   const signOutAccount = useCallback(async () => {
     setAccountPending(true);
@@ -3702,33 +3689,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                   <span>{syncState === "saved" ? "Прогресс сохранён" : syncState === "saving" ? "Сохранение…" : "Сохранится при следующей попытке"}</span>
                 </div>
               </div>
-              <form
-                className="password-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void submitPasswordChange();
-                }}
-              >
-                <label>
-                  <span>Новый пароль</span>
-                  <input
-                    id="new-password"
-                    name="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => {
-                      setNewPassword(event.currentTarget.value);
-                      setAccountMessage("");
-                    }}
-                    placeholder="Минимум 6 символов"
-                    autoComplete="new-password"
-                    minLength={6}
-                    required
-                  />
-                </label>
-                <button type="submit" disabled={accountPending}>Сменить пароль</button>
-              </form>
-              {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
               <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>Выйти из аккаунта</button>
             </div>
             <p className="settings-section-title">Игра</p>
@@ -3900,7 +3860,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
 export default function Home() {
   return (
     <CloudAccountGate>
-      {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, changePassword, signOut }) => (
+      {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, signOut }) => (
         <KnopikGame
           key={gameKey}
           account={account}
@@ -3913,7 +3873,6 @@ export default function Home() {
           onUpdateDifficulty={updateDifficulty}
           onCreatePromoCode={createPromoCode}
           onRedeemPromoCode={redeemPromoCode}
-          onChangePassword={changePassword}
           onSignOut={signOut}
         />
       )}

@@ -79,7 +79,6 @@ type CloudGameSession = {
   updateDifficulty: (difficulty: number) => Promise<string>;
   createPromoCode: (code: string, amount: number) => Promise<string>;
   redeemPromoCode: (code: string) => Promise<PromoResult>;
-  changePassword: (password: string) => Promise<string>;
   signOut: () => Promise<void>;
 };
 
@@ -446,14 +445,6 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     setLoginPending(false);
   }
 
-  const changePassword = useCallback(async (nextPassword: string) => {
-    if (nextPassword.length < 6) return "Пароль должен содержать минимум 6 символов.";
-    const { error } = await getSupabaseClient().auth.updateUser({
-      password: nextPassword,
-    });
-    return error ? "Не удалось изменить пароль." : "Пароль изменён.";
-  }, []);
-
   const signOut = useCallback(async () => {
     await flushProgress();
     await getSupabaseClient().auth.signOut();
@@ -516,7 +507,6 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     updateDifficulty,
     createPromoCode,
     redeemPromoCode,
-    changePassword,
     signOut,
   });
 }
