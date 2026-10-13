@@ -1,0 +1,47 @@
+name: Release notes required
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: read
+jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate release version and journal
+        run: node --test tests/release-notes.test.mjs
+      - name: Install project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+      - name: Build app
+        run: npm run build
+      - name: Require release entry for game changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          CHANGED="$(git diff --name-only "$BASE_SHA" HEAD)"
+          if ! printf '%s\n' "$CHANGED" | grep -Eq '^(app/|public/|package\.json$|package-lock\.json$)'; then
+            echo "No player-facing game files changed."
+            exit 0
+          fi
+          if ! printf '%s\n' "$CHANGED" | grep -Fxq 'app/release-notes.js'; then
+            echo "::error::Game changes require a new entry in app/release-notes.js."
+            exit 1
+          fi
+          OLD_VERSION="$(git show "$BASE_SHA:package.json" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>console.log(JSON.parse(s).version))')"
+          NEW_VERSION="$(node -p 'require("./package.json").version')"
+          if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
+            echo "::error::Game changes require a new package version."
+            exit 1
+          fi
+          echo "Release notes and version bump detected: $OLD_VERSION -> $NEW_VERSION"

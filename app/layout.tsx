@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { BOOT_IMAGE_ASSETS, bootImageMimeType } from "./boot-assets";
 import "./globals.css";
 import "./interface-v2.css";
+import "./update-center.css";
 import "./menu-refresh.css";
 import "./air.css";
 import "./auth-premium.css";
