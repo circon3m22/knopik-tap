@@ -51,11 +51,12 @@ export function createRiskOutcome(
   bet: number,
   random: () => number = Math.random,
   difficulty: number = DEFAULT_DIFFICULTY,
+  minWinChance = 5,
 ): RiskOutcome {
   const safeBet = Math.max(0, Math.floor(Number.isFinite(bet) ? bet : 0));
   const multiplier = riskMultiplier(chance);
   const winningDegrees = chance * 3.6;
-  const effectiveChance = difficultyRiskChance(chance, difficulty);
+  const effectiveChance = Math.min(100, Math.max(minWinChance, difficultyRiskChance(chance, difficulty)));
   const won =
     Math.min(0.999999999, Math.max(0, random())) < effectiveChance / 100;
   const angleRoll = Math.min(0.999999999, Math.max(0, random()));
