@@ -16,10 +16,7 @@ import {
   type SaveData,
 } from "./game-logic";
 import { getSupabaseClient, usernameToEmail } from "./supabase-client";
-import {
-  DEFAULT_DIFFICULTY,
-  clampDifficulty,
-} from "./difficulty-engine";
+import { DEFAULT_ECONOMY, sanitizeEconomy, type EconomyConfig } from "./difficulty-engine";
 
 type ProfileRow = {
   id: string;
@@ -41,9 +38,7 @@ type PromoCodeRow = {
   redeemed_at: string | null;
 };
 
-type GameConfigRow = {
-  difficulty: number;
-};
+type GameConfigRow = { difficulty: number; wealth_influence: number; reward_multiplier: number; minimum_win_chance: number };
 
 export type CloudAccount = {
   userId: string;
@@ -72,11 +67,11 @@ type CloudGameSession = {
   initialSave: SaveData;
   gameKey: string;
   syncState: CloudSyncState;
-  difficulty: number;
+  economy: EconomyConfig;
   promoCodes: PromoCode[];
   saveProgress: (save: SaveData) => void;
   refreshPromoCodes: () => Promise<void>;
-  updateDifficulty: (difficulty: number) => Promise<string>;
+  updateEconomy: (config: EconomyConfig) => Promise<string>;
   createPromoCode: (code: string, amount: number) => Promise<string>;
   redeemPromoCode: (code: string) => Promise<PromoResult>;
   signOut: () => Promise<void>;
@@ -140,7 +135,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const [loginError, setLoginError] = useState("");
   const [loginPending, setLoginPending] = useState(false);
   const [syncState, setSyncState] = useState<CloudSyncState>("saved");
-  const [difficulty, setDifficulty] = useState(DEFAULT_DIFFICULTY);
+  const [economy, setEconomy] = useState<EconomyConfig>(DEFAULT_ECONOMY);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const accountRef = useRef<CloudAccount | null>(null);
   const latestSaveRef = useRef<SaveData | null>(null);
@@ -179,7 +174,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         setAccount(null);
         setInitialSave(null);
         setPromoCodes([]);
-        setDifficulty(DEFAULT_DIFFICULTY);
+        setEconomy(DEFAULT_ECONOMY);
       }
     });
 
@@ -215,7 +210,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
             .maybeSingle<GameSaveRow>(),
           supabase
             .from("game_config")
-            .select("difficulty")
+            .select("difficulty, wealth_influence, reward_multiplier, minimum_win_chance")
             .eq("id", true)
             .maybeSingle<GameConfigRow>(),
         ]);
@@ -264,7 +259,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       setInitialSave(loadedSave);
       setGameRevision((current) => current + 1);
       setSyncState("saved");
-      setDifficulty(clampDifficulty(gameConfig?.difficulty ?? DEFAULT_DIFFICULTY));
+      setEconomy(sanitizeEconomy(gameConfig ? { difficulty: gameConfig.difficulty, wealthInfluence: gameConfig.wealth_influence, rewardMultiplier: gameConfig.reward_multiplier, minimumWinChance: gameConfig.minimum_win_chance } : DEFAULT_ECONOMY));
       if (nextAccount.isAdmin) {
         const { data: codes } = await supabase
           .from("promo_codes")
@@ -366,23 +361,21 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     return "Промокод создан.";
   }, []);
 
-  const updateDifficulty = useCallback(async (nextDifficulty: number) => {
+  const updateEconomy = useCallback(async (input: EconomyConfig) => {
     const currentAccount = accountRef.current;
-    if (!currentAccount?.isAdmin) return "Менять сложность может только Kamrad.";
-    const normalized = clampDifficulty(nextDifficulty);
-    const { data, error } = await getSupabaseClient()
-      .from("game_config")
-      .update({
-        difficulty: normalized,
-        updated_by: currentAccount.userId,
-        updated_at: new Date().toISOString(),
-      })
+    if (!currentAccount?.isAdmin) return "Недостаточно прав.";
+    const config = sanitizeEconomy(input);
+    const { data, error } = await getSupabaseClient().from("game_config")
+      .update({ difficulty: config.difficulty, wealth_influence: config.wealthInfluence,
+        reward_multiplier: config.rewardMultiplier, minimum_win_chance: config.minimumWinChance,
+        updated_by: currentAccount.userId, updated_at: new Date().toISOString() })
       .eq("id", true)
-      .select("difficulty")
+      .select("difficulty, wealth_influence, reward_multiplier, minimum_win_chance")
       .single<GameConfigRow>();
-    if (error || !data) return "Не удалось сохранить сложность.";
-    setDifficulty(clampDifficulty(data.difficulty));
-    return "Сложность сохранена.";
+    if (error || !data) return "Ошибка сохранения. Проверь миграцию и права RLS.";
+    setEconomy(sanitizeEconomy({ difficulty: data.difficulty, wealthInfluence: data.wealth_influence,
+      rewardMultiplier: data.reward_multiplier, minimumWinChance: data.minimum_win_chance }));
+    return "Экономика сохранена.";
   }, []);
 
   const redeemPromoCode = useCallback(async (code: string): Promise<PromoResult> => {
@@ -500,11 +493,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     initialSave,
     gameKey: `${account.userId}:${gameRevision}`,
     syncState,
-    difficulty,
+    economy,
     promoCodes,
     saveProgress,
     refreshPromoCodes,
-    updateDifficulty,
+    updateEconomy,
     createPromoCode,
     redeemPromoCode,
     signOut,

@@ -1,6 +1,8 @@
 import {
   DEFAULT_DIFFICULTY,
   difficultyRiskChance,
+  economyWinChance,
+  type EconomyConfig,
 } from "./difficulty-engine.ts";
 
 export const RISK_OPTIONS = [
@@ -35,11 +37,12 @@ export function createRiskOutcome(
   bet: number,
   random: () => number = Math.random,
   difficulty: number = DEFAULT_DIFFICULTY,
+  economy?: EconomyConfig,
 ): RiskOutcome {
   const safeBet = Math.max(0, Math.floor(Number.isFinite(bet) ? bet : 0));
   const multiplier = riskMultiplier(chance);
   const winningDegrees = chance * 3.6;
-  const effectiveChance = difficultyRiskChance(chance, difficulty);
+  const effectiveChance = economy ? economyWinChance(difficultyRiskChance(chance, difficulty), economy) : difficultyRiskChance(chance, difficulty);
   const won =
     Math.min(0.999999999, Math.max(0, random())) < effectiveChance / 100;
   const angleRoll = Math.min(0.999999999, Math.max(0, random()));
