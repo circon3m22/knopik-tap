@@ -1,3 +1,4 @@
+import type { EconomyConfig } from "./difficulty-engine";
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -24,6 +25,7 @@ type MiniGamePanelProps = {
   kind: MiniGameKind;
   balance: number;
   difficulty: number;
+  economy: EconomyConfig;
   canChooseBet: boolean;
   stats: MiniGameStats;
   onCommitBet: (kind: MiniGameKind, bet: number) => boolean;
@@ -64,6 +66,7 @@ export function MiniGamePanel({
   kind,
   balance,
   difficulty,
+  economy,
   canChooseBet,
   stats,
   onCommitBet,
@@ -115,7 +118,7 @@ export function MiniGamePanel({
 
   const spinSlots = () => {
     if (slotPhase !== "ready" || !commit()) return;
-    const outcome = createSlotOutcome(safeBet, sessionDifficulty);
+    const outcome = createSlotOutcome(safeBet, sessionDifficulty, Math.random, economy);
     setSlotOutcome(null);
     setSlotPhase("spinning");
     setReelAngles(outcome.reels.map((symbol, index) => (
@@ -142,6 +145,7 @@ export function MiniGamePanel({
       sessionDifficulty,
       Math.random,
       previousMineIndex,
+      economy,
     );
     const tiles: MineTile[] = Array.from({ length: 5 }, () => "hidden");
     tiles[outcome.mineIndex] = "mine";
