@@ -2045,6 +2045,10 @@ function KnopikGame({
     const normalizedCode = cheatCode.trim().toLowerCase();
     const [secretWord, amountToken, ...extraTokens] = normalizedCode.split(/\s+/);
     if (secretWord === "medoed") {
+      if (!account.isAdmin) {
+        setCheatMessage("Этот код доступен только администратору.");
+        return;
+      }
       const hasCustomAmount = amountToken !== undefined;
       const amountIsValid =
         !hasCustomAmount ||
