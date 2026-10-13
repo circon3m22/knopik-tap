@@ -5,17 +5,25 @@ import { GAME_VERSION, RELEASES, releaseSeenKey, releasesSince } from "../app/re
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const packageLock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
+const serviceWorker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
 
 test("release versions match project and lockfile", () => {
   assert.equal(packageJson.version, GAME_VERSION);
   assert.equal(packageLock.version, GAME_VERSION);
   assert.equal(packageLock.packages[""].version, GAME_VERSION);
   assert.equal(RELEASES[0].version, GAME_VERSION);
+  assert.ok(serviceWorker.includes(`knopik-tap-release-${GAME_VERSION}`), "Refresh PWA cache for each release");
 });
 
 test("release journal has distinct versions and concise notes", () => {
   const seen = new Set();
-  for (const release of RELEASES) {
+  for (const [index, release] of RELEASES.entries()) {
+    if (index > 0) {
+      const newer = RELEASES[index - 1].version.split(".").map(Number);
+      const older = release.version.split(".").map(Number);
+      const ordered = newer[0] > older[0] || (newer[0] === older[0] && (newer[1] > older[1] || (newer[1] === older[1] && newer[2] > older[2])));
+      assert.ok(ordered, "Keep releases newest first");
+    }
     assert.match(release.version, /^\d+\.\d+\.\d+$/);
     assert.match(release.date, /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(!seen.has(release.version), "A version should appear only once");
