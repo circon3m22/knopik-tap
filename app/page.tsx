@@ -3298,7 +3298,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           key={`${miniGame}-${miniGameSession}`}
           kind={miniGame}
           balance={coins.walletCoins}
-          difficulty={effectiveEconomyDifficulty(difficulty, coins.walletCoins)}
+          difficulty={effectiveEconomyDifficulty(economy, coins.walletCoins)}
           canChooseBet={mohawkEquipped}
           stats={miniGameStats}
           onCommitBet={commitMiniGameBet}
