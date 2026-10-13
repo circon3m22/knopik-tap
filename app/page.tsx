@@ -3294,7 +3294,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       </div>
 
       {miniGame && (
-        <MiniGamePanel
+        <MiniGamePanel economy={economy}
           key={`${miniGame}-${miniGameSession}`}
           kind={miniGame}
           balance={coins.walletCoins}
