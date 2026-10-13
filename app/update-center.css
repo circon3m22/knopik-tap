@@ -17,7 +17,7 @@
   align-items: center;
   gap: 11px;
   min-height: 84px;
-  padding: 14px 12px;
+  padding: 14px 28px 14px 12px;
   border: 1px solid #dfe8f1;
   border-radius: 20px;
   background: #fff;
@@ -148,7 +148,7 @@
 .kn-release-dialog button:focus-visible { outline: 3px solid #9ac7ff; outline-offset: 2px; }
 @keyframes kn-release-appear { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 390px) {
-  .kn-release-notice { gap: 7px; padding-inline: 9px; }
+  .kn-release-notice { gap: 7px; padding: 14px 26px 14px 9px; }
   .kn-release-notice-copy strong { font-size: 11px; }
   .kn-release-notice .kn-release-notice-detail { font-size: 10px; padding-inline: 8px; }
   .kn-release-notice-symbol { flex-basis: 29px; width: 29px; height: 29px; }
