@@ -3866,7 +3866,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 <div className="difficulty-heading">
                   <div>
                     <strong>Скрытая сложность</strong>
-                    <span>Общая для всех игроков · текущая игра = {DEFAULT_DIFFICULTY}</span>
+                    <span>Общая для всех игроков · по умолчанию {DEFAULT_DIFFICULTY}</span>
                   </div>
                   <output htmlFor="difficulty-range">{difficultyDraft}</output>
                 </div>
