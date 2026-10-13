@@ -45,6 +45,17 @@ export function UpdateCenter({
     setUnread(releasesSince(previous).length > 0);
   }, [userId, returningPlayer]);
 
+  // Opening the journal directly from settings also counts as reading this release.
+  useEffect(() => {
+    if (!historyOpen) return;
+    setUnread(false);
+    try {
+      window.localStorage.setItem(releaseSeenKey(userId), GAME_VERSION);
+    } catch {
+      // Preserve the in-memory dismissal if local storage is blocked.
+    }
+  }, [historyOpen, userId]);
+
   const markSeen = () => {
     setUnread(false);
     try {
