@@ -5,7 +5,6 @@ import { GAME_VERSION, RELEASES, releaseSeenKey, releasesSince } from "./release
 
 type UpdateCenterProps = {
   userId: string;
-  ready: boolean;
   /** Returning players see an update; brand-new players finish onboarding without a popup. */
   returningPlayer: boolean;
   canShowAnnouncement: boolean;
@@ -15,7 +14,6 @@ type UpdateCenterProps = {
 
 export function UpdateCenter({
   userId,
-  ready,
   returningPlayer,
   canShowAnnouncement,
   historyOpen,
@@ -27,8 +25,6 @@ export function UpdateCenter({
   const isDialogOpen = historyOpen || detailsOpen;
 
   useEffect(() => {
-    if (!ready) return;
-
     let previous: string | null = null;
     try {
       previous = window.localStorage.getItem(releaseSeenKey(userId));
@@ -47,7 +43,7 @@ export function UpdateCenter({
       return;
     }
     setUnread(releasesSince(previous).length > 0);
-  }, [ready, userId, returningPlayer]);
+  }, [userId, returningPlayer]);
 
   const markSeen = () => {
     setUnread(false);
