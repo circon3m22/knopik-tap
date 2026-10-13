@@ -65,13 +65,15 @@ export function createSlotOutcome(
   bet: number,
   difficulty: number = DEFAULT_DIFFICULTY,
   random: () => number = Math.random,
+  minWinChance = 5,
 ): SlotOutcome {
   const safeBet = Math.max(0, Math.floor(Number.isFinite(bet) ? bet : 0));
   const normalizedDifficulty = clampDifficulty(difficulty);
   const luck = difficultyLuckMultiplier(difficulty);
   const jackpotChance = normalizedDifficulty === 0 ? 0.05 : normalizedDifficulty === 100 ? 0 : 0.015 * luck;
   const tripleChance = normalizedDifficulty === 0 ? 0.2 : normalizedDifficulty === 100 ? 0 : 0.06 * luck;
-  const pairChance = normalizedDifficulty === 0 ? 0.75 : normalizedDifficulty === 100 ? 0 : 0.43 * luck;
+  const basePairChance = normalizedDifficulty === 0 ? 0.75 : normalizedDifficulty === 100 ? 0 : 0.43 * luck;
+  const pairChance = Math.max(basePairChance, Math.max(0, minWinChance / 100 - jackpotChance - tripleChance));
   const roll = unit(random);
 
   let reels: [SlotSymbol, SlotSymbol, SlotSymbol];
@@ -115,11 +117,11 @@ export function createSlotOutcome(
 }
 
 /** The five buttons stay visually identical while the real safe chance is hidden. */
-export function mineSafeChance(difficulty: number = DEFAULT_DIFFICULTY): number {
+export function mineSafeChance(difficulty: number = DEFAULT_DIFFICULTY, minWinChance = 5): number {
   const normalized = clampDifficulty(difficulty);
   if (normalized === 0) return 1;
-  if (normalized === 100) return 0;
-  return Math.min(0.99, Math.max(0.01, 0.8 + (50 - normalized) * 0.003));
+  if (normalized === 100) return minWinChance / 100;
+  return Math.min(0.99, Math.max(minWinChance / 100, 0.8 + (50 - normalized) * 0.003));
 }
 
 export type MinePickOutcome = {
@@ -132,9 +134,10 @@ export function createMinePickOutcome(
   difficulty: number = DEFAULT_DIFFICULTY,
   random: () => number = Math.random,
   previousMineIndex: number | null = null,
+  minWinChance = 5,
 ): MinePickOutcome {
   const selected = Math.min(4, Math.max(0, Math.floor(selectedIndex)));
-  const safe = unit(random) < mineSafeChance(difficulty);
+  const safe = unit(random) < mineSafeChance(difficulty, minWinChance);
   if (!safe) return { safe: false, mineIndex: selected };
 
   const safeMineIndexes = [0, 1, 2, 3, 4].filter(
