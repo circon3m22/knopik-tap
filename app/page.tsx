@@ -244,6 +244,7 @@ type KnopikGameProps = {
   difficulty: number;
   promoCodes: PromoCode[];
   onSave: (save: SaveData) => void;
+  onRetrySave: () => Promise<boolean>;
   onRefreshPromoCodes: () => Promise<void>;
   onUpdateDifficulty: (difficulty: number) => Promise<string>;
   onCreatePromoCode: (code: string, amount: number) => Promise<string>;
@@ -258,6 +259,7 @@ function KnopikGame({
   difficulty,
   promoCodes,
   onSave,
+  onRetrySave,
   onRefreshPromoCodes,
   onUpdateDifficulty,
   onCreatePromoCode,
@@ -860,7 +862,11 @@ function KnopikGame({
 
   const signOutAccount = useCallback(async () => {
     setAccountPending(true);
-    await onSignOut();
+    try {
+      await onSignOut();
+    } finally {
+      setAccountPending(false);
+    }
   }, [onSignOut]);
 
   const submitPromoCode = useCallback(async () => {
@@ -2888,6 +2894,12 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       </div>
       <div className="game-motion-layer">
       <header className="app-header">
+        {syncState === "error" && (
+          <div className="cloud-save-warning" role="alert">
+            <span>Прогресс пока не сохранён в облако. Локальная копия сохранена.</span>
+            <button type="button" onClick={() => void onRetrySave()}>Повторить</button>
+          </div>
+        )}
         <div className="top-bar">
           <button
               className="account-identity"
@@ -3703,7 +3715,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 <span className="account-avatar" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
                 <div>
                   <strong>{account.username}</strong>
-                  <span>{syncState === "saved" ? "Прогресс сохранён" : syncState === "saving" ? "Сохранение…" : "Сохранится при следующей попытке"}</span>
+                  <span>{syncState === "saved" ? "Прогресс сохранён в Supabase" : syncState === "saving" ? "Сохранение в облако…" : syncState === "conflict" ? "Конфликт сохранений" : "Ошибка сохранения — локальная копия сохранена"}</span>
                 </div>
               </div>
               <button className="settings-sign-out" type="button" disabled={accountPending} onClick={() => void signOutAccount()}>Выйти из аккаунта</button>
@@ -4000,7 +4012,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
 export default function Home() {
   return (
     <CloudAccountGate>
-      {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, signOut }) => (
+      {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, retrySave, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, signOut }) => (
         <KnopikGame
           key={gameKey}
           account={account}
@@ -4009,6 +4021,7 @@ export default function Home() {
           difficulty={difficulty}
           promoCodes={promoCodes}
           onSave={saveProgress}
+          onRetrySave={retrySave}
           onRefreshPromoCodes={refreshPromoCodes}
           onUpdateDifficulty={updateDifficulty}
           onCreatePromoCode={createPromoCode}
