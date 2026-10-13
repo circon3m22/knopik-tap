@@ -3883,7 +3883,6 @@ function KnopikGame({
 
       <UpdateCenter
         userId={account.userId}
-        ready={hydrated}
         returningPlayer={initialSave.tutorialSeen}
         canShowAnnouncement={
           !tutorialOpen && !settingsOpen && !shopOpen && !casesOpen &&
