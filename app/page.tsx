@@ -3321,6 +3321,7 @@ function KnopikGame({
           balance={coins.walletCoins}
           difficulty={economyDifficulty(economyConfig, coins.walletCoins)}
           minWinChance={economyConfig.minWinChance}
+          rewardMultiplier={economyConfig.rewardMultiplier}
           canChooseBet={mohawkEquipped}
           stats={miniGameStats}
           onCommitBet={commitMiniGameBet}
