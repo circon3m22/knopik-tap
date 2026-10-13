@@ -149,6 +149,15 @@ function backupPendingSave(userId: string) {
   } catch { /* Browser may not provide persistent storage. */ }
 }
 
+function readExistingLocalSave(userId: string): SaveData | null {
+  try {
+    const raw = localStorage.getItem(localSaveKey(userId));
+    return raw ? sanitizeSave(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
 function writeLocalSave(userId: string, save: SaveData) {
   try {
     localStorage.setItem(localSaveKey(userId), JSON.stringify(save));
@@ -296,12 +305,27 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       }
 
       const cloudData = sanitizeSave(cloudSave.save);
-      const pending = readPendingSave(userId);
+      let pending = readPendingSave(userId);
       const cloudRevision = Number(cloudSave.revision);
       if (!Number.isSafeInteger(cloudRevision) || cloudRevision < 0) {
         setLoginError("Некорректная ревизия облачного сохранения.");
         setAuthLoading(false);
         return;
+      }
+
+      // Save local progress from older game versions before replacing any browser copy.
+      // Legacy clients did not mark failed uploads, so a different local copy must
+      // be inspected by the player rather than overwritten automatically.
+      if (!pending) {
+        const legacyLocal = readExistingLocalSave(userId);
+        if (legacyLocal && !savesMatch(legacyLocal, cloudData)) {
+          pending = {
+            save: legacyLocal,
+            baseRevision: cloudRevision === 0 ? 1 : cloudRevision - 1,
+            savedAt: Date.now(),
+          };
+          writePendingSave(userId, pending.save, pending.baseRevision);
+        }
       }
 
       const decision = chooseCloudSave(cloudData, cloudRevision, pending);
