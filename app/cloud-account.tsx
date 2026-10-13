@@ -15,7 +15,7 @@ import {
   type SaveData,
 } from "./game-logic";
 import { getSupabaseClient, usernameToEmail } from "./supabase-client";
-import { chooseCloudSave, isCommittedSave, type UnsyncedSave } from "./save-sync-protocol";
+import { chooseCloudSave, isCommittedSave, savesMatch, type UnsyncedSave } from "./save-sync-protocol";
 import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
@@ -77,6 +77,7 @@ type CloudGameSession = {
   difficulty: number;
   promoCodes: PromoCode[];
   saveProgress: (save: SaveData) => void;
+  retrySave: () => Promise<boolean>;
   refreshPromoCodes: () => Promise<void>;
   updateDifficulty: (difficulty: number) => Promise<string>;
   createPromoCode: (code: string, amount: number) => Promise<string>;
@@ -328,6 +329,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       setInitialSave(loadedSave);
       setGameRevision((current) => current + 1);
       setSyncState(hasConflict ? "conflict" : needsRecovery ? "saving" : "saved");
+      if (needsRecovery) {
+        saveVersionRef.current = 1;
+        // Resume the locally queued update only when its base revision is still current.
+        queueMicrotask(() => { if (active) void flushProgressRef.current(); });
+      }
       setDifficulty(clampDifficulty(gameConfig?.difficulty ?? DEFAULT_DIFFICULTY));
 
       if (nextAccount.isAdmin) {
@@ -430,6 +436,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     const currentAccount = accountRef.current;
     if (!currentAccount) return;
     const nextSave = sanitizeSave(save);
+    if (latestSaveRef.current && savesMatch(nextSave, latestSaveRef.current)) return;
     latestSaveRef.current = nextSave;
     writeLocalSave(currentAccount.userId, nextSave);
     writePendingSave(currentAccount.userId, nextSave, cloudRevisionRef.current);
@@ -669,6 +676,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     difficulty,
     promoCodes,
     saveProgress,
+    retrySave: flushProgress,
     refreshPromoCodes,
     updateDifficulty,
     createPromoCode,
