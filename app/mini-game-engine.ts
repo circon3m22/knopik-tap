@@ -2,6 +2,7 @@ import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
   difficultyLuckMultiplier,
+  type EconomyConfig,
 } from "./difficulty-engine.ts";
 
 export const SLOT_SYMBOLS = ["cherry", "lemon", "seven", "star", "diamond"] as const;
@@ -65,6 +66,7 @@ export function createSlotOutcome(
   bet: number,
   difficulty: number = DEFAULT_DIFFICULTY,
   random: () => number = Math.random,
+  economy?: EconomyConfig,
 ): SlotOutcome {
   const safeBet = Math.max(0, Math.floor(Number.isFinite(bet) ? bet : 0));
   const normalizedDifficulty = clampDifficulty(difficulty);
@@ -73,6 +75,8 @@ export function createSlotOutcome(
   const tripleChance = normalizedDifficulty === 0 ? 0.2 : normalizedDifficulty === 100 ? 0 : 0.06 * luck;
   const pairChance = normalizedDifficulty === 0 ? 0.75 : normalizedDifficulty === 100 ? 0 : 0.43 * luck;
   const roll = unit(random);
+  const floor = economy ? economy.minimumWinChance / 100 : 0;
+  const adjustedPairChance = Math.max(pairChance, floor - jackpotChance - tripleChance);
 
   let reels: [SlotSymbol, SlotSymbol, SlotSymbol];
   let tier: SlotTier;
@@ -87,7 +91,7 @@ export function createSlotOutcome(
     reels = [symbol, symbol, symbol];
     tier = "triple";
     multiplier = symbol === "seven" ? 4 : 3.2;
-  } else if (roll < jackpotChance + tripleChance + pairChance) {
+  } else if (roll < jackpotChance + tripleChance + adjustedPairChance) {
     const pair = pickSymbol(random);
     const others = SLOT_SYMBOLS.filter((symbol) => symbol !== pair);
     const third = pickSymbol(random, others);
@@ -115,11 +119,11 @@ export function createSlotOutcome(
 }
 
 /** The five buttons stay visually identical while the real safe chance is hidden. */
-export function mineSafeChance(difficulty: number = DEFAULT_DIFFICULTY): number {
+export function mineSafeChance(difficulty: number = DEFAULT_DIFFICULTY, economy?: EconomyConfig): number {
   const normalized = clampDifficulty(difficulty);
   if (normalized === 0) return 1;
-  if (normalized === 100) return 0;
-  return Math.min(0.99, Math.max(0.01, 0.8 + (50 - normalized) * 0.003));
+  if (normalized === 100) return economy ? economy.minimumWinChance / 100 : 0;
+  return Math.min(0.99, Math.max(economy?.minimumWinChance ? economy.minimumWinChance / 100 : 0.01, 0.8 + (50 - normalized) * 0.003));
 }
 
 export type MinePickOutcome = {
@@ -132,9 +136,10 @@ export function createMinePickOutcome(
   difficulty: number = DEFAULT_DIFFICULTY,
   random: () => number = Math.random,
   previousMineIndex: number | null = null,
+  economy?: EconomyConfig,
 ): MinePickOutcome {
   const selected = Math.min(4, Math.max(0, Math.floor(selectedIndex)));
-  const safe = unit(random) < mineSafeChance(difficulty);
+  const safe = unit(random) < mineSafeChance(difficulty, economy);
   if (!safe) return { safe: false, mineIndex: selected };
 
   const safeMineIndexes = [0, 1, 2, 3, 4].filter(
