@@ -1,0 +1,180 @@
+/* Dedicated administrator tools: visible only to Supabase-verified admins. */
+.account-identity .admin-header-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 5px;
+  border: 1px solid rgb(16 110 215 / 24%);
+  border-radius: 6px;
+  color: #0860b3;
+  background: #e7f2ff;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .04em;
+}
+.account-identity:focus-visible,
+.admin-sheet button:focus-visible,
+.settings-open-admin:focus-visible {
+  outline: 3px solid #72b6ff;
+  outline-offset: 3px;
+}
+.settings-sheet .settings-open-admin {
+  min-height: 59px;
+  margin-top: 14px;
+  padding: 0 16px;
+  color: #0b5fba;
+  background: #e5f2ff;
+  border: 1px solid #b8dbff;
+  font-size: 14px;
+  font-weight: 850;
+}
+.settings-sheet .settings-open-admin span {
+  color: #52718b;
+  font-size: 11px;
+}
+.modal-backdrop.admin-panel-backdrop {
+  z-index: 95;
+  padding: 0;
+  background: rgb(8 24 40 / 36%);
+}
+.modal-backdrop.admin-panel-backdrop .settings-sheet.admin-sheet {
+  display: block;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding:
+    calc(env(safe-area-inset-top) + 22px)
+    max(16px, env(safe-area-inset-left))
+    calc(env(safe-area-inset-bottom) + 34px);
+  color: #102a43;
+  background: #f0f5fa;
+  scrollbar-width: thin;
+  scrollbar-color: #b9cad9 transparent;
+}
+.admin-sheet > * {
+  width: 100%;
+  max-width: 600px;
+  margin-inline: auto;
+}
+.admin-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 74px;
+}
+.admin-panel-heading .sheet-kicker {
+  margin: 0 0 6px;
+  color: #1478ed;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .1em;
+}
+.admin-panel-heading h2 {
+  margin: 0;
+  color: #102a43;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -.04em;
+}
+.admin-close-button {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 0;
+  border-radius: 13px;
+  color: #5d7185;
+  background: #e2eaf2;
+  font-size: 25px;
+  cursor: pointer;
+}
+.admin-panel-intro {
+  margin-top: 9px;
+  margin-bottom: 18px;
+  color: #60778b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.admin-sheet .difficulty-panel,
+.admin-sheet .promo-panel {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid #dce6ef;
+  border-radius: 21px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(18 49 77 / 6%);
+}
+.admin-sheet .difficulty-panel { display: grid; gap: 14px; }
+.admin-sheet .difficulty-heading strong,
+.admin-sheet .promo-heading strong {
+  font-size: 15px;
+  color: #102a43;
+}
+.admin-sheet .difficulty-heading span,
+.admin-sheet .promo-heading span {
+  font-size: 11px;
+  color: #64798b;
+}
+.admin-sheet .difficulty-scale { color: #657e93; }
+.admin-sheet .difficulty-save,
+.admin-sheet .promo-form button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 13px;
+  padding: 0 18px;
+  color: #fff;
+  background: #1478ed;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.admin-sheet .difficulty-save:disabled,
+.admin-sheet .promo-form button:disabled { opacity: .55; cursor: not-allowed; }
+.admin-sheet .promo-form {
+  display: grid;
+  grid-template-columns: 1fr minmax(100px, .55fr);
+  align-items: end;
+  gap: 12px;
+}
+.admin-sheet .promo-form label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-size: 11px;
+  color: #63798b;
+}
+.admin-sheet .promo-form input {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  border: 1px solid #d5e2ed;
+  border-radius: 13px;
+  padding: 0 12px;
+  color: #102a43;
+  background: #f8fbff;
+  font-size: 13px;
+}
+.admin-sheet .promo-form button { grid-column: 1 / -1; }
+.admin-sheet .promo-list {
+  max-height: 42vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.admin-sheet .admin-settings-link {
+  margin-top: 16px;
+  padding: 0 16px;
+  border: 1px solid #dce6ef;
+  color: #0d5eaa;
+  background: #fff;
+}
+.admin-sheet .admin-settings-link span { color: #0d5eaa; }
+@media (max-width: 390px) {
+  .account-identity .admin-header-chip { padding: 4px; font-size: 7px; }
+  .account-identity > strong { max-width: 36px; }
+  .admin-sheet .promo-form { grid-template-columns: 1fr; }
+  .admin-sheet .promo-form button { grid-column: auto; }
+}
