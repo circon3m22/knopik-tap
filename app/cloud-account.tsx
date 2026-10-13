@@ -11,11 +11,11 @@ import {
 import type { User } from "@supabase/supabase-js";
 import {
   SAVE_KEY,
-  createDefaultSave,
   sanitizeSave,
   type SaveData,
 } from "./game-logic";
 import { getSupabaseClient, usernameToEmail } from "./supabase-client";
+import { chooseCloudSave, isCommittedSave, type UnsyncedSave } from "./save-sync-protocol";
 import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
@@ -105,11 +105,7 @@ function pendingSaveKey(userId: string) {
   return `${SAVE_KEY}:pending:${userId}`;
 }
 
-type PendingSave = {
-  save: SaveData;
-  baseRevision: number;
-  savedAt: number;
-};
+type PendingSave = UnsyncedSave;
 
 function readPendingSave(userId: string): PendingSave | null {
   try {
@@ -150,19 +146,6 @@ function backupPendingSave(userId: string) {
     const raw = localStorage.getItem(pendingSaveKey(userId));
     if (raw) localStorage.setItem(`${SAVE_KEY}:conflict:${userId}:${Date.now()}`, raw);
   } catch { /* Browser may not provide persistent storage. */ }
-}
-
-function readLocalSave(userId: string): SaveData | null {
-  try {
-    const raw = localStorage.getItem(localSaveKey(userId));
-    return raw ? sanitizeSave(JSON.parse(raw)) : null;
-  } catch {
-    return null;
-  }
-}
-
-function savesMatch(a: unknown, b: unknown) {
-  return JSON.stringify(sanitizeSave(a)) === JSON.stringify(sanitizeSave(b));
 }
 
 function writeLocalSave(userId: string, save: SaveData) {
@@ -320,12 +303,9 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         return;
       }
 
-      const hasConflict = Boolean(
-        pending && pending.baseRevision !== cloudRevision && !savesMatch(pending.save, cloudData),
-      );
-      const needsRecovery = Boolean(
-        pending && pending.baseRevision === cloudRevision && !savesMatch(pending.save, cloudData),
-      );
+      const decision = chooseCloudSave(cloudData, cloudRevision, pending);
+      const hasConflict = decision === "conflict";
+      const needsRecovery = decision === "recover-local";
       if (pending && !hasConflict && !needsRecovery) removePendingSave(userId);
 
       const loadedSave = needsRecovery && pending ? pending.save : cloudData;
@@ -411,10 +391,9 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         }
 
         const remote = data as GameSaveRow;
-        const acknowledged =
-          Number(remote.revision) === expectedRevision + 1 &&
-          remote.source_id === CLOUD_SOURCE_ID &&
-          savesMatch(remote.save, latestSave);
+        const acknowledged = isCommittedSave(
+          remote, expectedRevision, CLOUD_SOURCE_ID, latestSave,
+        );
         if (!acknowledged) {
           // Never overwrite newer progress from another device or browser tab.
           conflictRef.current = true;
