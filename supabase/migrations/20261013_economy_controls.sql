@@ -51,6 +51,7 @@ $$;
 revoke all on function public.update_economy_config(integer,numeric,numeric,integer) from public;
 grant execute on function public.update_economy_config(integer,numeric,numeric,integer) to authenticated;
 
--- Important: audit existing game_config UPDATE policies and game_saves write policies.
--- An existing permissive UPDATE policy can bypass this RPC, so revoke direct
--- authenticated UPDATE access only after checking all other consumers.
+-- All game_config writes now go through the authenticated, admin-verified RPC.
+-- Deny direct table UPDATE even when a permissive RLS policy exists.
+revoke update on table public.game_config from public, anon, authenticated;
+-- Separately audit game_saves write policies: the client still submits saves.
