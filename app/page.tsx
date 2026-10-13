@@ -84,6 +84,8 @@ import {
   type MiniGameStats,
 } from "./mini-game-panel";
 import { resolveMiniGameBet } from "./mini-game-engine";
+import { UpdateCenter } from "./update-center";
+import { GAME_VERSION } from "./release-notes.js";
 
 type TapParticle = {
   id: number;
@@ -322,6 +324,7 @@ function KnopikGame({
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [releaseHistoryOpen, setReleaseHistoryOpen] = useState(false);
   const [casesOpen, setCasesOpen] = useState(false);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
   const [accountPending, setAccountPending] = useState(false);
@@ -842,6 +845,8 @@ function KnopikGame({
     tutorialSeen,
     vaultCoins,
   ]);
+
+  const closeReleaseHistory = useCallback(() => setReleaseHistoryOpen(false), []);
 
   const signOutAccount = useCallback(async () => {
     setAccountPending(true);
@@ -3838,6 +3843,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               {cheatMessage && <small role="status">{cheatMessage}</small>}
             </form>
             <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setTutorialStep(0); setTutorialOpen(true); }}>Повторить обучение <span>↗</span></button>
+            <button className="settings-action" type="button" onClick={() => { setSettingsOpen(false); setReleaseHistoryOpen(true); }}>Журнал обновлений <span>v{GAME_VERSION} ↗</span></button>
             {!resetConfirmOpen ? (
               <button className="settings-action danger-action" type="button" onClick={() => setResetConfirmOpen(true)}>Сбросить прогресс</button>
             ) : (
@@ -3851,6 +3857,17 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           </section>
         </div>
       )}
+
+      <UpdateCenter
+        userId={account.userId}
+        returningPlayer={initialSave.tutorialSeen}
+        canShowAnnouncement={
+          !tutorialOpen && !settingsOpen && !shopOpen && !casesOpen &&
+          !caseSequence && miniGame === null && riskPhase === "normal"
+        }
+        historyOpen={releaseHistoryOpen}
+        onCloseHistory={closeReleaseHistory}
+      />
 
       <div className="red-flash" aria-hidden="true" />
     </main>
