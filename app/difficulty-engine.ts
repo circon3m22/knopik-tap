@@ -1,4 +1,4 @@
-export const DEFAULT_DIFFICULTY = 50;
+export const DEFAULT_DIFFICULTY = 48;
 export const MIN_DIFFICULTY = 0;
 export const MAX_DIFFICULTY = 100;
 export const BALANCE_DIFFICULTY_THRESHOLD = 10_000;
@@ -109,4 +109,26 @@ export function difficultyRiskChance(
   if (normalized === MAX_DIFFICULTY) return 0;
   const adjustment = (DEFAULT_DIFFICULTY - normalized) * 0.3;
   return Math.min(98, Math.max(1, displayedChance + 8 + adjustment));
+}
+
+/** Shared economy configuration, stored in Supabase game_config. */
+export type EconomyConfig = { difficulty: number; wealthInfluence: number; rewardMultiplier: number; minimumWinChance: number };
+export const DEFAULT_ECONOMY: EconomyConfig = { difficulty: 48, wealthInfluence: 1.9, rewardMultiplier: 1.8, minimumWinChance: 6 };
+export function sanitizeEconomy(input: Partial<EconomyConfig> | null | undefined): EconomyConfig {
+  const bounded = (value: unknown, fallback: number, min: number, max: number) =>
+    typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  return {
+    difficulty: Math.round(bounded(input?.difficulty, 48, 0, 100)),
+    wealthInfluence: bounded(input?.wealthInfluence, 1.9, 0, 3),
+    rewardMultiplier: bounded(input?.rewardMultiplier, 1.8, 0.25, 3),
+    minimumWinChance: bounded(input?.minimumWinChance, 6, 1, 25),
+  };
+}
+/** Continuous wealth penalty, capped to prevent impossible difficulty. */
+export function effectiveEconomyDifficulty(config: EconomyConfig, walletCoins: number): number {
+  const balance = Math.max(0, Number.isFinite(walletCoins) ? walletCoins : 0);
+  return clampDifficulty(Math.min(94, config.difficulty + config.wealthInfluence * 25 * Math.min(1, balance / 20_000)));
+}
+export function economyWinChance(chance: number, config: EconomyConfig): number {
+  return Math.min(99, Math.max(config.minimumWinChance, chance));
 }
