@@ -60,18 +60,17 @@ import {
   riskPointerRotation,
   type RiskChance,
 } from "./risk-engine";
+import { normalizeEconomyConfig, economyDifficulty, economyTapMultiplier, economyPayout, type EconomyConfig } from "./economy-engine";
 import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
   difficultyDuration,
   difficultyLuckMultiplier,
   difficultyPatienceMultiplier,
-  difficultyRewardMultiplier,
   difficultyTiredChanceMultiplier,
   difficultyTiredSnapMultiplier,
   difficultyUltraFailureChance,
   difficultyUltraDeadlineMultiplier,
-  difficultyWithBalancePenalty,
 } from "./difficulty-engine";
 import {
   CloudAccountGate,
@@ -243,10 +242,12 @@ type KnopikGameProps = {
   initialSave: SaveData;
   syncState: CloudSyncState;
   difficulty: number;
+  economyConfig: EconomyConfig;
   promoCodes: PromoCode[];
   onSave: (save: SaveData) => void;
   onRefreshPromoCodes: () => Promise<void>;
   onUpdateDifficulty: (difficulty: number) => Promise<string>;
+  onUpdateEconomyConfig: (config: EconomyConfig) => Promise<string>;
   onCreatePromoCode: (code: string, amount: number) => Promise<string>;
   onRedeemPromoCode: (code: string) => Promise<{ message: string; amount?: number }>;
   onSignOut: () => Promise<void>;
@@ -292,10 +293,12 @@ function KnopikGame({
   initialSave,
   syncState,
   difficulty,
+  economyConfig,
   promoCodes,
   onSave,
   onRefreshPromoCodes,
   onUpdateDifficulty,
+  onUpdateEconomyConfig,
   onCreatePromoCode,
   onRedeemPromoCode,
   onSignOut,
@@ -368,6 +371,7 @@ function KnopikGame({
   const [promoMessage, setPromoMessage] = useState("");
   const [promoPending, setPromoPending] = useState(false);
   const [difficultyDraft, setDifficultyDraft] = useState(() => clampDifficulty(difficulty));
+  const [economyDraft, setEconomyDraft] = useState<EconomyConfig>(() => normalizeEconomyConfig(economyConfig));
   const [difficultyMessage, setDifficultyMessage] = useState("");
   const [difficultyPending, setDifficultyPending] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -430,7 +434,7 @@ function KnopikGame({
   const settingsRef = useRef(settings);
   const configuredDifficultyRef = useRef(clampDifficulty(difficulty));
   const difficultyRef = useRef(
-    difficultyWithBalancePenalty(difficulty, coins.walletCoins),
+    economyDifficulty(economyConfig, coins.walletCoins),
   );
   const hasbulaRedeemedRef = useRef(saved.hasbulaRedeemed);
   const statsRef = useRef(stats);
@@ -559,8 +563,8 @@ function KnopikGame({
       setCoins((current) => {
         const next = updater(current);
         coinsRef.current = next;
-        difficultyRef.current = difficultyWithBalancePenalty(
-          configuredDifficultyRef.current,
+        difficultyRef.current = economyDifficulty(
+          { ...economyConfig, difficulty: configuredDifficultyRef.current },
           next.walletCoins,
         );
         return next;
@@ -606,7 +610,7 @@ function KnopikGame({
         applyTapBoost && boostUntilRef.current > Date.now()
           ? ZHIVCHIK_MULTIPLIER
           : 1;
-      const hiddenDifficulty = difficultyRewardMultiplier(difficultyRef.current);
+      const hiddenDifficulty = economyTapMultiplier(economyConfig, difficultyRef.current);
       const precise =
         base * multiplier * tapBoost * hiddenDifficulty + bonusCarryRef.current;
       const earned = Math.min(maximum, Math.max(0, Math.floor(precise)));
@@ -677,11 +681,11 @@ function KnopikGame({
   useEffect(() => {
     const normalized = clampDifficulty(difficulty);
     configuredDifficultyRef.current = normalized;
-    difficultyRef.current = difficultyWithBalancePenalty(
-      normalized,
+    difficultyRef.current = economyDifficulty(
+      { ...economyConfig, difficulty: normalized },
       coinsRef.current.walletCoins,
     );
-  }, [difficulty]);
+  }, [difficulty, economyConfig]);
 
   useEffect(() => {
     if (settingsOpen && account.isAdmin) void onRefreshPromoCodes();
@@ -834,10 +838,10 @@ function KnopikGame({
   const submitDifficulty = useCallback(async () => {
     setDifficultyPending(true);
     setDifficultyMessage("");
-    const message = await onUpdateDifficulty(difficultyDraft);
+    const message = await onUpdateEconomyConfig({ ...economyDraft, difficulty: difficultyDraft });
     setDifficultyMessage(message);
     setDifficultyPending(false);
-  }, [difficultyDraft, onUpdateDifficulty]);
+  }, [difficultyDraft, economyDraft, onUpdateEconomyConfig]);
 
   useEffect(() => {
     if (!fatigueUntil) return;
@@ -1459,12 +1463,13 @@ function KnopikGame({
       bet,
       Math.random,
       difficultyRef.current,
+      economyConfig.minWinChance,
     );
     const payout = outcome.won
-      ? Math.round(
+      ? economyPayout(Math.round(
           bet * riskMultiplier(riskChance) *
             (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1),
-        )
+        ), economyConfig)
       : 0;
     const spinDuration = RISK_SPIN_MS;
     setRiskBetAmount(bet);
@@ -2002,6 +2007,7 @@ function KnopikGame({
   }, [colaCount, mohawkEquipped, resetSeries, teaCount, updateCoins]);
 
   const resolveMiniGame = useCallback((kind: MiniGameKind, payout: number, won: boolean) => {
+    payout = economyPayout(payout, economyConfig);
     if (payout > 0) {
       updateCoins((current) => ({
         ...current,
@@ -2033,12 +2039,16 @@ function KnopikGame({
       resetSeries();
       transitionTo("tired");
     }
-  }, [applyFatigueDeadline, getSound, resetSeries, transitionTo, updateCoins]);
+  }, [applyFatigueDeadline, economyConfig, getSound, resetSeries, transitionTo, updateCoins]);
 
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
     const [secretWord, amountToken, ...extraTokens] = normalizedCode.split(/\s+/);
     if (secretWord === "medoed") {
+      if (!account.isAdmin) {
+        setCheatMessage("Этот код доступен только администратору.");
+        return;
+      }
       const hasCustomAmount = amountToken !== undefined;
       const amountIsValid =
         !hasCustomAmount ||
@@ -2147,10 +2157,11 @@ function KnopikGame({
     const coinReward = rewards
       .filter((reward): reward is Extract<CaseReward, { type: "coins" }> => reward.type === "coins")
       .reduce((total, reward) => total + reward.amount, 0);
-    if (coinReward > 0) {
+    const adjustedCoinReward = economyPayout(coinReward, economyConfig);
+    if (adjustedCoinReward > 0) {
       updateCoins((current) => ({
         ...current,
-        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + coinReward),
+        walletCoins: Math.min(Number.MAX_SAFE_INTEGER, current.walletCoins + adjustedCoinReward),
       }));
       setBalancePulse((current) => current + 1);
     }
@@ -2181,7 +2192,7 @@ function KnopikGame({
     } else if (mohawkUpgrades > 0) {
       setMohawkUpgradeTokens((current) => Math.min(99, current + mohawkUpgrades));
     }
-  }, [hatOwned, mohawkOwned, updateCoins]);
+  }, [economyConfig, hatOwned, mohawkOwned, updateCoins]);
 
   const beginCaseHold = useCallback(() => {
     if (!caseSequence || caseSequence.phase !== "ready") return;
@@ -3310,7 +3321,9 @@ function KnopikGame({
           key={`${miniGame}-${miniGameSession}`}
           kind={miniGame}
           balance={coins.walletCoins}
-          difficulty={difficultyWithBalancePenalty(difficulty, coins.walletCoins)}
+          difficulty={economyDifficulty(economyConfig, coins.walletCoins)}
+          minWinChance={economyConfig.minWinChance}
+          rewardMultiplier={economyConfig.rewardMultiplier}
           canChooseBet={mohawkEquipped}
           stats={miniGameStats}
           onCommitBet={commitMiniGameBet}
@@ -3741,6 +3754,23 @@ function KnopikGame({
                     setDifficultyMessage("");
                   }}
                 />
+                <div className="economy-admin-fields">
+                  {([
+                    ["wealthImpact", "Влияние богатства", 0, 3, 0.05],
+                    ["rewardMultiplier", "Множитель наград", 0.25, 3, 0.05],
+                    ["minWinChance", "Минимальный шанс победы (%)", 1, 25, 1],
+                  ] as const).map(([field, label, min, max, step]) => (
+                    <label className="setting-row" key={field}>
+                      <span>{label}</span>
+                      <input type="number" min={min} max={max} step={step}
+                        value={economyDraft[field]}
+                        onChange={(event) => {
+                          setEconomyDraft((current) => ({ ...current, [field]: Number(event.currentTarget.value) }));
+                          setDifficultyMessage("");
+                        }} />
+                    </label>
+                  ))}
+                </div>
                 <div className="difficulty-scale" aria-hidden="true">
                   <span><b>0</b> очень легко</span>
                   <span><b>50</b> стандарт</span>
@@ -3749,10 +3779,10 @@ function KnopikGame({
                 <button
                   className="difficulty-save"
                   type="button"
-                  disabled={difficultyPending || difficultyDraft === difficulty}
+                  disabled={difficultyPending || (difficultyDraft === difficulty && JSON.stringify({ ...economyDraft, difficulty: difficultyDraft }) === JSON.stringify(economyConfig))}
                   onClick={() => void submitDifficulty()}
                 >
-                  {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
+                  {difficultyPending ? "Сохраняем…" : "Сохранить экономику"}
                 </button>
                 {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
               </section>
@@ -4017,17 +4047,19 @@ export default function Home() {
       )}
       <div className={`boot-content${contentRevealed ? " is-revealed" : ""}`}>
         <CloudAccountGate onBootReady={handleBootReady}>
-          {({ account, initialSave, gameKey, syncState, difficulty, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, createPromoCode, redeemPromoCode, signOut }) => (
+          {({ account, initialSave, gameKey, syncState, difficulty, economyConfig, promoCodes, saveProgress, refreshPromoCodes, updateDifficulty, updateEconomyConfig, createPromoCode, redeemPromoCode, signOut }) => (
             <KnopikGame
               key={gameKey}
               account={account}
               initialSave={initialSave}
               syncState={syncState}
               difficulty={difficulty}
+              economyConfig={economyConfig}
               promoCodes={promoCodes}
               onSave={saveProgress}
               onRefreshPromoCodes={refreshPromoCodes}
               onUpdateDifficulty={updateDifficulty}
+              onUpdateEconomyConfig={updateEconomyConfig}
               onCreatePromoCode={createPromoCode}
               onRedeemPromoCode={redeemPromoCode}
               onSignOut={signOut}
