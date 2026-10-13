@@ -17,6 +17,12 @@ jobs:
           node-version: '22'
       - name: Validate release version and journal
         run: node --test tests/release-notes.test.mjs
+      - name: Install project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+      - name: Build app
+        run: npm run build
       - name: Require release entry for game changes
         shell: bash
         env:
