@@ -67,12 +67,10 @@ import {
   difficultyDuration,
   difficultyLuckMultiplier,
   difficultyPatienceMultiplier,
-  difficultyRewardMultiplier,
   difficultyTiredChanceMultiplier,
   difficultyTiredSnapMultiplier,
   difficultyUltraFailureChance,
   difficultyUltraDeadlineMultiplier,
-  difficultyWithBalancePenalty,
 } from "./difficulty-engine";
 import {
   CloudAccountGate,
@@ -566,7 +564,7 @@ function KnopikGame({
         const next = updater(current);
         coinsRef.current = next;
         difficultyRef.current = economyDifficulty(
-          configuredDifficultyRef.current,
+          { ...economyConfig, difficulty: configuredDifficultyRef.current },
           next.walletCoins,
         );
         return next;
@@ -684,10 +682,10 @@ function KnopikGame({
     const normalized = clampDifficulty(difficulty);
     configuredDifficultyRef.current = normalized;
     difficultyRef.current = economyDifficulty(
-      normalized,
+      { ...economyConfig, difficulty: normalized },
       coinsRef.current.walletCoins,
     );
-  }, [difficulty]);
+  }, [difficulty, economyConfig]);
 
   useEffect(() => {
     if (settingsOpen && account.isAdmin) void onRefreshPromoCodes();
