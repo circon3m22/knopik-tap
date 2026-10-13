@@ -191,6 +191,8 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginPending, setLoginPending] = useState(false);
+  const [recoveryPending, setRecoveryPending] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
   const [syncState, setSyncState] = useState<CloudSyncState>("saved");
   const [difficulty, setDifficulty] = useState(DEFAULT_DIFFICULTY);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
@@ -494,6 +496,49 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     URL.revokeObjectURL(url);
   }, []);
 
+  const restorePendingToCloud = useCallback(async () => {
+    const currentAccount = accountRef.current;
+    if (!currentAccount || recoveryPending) return;
+    const pending = readPendingSave(currentAccount.userId);
+    if (!pending) {
+      setRecoveryError("Локальная копия не найдена.");
+      return;
+    }
+    const confirmation = window.confirm(
+      "Восстановить локальный прогресс в Supabase? Это заменит текущий облачный прогресс этого аккаунта. " +
+      "Предыдущая версия останется в закрытом архиве Supabase. Сначала рекомендуется скачать локальную копию.",
+    );
+    if (!confirmation) return;
+
+    setRecoveryPending(true);
+    setRecoveryError("");
+    try {
+      const { data: row, error: readError } = await getSupabaseClient()
+        .from("game_saves")
+        .select("user_id, save, revision, source_id")
+        .eq("user_id", currentAccount.userId)
+        .single<GameSaveRow>();
+      if (readError || !row) throw new Error("Не удалось проверить облачное сохранение.");
+      const expectedRevision = Number(row.revision);
+      const { data, error } = await getSupabaseClient().rpc("save_game_progress", {
+        new_save: pending.save,
+        expected_revision: expectedRevision,
+        save_source_id: CLOUD_SOURCE_ID,
+      });
+      if (error || !data || !isCommittedSave(data as GameSaveRow, expectedRevision, CLOUD_SOURCE_ID, pending.save)) {
+        throw new Error("Облачная версия успела измениться. Попробуйте ещё раз после обновления страницы.");
+      }
+      backupPendingSave(currentAccount.userId);
+      removePendingSave(currentAccount.userId);
+      writeLocalSave(currentAccount.userId, pending.save);
+      window.location.reload();
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : "Не удалось восстановить локальный прогресс.");
+    } finally {
+      setRecoveryPending(false);
+    }
+  }, [recoveryPending]);
+
   const createPromoCode = useCallback(async (code: string, amount: number) => {
     const currentAccount = accountRef.current;
     if (!currentAccount?.isAdmin) return "Создавать промокоды может только администратор.";
@@ -634,8 +679,12 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
           <p>На другом устройстве есть более новая облачная запись. Мы остановили сохранение, чтобы не затереть прогресс.</p>
           <p>Несохранённая копия с этого устройства сохранена отдельно.</p>
           <button type="button" onClick={downloadLocalPending}>Скачать локальную копию</button>
-          <button type="button" onClick={discardLocalPendingAndReload}>Продолжить с облачной версией</button>
-          <p>Перед переключением рекомендуется скачать локальную копию. Её резервный вариант также останется на этом устройстве.</p>
+          <button type="button" disabled={recoveryPending} onClick={() => void restorePendingToCloud()}>
+            {recoveryPending ? "Восстанавливаем…" : "Восстановить локальную копию в Supabase"}
+          </button>
+          <button type="button" disabled={recoveryPending} onClick={discardLocalPendingAndReload}>Продолжить с облачной версией</button>
+          {recoveryError && <p className="auth-error" role="alert">{recoveryError}</p>}
+          <p>Восстановление заменит текущий облачный прогресс только после вашего подтверждения. Предыдущая версия останется в закрытом архиве.</p>
         </section>
       </main>
     );
