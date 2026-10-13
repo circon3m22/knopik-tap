@@ -324,6 +324,7 @@ function KnopikGame({
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [releaseHistoryOpen, setReleaseHistoryOpen] = useState(false);
   const [casesOpen, setCasesOpen] = useState(false);
   const [caseSequence, setCaseSequence] = useState<CaseSequence | null>(null);
@@ -721,8 +722,8 @@ function KnopikGame({
   }, [difficulty]);
 
   useEffect(() => {
-    if (settingsOpen && account.isAdmin) void onRefreshPromoCodes();
-  }, [account.isAdmin, onRefreshPromoCodes, settingsOpen]);
+    if ((settingsOpen || adminOpen) && account.isAdmin) void onRefreshPromoCodes();
+  }, [account.isAdmin, adminOpen, onRefreshPromoCodes, settingsOpen]);
 
   useEffect(() => {
     fatigueUntilRef.current = fatigueUntil;
@@ -847,6 +848,15 @@ function KnopikGame({
   ]);
 
   const closeReleaseHistory = useCallback(() => setReleaseHistoryOpen(false), []);
+
+  useEffect(() => {
+    if (!adminOpen) return;
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setAdminOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [adminOpen]);
 
   const signOutAccount = useCallback(async () => {
     setAccountPending(true);
@@ -2882,15 +2892,17 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           <button
               className="account-identity"
               type="button"
-              aria-label="Открыть аккаунт и настройки"
+              aria-label={account.isAdmin ? "Открыть админ-панель" : "Открыть аккаунт и настройки"}
               onClick={() => {
                 setShopOpen(false);
                 setCasesOpen(false);
-                setSettingsOpen(true);
+                if (account.isAdmin) setAdminOpen(true);
+                else setSettingsOpen(true);
               }}
             >
               <span className="account-shortcut" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
               <strong>{account.username}</strong>
+              {account.isAdmin && <span className="admin-header-chip">ADMIN</span>}
           </button>
           <div className="wordmark brand-lockup" aria-label="Knopik Tap"><strong>KNOPIK</strong></div>
           <div className="status-cluster" aria-label={`Статус Кнопика: ${moodLabel}`}>
@@ -3702,43 +3714,16 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               <button className="switch" type="button" role="switch" aria-checked={settings.sound} aria-label="Звук" onClick={() => setSettings((current) => ({ ...current, sound: !current.sound }))}><span /></button>
             </div>
             {account.isAdmin && (
-              <section className="difficulty-panel">
-                <div className="difficulty-heading">
-                  <div>
-                    <strong>Скрытая сложность</strong>
-                    <span>Общая для всех игроков · текущая игра = {DEFAULT_DIFFICULTY}</span>
-                  </div>
-                  <output htmlFor="difficulty-range">{difficultyDraft}</output>
-                </div>
-                <input
-                  id="difficulty-range"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={difficultyDraft}
-                  aria-label="Скрытая сложность игры"
-                  onChange={(event) => {
-                    setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
-                    setDifficultyMessage("");
-                  }}
-                />
-                <div className="difficulty-scale" aria-hidden="true">
-                  <span><b>0</b> очень легко</span>
-                  <span><b>50</b> стандарт</span>
-                  <span><b>100</b> сложно</span>
-                </div>
-                <button
-                  className="difficulty-save"
-                  type="button"
-                  disabled={difficultyPending || difficultyDraft === difficulty}
-                  onClick={() => void submitDifficulty()}
-                >
-                  {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
-                </button>
-                {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
-              </section>
+              <button
+                className="settings-action settings-open-admin"
+                type="button"
+                onClick={() => { setSettingsOpen(false); setAdminOpen(true); }}
+              >
+                Админ-панель <span>Управление игрой ↗</span>
+              </button>
             )}
+            {!account.isAdmin && (
+              <>
             <p className="settings-section-title">Бонусы</p>
             <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
               <div className="promo-heading">
@@ -3812,6 +3797,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 </div>
               )}
             </section>
+              </>
+            )}
             <p className="settings-section-title">Дополнительно</p>
             <form
               className={`cheat-row ${settings.suliman || settings.yellow ? "is-active" : ""}`}
@@ -3858,11 +3845,147 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         </div>
       )}
 
+      {adminOpen && account.isAdmin && (
+        <div
+          className="modal-backdrop admin-panel-backdrop"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) setAdminOpen(false);
+          }}
+        >
+          <section className="sheet settings-sheet admin-sheet" role="dialog" aria-modal="true" aria-labelledby="admin-panel-title">
+            <div className="admin-panel-heading">
+              <div>
+                <p className="sheet-kicker">АДМИНИСТРАТОР · {account.username}</p>
+                <h2 id="admin-panel-title">Админ-панель</h2>
+              </div>
+              <button className="admin-close-button" type="button" onClick={() => setAdminOpen(false)} aria-label="Закрыть админ-панель">×</button>
+            </div>
+            <p className="admin-panel-intro">Управление настройками всей игры · версия {GAME_VERSION}</p>
+            {account.isAdmin && (
+              <section className="difficulty-panel">
+                <div className="difficulty-heading">
+                  <div>
+                    <strong>Скрытая сложность</strong>
+                    <span>Общая для всех игроков · по умолчанию {DEFAULT_DIFFICULTY}</span>
+                  </div>
+                  <output htmlFor="difficulty-range">{difficultyDraft}</output>
+                </div>
+                <input
+                  id="difficulty-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={difficultyDraft}
+                  aria-label="Скрытая сложность игры"
+                  onChange={(event) => {
+                    setDifficultyDraft(clampDifficulty(Number(event.currentTarget.value)));
+                    setDifficultyMessage("");
+                  }}
+                />
+                <div className="difficulty-scale" aria-hidden="true">
+                  <span><b>0</b> очень легко</span>
+                  <span><b>50</b> стандарт</span>
+                  <span><b>100</b> сложно</span>
+                </div>
+                <button
+                  className="difficulty-save"
+                  type="button"
+                  disabled={difficultyPending || difficultyDraft === difficulty}
+                  onClick={() => void submitDifficulty()}
+                >
+                  {difficultyPending ? "Сохраняем…" : "Сохранить сложность"}
+                </button>
+                {difficultyMessage && <p className="difficulty-message" role="status">{difficultyMessage}</p>}
+              </section>
+            )}
+
+            <p className="settings-section-title">Бонусы</p>
+            <section className={`promo-panel ${account.isAdmin ? "promo-admin" : "promo-redeem"}`}>
+              <div className="promo-heading">
+                <span className="promo-symbol" aria-hidden="true">%</span>
+                <div>
+                  <strong>{account.isAdmin ? "Промокоды" : "Есть промокод?"}</strong>
+                  <span>{account.isAdmin ? "Создай одноразовое начисление монет" : "Активировать его можно только один раз"}</span>
+                </div>
+              </div>
+              <form
+                className="promo-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitPromoCode();
+                }}
+              >
+                <label>
+                  <span>Промокод</span>
+                  <input
+                    name="promo-code"
+                    type="text"
+                    value={promoCode}
+                    placeholder="Например, KNOPIK100"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={32}
+                    required
+                    onChange={(event) => {
+                      setPromoCode(event.currentTarget.value.toUpperCase());
+                      setPromoMessage("");
+                    }}
+                  />
+                </label>
+                {account.isAdmin && (
+                  <label>
+                    <span>Сумма монет</span>
+                    <input
+                      className="promo-amount"
+                      name="promo-amount"
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max="1000000000"
+                      value={promoAmount}
+                      placeholder="100"
+                      required
+                      onChange={(event) => {
+                        setPromoAmount(event.currentTarget.value);
+                        setPromoMessage("");
+                      }}
+                    />
+                  </label>
+                )}
+                <button type="submit" disabled={promoPending}>
+                  {promoPending ? "Подождите…" : account.isAdmin ? "Создать" : "Активировать"}
+                </button>
+              </form>
+              {promoMessage && <p className="promo-message" role="status">{promoMessage}</p>}
+              {account.isAdmin && (
+                <div className="promo-list" aria-label="Созданные промокоды">
+                  <div className="promo-list-title"><span>ВСЕ КОДЫ</span><strong>{promoCodes.length}</strong></div>
+                  {promoCodes.length === 0 ? (
+                    <p className="promo-empty">Пока нет созданных промокодов.</p>
+                  ) : promoCodes.map((promo) => (
+                    <div className={`promo-code-row ${promo.redeemed ? "is-used" : ""}`} key={promo.id}>
+                      <span><strong>{promo.code}</strong><small>{new Date(promo.createdAt).toLocaleDateString("ru-RU")}</small></span>
+                      <span><strong>+{promo.amount.toLocaleString("ru-RU")}</strong><small>{promo.redeemed ? "ИСПОЛЬЗОВАН" : "ДОСТУПЕН"}</small></span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <button className="settings-action admin-settings-link" type="button" onClick={() => { setAdminOpen(false); setSettingsOpen(true); }}>
+              Обычные настройки <span>↗</span>
+            </button>
+          </section>
+        </div>
+      )}
+
       <UpdateCenter
         userId={account.userId}
         returningPlayer={initialSave.tutorialSeen}
         canShowAnnouncement={
-          !tutorialOpen && !settingsOpen && !shopOpen && !casesOpen &&
+          !tutorialOpen && !settingsOpen && !adminOpen && !shopOpen && !casesOpen &&
           !caseSequence && miniGame === null && riskPhase === "normal"
         }
         historyOpen={releaseHistoryOpen}

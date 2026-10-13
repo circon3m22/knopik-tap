@@ -338,7 +338,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
   const createPromoCode = useCallback(async (code: string, amount: number) => {
     const currentAccount = accountRef.current;
-    if (!currentAccount?.isAdmin) return "Создавать промокоды может только Kamrad.";
+    if (!currentAccount?.isAdmin) return "Создавать промокоды может только администратор.";
 
     const normalizedCode = normalizePromoCode(code);
     const normalizedAmount = Math.floor(amount);
@@ -368,7 +368,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
   const updateDifficulty = useCallback(async (nextDifficulty: number) => {
     const currentAccount = accountRef.current;
-    if (!currentAccount?.isAdmin) return "Менять сложность может только Kamrad.";
+    if (!currentAccount?.isAdmin) return "Менять сложность может только администратор.";
     const normalized = clampDifficulty(nextDifficulty);
     const { data, error } = await getSupabaseClient()
       .from("game_config")

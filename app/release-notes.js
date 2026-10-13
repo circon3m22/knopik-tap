@@ -8,10 +8,20 @@
  * @typedef {{ version: string, date: string, title: string, changes: readonly string[] }} GameRelease
  */
 
-export const GAME_VERSION = "1.0.0";
+export const GAME_VERSION = "1.0.1";
 
 /** @type {readonly GameRelease[]} */
 export const RELEASES = [
+  {
+    version: "1.0.1",
+    date: "2026-10-13",
+    title: "Панель администратора",
+    changes: [
+      "Отдельная админ-панель из профиля администратора.",
+      "Управление сложностью и промокодами в одном месте.",
+      "Быстрый переход между панелью и настройками.",
+    ],
+  },
   {
     version: "1.0.0",
     date: "2026-10-13",
