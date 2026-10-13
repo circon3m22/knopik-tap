@@ -3,6 +3,7 @@ import "./globals.css";
 import "./interface-v2.css";
 import "./update-center.css";
 import "./admin-panel.css";
+import "./cloud-save-warning.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =

@@ -1,0 +1,39 @@
+/* Persistent visible warning when the Supabase write has not been acknowledged. */
+.cloud-save-warning {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #ffc7a8;
+  border-radius: 14px;
+  color: #8b310f;
+  background: #fff4eb;
+  box-shadow: 0 6px 16px rgb(125 46 11 / 9%);
+  font-size: 12px;
+  font-weight: 690;
+  line-height: 1.35;
+}
+.cloud-save-warning span { flex: 1; min-width: 0; }
+.cloud-save-warning button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 1px solid #e49868;
+  border-radius: 10px;
+  padding: 0 12px;
+  color: #8b310f;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.cloud-save-warning button:focus-visible {
+  outline: 3px solid #ffbc80;
+  outline-offset: 2px;
+}
+@media (max-width: 360px) {
+  .cloud-save-warning { flex-wrap: wrap; }
+  .cloud-save-warning button { width: 100%; }
+}
