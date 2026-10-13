@@ -24,6 +24,7 @@ type MiniGamePanelProps = {
   kind: MiniGameKind;
   balance: number;
   difficulty: number;
+  minWinChance: number;
   canChooseBet: boolean;
   stats: MiniGameStats;
   onCommitBet: (kind: MiniGameKind, bet: number) => boolean;
@@ -64,6 +65,7 @@ export function MiniGamePanel({
   kind,
   balance,
   difficulty,
+  minWinChance,
   canChooseBet,
   stats,
   onCommitBet,
@@ -117,7 +119,7 @@ export function MiniGamePanel({
 
   const spinSlots = () => {
     if (slotPhase !== "ready" || !commit()) return;
-    const outcome = createSlotOutcome(safeBet, sessionDifficulty);
+    const outcome = createSlotOutcome(safeBet, sessionDifficulty, Math.random, minWinChance);
     setSlotOutcome(null);
     setSlotPhase("spinning");
     setReelAngles(outcome.reels.map((symbol, index) => (
@@ -144,6 +146,7 @@ export function MiniGamePanel({
       sessionDifficulty,
       Math.random,
       previousMineIndex,
+      minWinChance,
     );
     const tiles: MineTile[] = Array.from({ length: 5 }, () => "hidden");
     tiles[outcome.mineIndex] = "mine";
