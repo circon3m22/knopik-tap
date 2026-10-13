@@ -445,22 +445,17 @@ export function CloudAccountGate({ children, onBootReady }: CloudAccountGateProp
     if (!currentAccount?.isAdmin) return "Изменять экономику может только администратор.";
     const normalized = normalizeEconomyConfig(nextConfig);
     const { data, error } = await getSupabaseClient()
-      .from("game_config")
-      .update({
-        difficulty: normalized.difficulty,
-        wealth_impact: normalized.wealthImpact,
-        reward_multiplier: normalized.rewardMultiplier,
-        min_win_chance: normalized.minWinChance,
-        updated_by: currentAccount.userId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", true)
-      .select("difficulty, wealth_impact, reward_multiplier, min_win_chance")
-      .single<GameConfigRow>();
-    if (error || !data) return "Не удалось сохранить экономику. Проверь миграцию БД и права администратора.";
+      .rpc("update_economy_config", {
+        p_difficulty: normalized.difficulty,
+        p_wealth_impact: normalized.wealthImpact,
+        p_reward_multiplier: normalized.rewardMultiplier,
+        p_min_win_chance: normalized.minWinChance,
+      });
+    const row = Array.isArray(data) ? data[0] as GameConfigRow | undefined : undefined;
+    if (error || !row) return "Не удалось сохранить экономику. Проверь миграцию БД и права администратора.";
     setEconomyConfig(normalizeEconomyConfig({
-      difficulty: data.difficulty, wealthImpact: data.wealth_impact,
-      rewardMultiplier: data.reward_multiplier, minWinChance: data.min_win_chance,
+      difficulty: row.difficulty, wealthImpact: row.wealth_impact,
+      rewardMultiplier: row.reward_multiplier, minWinChance: row.min_win_chance,
     }));
     return "Настройки экономики сохранены.";
   }, []);
