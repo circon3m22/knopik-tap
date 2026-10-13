@@ -8,10 +8,21 @@
  * @typedef {{ version: string, date: string, title: string, changes: readonly string[] }} GameRelease
  */
 
-export const GAME_VERSION = "1.0.1";
+export const GAME_VERSION = "1.0.2";
 
 /** @type {readonly GameRelease[]} */
 export const RELEASES = [
+  {
+    version: "1.0.2",
+    date: "2026-10-13",
+    title: "Защита облачного прогресса",
+    changes: [
+      "Сохранения защищены от перезаписи устаревшей копией.",
+      "Автоматическое повторение записи после обрывов связи.",
+      "Локальная копия сохраняется до подтверждения загрузки в облако.",
+      "История предыдущих сохранений хранится в Supabase.",
+    ],
+  },
   {
     version: "1.0.1",
     date: "2026-10-13",
