@@ -1,4 +1,5 @@
-const CACHE_NAME = "knopik-tap-release-1.0.4";
+const CACHE_NAME = "knopik-tap-release-1.0.5";
+const OWN_CACHE_PREFIX = "knopik-tap-release-";
 const BASE_PATH = new URL("./", self.location.href).pathname.replace(/\/$/, "");
 const asset = (path) => `${BASE_PATH}${path}`;
 const APP_SHELL = [
@@ -34,7 +35,7 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(keys.filter((key) => key.startsWith(OWN_CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key))),
       ),
   );
   self.clients.claim();
@@ -45,6 +46,8 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // Cache only resources belonging to this app, never sibling GitHub Pages sites.
+  if (url.pathname !== BASE_PATH && !url.pathname.startsWith(`${BASE_PATH}/`)) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -54,22 +57,24 @@ self.addEventListener("fetch", (event) => {
           event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(asset("/"), copy)));
           return response;
         })
-        .catch(() => caches.match(asset("/"))),
+        .catch(() => caches.open(CACHE_NAME).then((cache) => cache.match(asset("/")))),
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ??
-        fetch(request).then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
-          }
-          return response;
-        }),
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(request).then(
+        (cached) =>
+          cached ??
+          fetch(request).then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              event.waitUntil(cache.put(request, copy));
+            }
+            return response;
+          }),
+      ),
     ),
   );
 });
