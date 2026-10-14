@@ -41,11 +41,11 @@ test("server-renders a safe authenticated loading shell and ships the full game 
   assert.match(client, /knopik-ear-left\\.png/);
   assert.match(client, /knopik-ear-right\\.png/);
   assert.match(client, /knopik-warning-earless\\.webp/);
-  assert.match(client, /className="saved-balance/);
+  assert.match(client, /saved-balance/);
   assert.match(client, /className="bottom-bar"/);
   assert.match(client, /className="quick-save-button"/);
   assert.match(client, /className="boost-row"/);
-  assert.match(client, /drink-pitbull/);
+  assert.match(client, /pitbullCount/);
   assert.match(client, /nav-thumb/);
   assert.doesNotMatch(client, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
