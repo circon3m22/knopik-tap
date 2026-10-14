@@ -570,6 +570,13 @@ export class KnopikSoundEngine {
     this.stopUltraLoop(result);
   }
 
+  /** Suspend audio processing when the tab is backgrounded on a phone. */
+  pauseInBackground() {
+    this.disposeUltra(0.025);
+    const ctx = this.context;
+    if (ctx && ctx.state === "running") void ctx.suspend().catch(() => undefined);
+  }
+
   close() {
     this.disposeUltra(0.02);
     const ctx = this.context;
@@ -580,7 +587,9 @@ export class KnopikSoundEngine {
   }
 
   private ready() {
-    if (!this.enabled) return null;
+    // Timers may still resolve a completed round after the tab is hidden.
+    // Do not resume audio (or allocate nodes) without an active page.
+    if (!this.enabled || (typeof document !== "undefined" && document.hidden)) return null;
     const ctx = this.getContext();
     if (ctx?.state === "suspended") void ctx.resume();
     return ctx;
