@@ -37,7 +37,7 @@ test("player features are not dropped during the restyle", () => {
   }
   assert.match(settings, /aria-checked=\{settings\.sound\}/);
   assert.match(settings, /role="switch"/);
-  assert.match(settings, /onRedeemPromoCode/); // action is still available through the game scope
+  assert.match(settings, /submitPromoCode\(\)/); // promo submission remains wired
   assert.match(settings, /resetConfirmOpen/);
   assert.match(settings, /className="confirm-reset"/);
   assert.match(settings, /onClick=\{resetProgress\}/);
