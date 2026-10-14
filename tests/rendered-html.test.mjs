@@ -17,14 +17,14 @@ async function render() {
 test("server-renders a safe authenticated loading shell and ships the full game client", async () => {
   const response = await render();
   assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\\/html\\b/i);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>KNOPIK TAP<\\/title>/i);
-  assert.match(html, /manifest\\.webmanifest/);
-  assert.match(html, /apple-touch-icon-v2\\.png/);
-  assert.match(html, /icon-192-v2\\.png/);
-  assert.match(html, /og\\.png/);
+  assert.match(html, /<title>KNOPIK TAP<\/title>/i);
+  assert.match(html, /manifest\.webmanifest/);
+  assert.match(html, /apple-touch-icon-v2\.png/);
+  assert.match(html, /icon-192-v2\.png/);
+  assert.match(html, /og\.png/);
   // The user and cloud-save state are unknown during server rendering.
   // The client must load Supabase before showing gameplay: never SSR defaults
   // that could then overwrite the user's real progress.
@@ -36,11 +36,11 @@ test("server-renders a safe authenticated loading shell and ships the full game 
   // source still provides the complete game rather than only the splash.
   const client = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.match(client, /data-testid="knopik"/);
-  assert.match(client, /knopik-joy-sprite-earless\\.webp/);
-  assert.match(client, /knopik-rage-sprite-earless\\.webp/);
-  assert.match(client, /knopik-ear-left\\.png/);
-  assert.match(client, /knopik-ear-right\\.png/);
-  assert.match(client, /knopik-warning-earless\\.webp/);
+  assert.match(client, /knopik-joy-sprite-earless\.webp/);
+  assert.match(client, /knopik-rage-sprite-earless\.webp/);
+  assert.match(client, /knopik-ear-left\.png/);
+  assert.match(client, /knopik-ear-right\.png/);
+  assert.match(client, /knopik-warning-earless\.webp/);
   assert.match(client, /saved-balance/);
   assert.match(client, /className="bottom-bar"/);
   assert.match(client, /className="quick-save-button"/);
