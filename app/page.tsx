@@ -522,6 +522,18 @@ function KnopikGame({
     return soundRef.current;
   }, []);
 
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.hidden) soundRef.current?.pauseInBackground();
+    };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    window.addEventListener("pagehide", pauseWhenHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", pauseWhenHidden);
+      window.removeEventListener("pagehide", pauseWhenHidden);
+    };
+  }, []);
+
   const transitionTo = useCallback((state: DogState) => {
     dogStateRef.current = state;
     setDogState(state);
