@@ -113,6 +113,24 @@ function pendingSaveKey(userId: string) {
 
 type PendingSave = UnsyncedSave;
 
+function hasNewerLocalSave(userId: string): boolean {
+  try {
+    for (const key of [pendingSaveKey(userId), localSaveKey(userId)]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const value = JSON.parse(raw) as { save?: unknown; version?: unknown };
+      const candidate = key === pendingSaveKey(userId) ? value.save : value;
+      if (candidate && typeof candidate === "object") {
+        const version = (candidate as { version?: unknown }).version;
+        if (typeof version === "number" && version > 15) return true;
+      }
+    }
+  } catch {
+    // Do not block login if localStorage itself is unavailable.
+  }
+  return false;
+}
+
 function readPendingSave(userId: string): PendingSave | null {
   try {
     const raw = localStorage.getItem(pendingSaveKey(userId));
@@ -324,6 +342,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         return;
       }
 
+      if (hasNewerLocalSave(userId)) {
+        setLoginError("На этом устройстве есть сохранение от более новой версии KNOPIK TAP. Обнови игру: перезапись локальных данных заблокирована.");
+        setAuthLoading(false);
+        return;
+      }
       const cloudData = sanitizeSave(cloudSave.save);
       let pending = readPendingSave(userId);
       const cloudRevision = Number(cloudSave.revision);
