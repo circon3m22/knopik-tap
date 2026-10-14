@@ -230,11 +230,21 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     const supabase = getSupabaseClient();
     let active = true;
 
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!active) return;
-      setUser((current) => current?.id === data.user?.id ? current : data.user ?? null);
-      setAuthLoading(false);
-    });
+    void supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setLoginError("Не удалось проверить вход. Проверь соединение и повтори попытку.");
+        } else {
+          setUser((current) => current?.id === data.user?.id ? current : data.user ?? null);
+        }
+        setAuthLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setLoginError("Не удалось проверить вход. Проверь соединение и повтори попытку.");
+        setAuthLoading(false);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
@@ -383,7 +393,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       if (active) setAuthLoading(false);
     }
 
-    void loadCloudAccount();
+    void loadCloudAccount().catch(() => {
+      if (!active) return;
+      setLoginError("Не удалось загрузить данные из Supabase. Попробуй ещё раз.");
+      setAuthLoading(false);
+    });
     return () => {
       active = false;
     };
@@ -750,12 +764,17 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     }
     setLoginPending(true);
     setLoginError("");
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setLoginError("Неверный логин или пароль.");
-    setLoginPending(false);
+    try {
+      const { error } = await getSupabaseClient().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) setLoginError("Неверный логин или пароль.");
+    } catch {
+      setLoginError("Не удалось подключиться к серверу авторизации.");
+    } finally {
+      setLoginPending(false);
+    }
   }
 
   const signOut = useCallback(async () => {
