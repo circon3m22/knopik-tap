@@ -1,0 +1,53 @@
+/* Small, GPU-friendly finishing animations. Game rewards and timing stay in JS. */
+.save-flight i {
+  transform-origin: 50% 50%;
+  animation: polished-coins-to-vault 805ms cubic-bezier(.19,.78,.28,1) var(--flight-delay) both;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+@keyframes polished-coins-to-vault {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(.4) rotate(-15deg);
+  }
+  14% { opacity: 1; }
+  52% {
+    opacity: 1;
+    transform:
+      translate(calc(var(--flight-mid-x) - 50%), calc(var(--flight-mid-y) - 50%))
+      scale(var(--flight-size))
+      rotate(var(--flight-mid-spin));
+  }
+  80% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform:
+      translate(calc(var(--flight-end-x) - 50%), calc(var(--flight-end-y) - 50%))
+      scale(.25)
+      rotate(var(--flight-spin));
+  }
+}
+
+/* Mobile gets a visible shower without sixteen separate GPU layers. */
+@media (pointer: coarse) {
+  .save-flight i:nth-of-type(n + 13) { display: none; }
+  .save-flight i { box-shadow: 0 2px 7px rgb(233 163 23 / 18%); }
+}
+
+/* Mobile browsers benefit from stable paint boundaries for short feedback. */
+.tap-particles, .tap-waves, .save-flight {
+  pointer-events: none;
+}
+
+/* Avoid tiny tap targets and extra zoom on small iPhones. */
+@media (max-width: 420px) {
+  .player-settings-sheet .admin-close-button,
+  .admin-sheet .admin-close-button { min-width: 44px; min-height: 44px; }
+}
+
+/* The system's reduce-motion setting applies to the new celebration too. */
+@media (prefers-reduced-motion: reduce) {
+  .save-flight i { animation-duration: 160ms; animation-delay: 0ms !important; }
+  .save-flight strong { animation-duration: 200ms; }
+}

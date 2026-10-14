@@ -11,11 +11,17 @@ import {
 import type { User } from "@supabase/supabase-js";
 import {
   SAVE_KEY,
+  SAVE_VERSION,
   sanitizeSave,
   type SaveData,
 } from "./game-logic";
 import { getSupabaseClient, usernameToEmail } from "./supabase-client";
 import { chooseCloudSave, isCommittedSave, savesMatch, type UnsyncedSave } from "./save-sync-protocol";
+import {
+  hasSupportedSaveVersion,
+  hasUnflushedProgress,
+  shouldArmCloudSaveTimer,
+} from "./save-queue-policy";
 import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
@@ -108,12 +114,30 @@ function pendingSaveKey(userId: string) {
 
 type PendingSave = UnsyncedSave;
 
+function hasNewerLocalSave(userId: string): boolean {
+  try {
+    for (const key of [pendingSaveKey(userId), localSaveKey(userId)]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const value = JSON.parse(raw) as { save?: unknown; version?: unknown };
+      const candidate = key === pendingSaveKey(userId) ? value.save : value;
+      if (candidate && typeof candidate === "object") {
+        const version = (candidate as { version?: unknown }).version;
+        if (typeof version === "number" && version > SAVE_VERSION) return true;
+      }
+    }
+  } catch {
+    // Do not block login if localStorage itself is unavailable.
+  }
+  return false;
+}
+
 function readPendingSave(userId: string): PendingSave | null {
   try {
     const raw = localStorage.getItem(pendingSaveKey(userId));
     if (!raw) return null;
     const record = JSON.parse(raw) as Partial<PendingSave>;
-    if (!Number.isSafeInteger(record.baseRevision) || Number(record.baseRevision) < 0 || !record.save) return null;
+    if (!Number.isSafeInteger(record.baseRevision) || Number(record.baseRevision) < 0 || !hasSupportedSaveVersion(record.save)) return null;
     return {
       save: sanitizeSave(record.save),
       baseRevision: Number(record.baseRevision),
@@ -152,7 +176,9 @@ function backupPendingSave(userId: string) {
 function readExistingLocalSave(userId: string): SaveData | null {
   try {
     const raw = localStorage.getItem(localSaveKey(userId));
-    return raw ? sanitizeSave(JSON.parse(raw)) : null;
+    if (!raw) return null;
+    const candidate: unknown = JSON.parse(raw);
+    return hasSupportedSaveVersion(candidate) ? sanitizeSave(candidate) : null;
   } catch {
     return null;
   }
@@ -205,6 +231,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const flushedVersionRef = useRef(0);
   const cloudRevisionRef = useRef(0);
   const conflictRef = useRef(false);
+  const promoInFlightRef = useRef(false);
   const flushInFlightRef = useRef<Promise<boolean> | null>(null);
 
   const refreshPromoCodes = useCallback(async () => {
@@ -222,11 +249,21 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     const supabase = getSupabaseClient();
     let active = true;
 
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!active) return;
-      setUser((current) => current?.id === data.user?.id ? current : data.user ?? null);
-      setAuthLoading(false);
-    });
+    void supabase.auth.getUser()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          setLoginError("Не удалось проверить вход. Проверь соединение и повтори попытку.");
+        } else {
+          setUser((current) => current?.id === data.user?.id ? current : data.user ?? null);
+        }
+        setAuthLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setLoginError("Не удалось проверить вход. Проверь соединение и повтори попытку.");
+        setAuthLoading(false);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
@@ -300,12 +337,17 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         setAuthLoading(false);
         return;
       }
-      if (!cloudSave.save || typeof cloudSave.save !== "object" || Array.isArray(cloudSave.save)) {
+      if (!hasSupportedSaveVersion(cloudSave.save)) {
         setLoginError("Облачное сохранение повреждено. Перезапись запрещена.");
         setAuthLoading(false);
         return;
       }
 
+      if (hasNewerLocalSave(userId)) {
+        setLoginError("На этом устройстве есть сохранение от более новой версии KNOPIK TAP. Обнови игру: перезапись локальных данных заблокирована.");
+        setAuthLoading(false);
+        return;
+      }
       const cloudData = sanitizeSave(cloudSave.save);
       let pending = readPendingSave(userId);
       const cloudRevision = Number(cloudSave.revision);
@@ -375,7 +417,11 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
       if (active) setAuthLoading(false);
     }
 
-    void loadCloudAccount();
+    void loadCloudAccount().catch(() => {
+      if (!active) return;
+      setLoginError("Не удалось загрузить данные из Supabase. Попробуй ещё раз.");
+      setAuthLoading(false);
+    });
     return () => {
       active = false;
     };
@@ -383,6 +429,9 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
   const scheduleSaveRetry = useCallback(() => {
     if (conflictRef.current || retryTimerRef.current || !accountRef.current) return;
+    // Do not let a previous throttle bypass exponential backoff on a bad network.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
     retryAttemptRef.current += 1;
     const delay = Math.min(
       SAVE_RETRY_MAX_MS,
@@ -394,15 +443,31 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     }, delay);
   }, []);
 
-  const flushProgressRef = useRef<() => Promise<boolean>>(async () => false);
-  const flushProgress = useCallback(async (): Promise<boolean> => {
+  const flushProgressRef = useRef<(drain?: boolean) => Promise<boolean>>(async () => false);
+  const flushProgress = useCallback(async (drain = false): Promise<boolean> => {
+    if (conflictRef.current) return false;
+    // Promotional rewards are a server-side write; normal auto-save must not race it.
+    if (promoInFlightRef.current && !drain) return false;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    if (flushInFlightRef.current) return flushInFlightRef.current;
-    if (conflictRef.current) return false;
+    if (retryTimerRef.current && drain) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    if (flushInFlightRef.current) {
+      const completed = await flushInFlightRef.current;
+      if (drain && completed && hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        return flushProgressRef.current(true);
+      }
+      return completed && !hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current);
+    }
 
     const operation = (async (): Promise<boolean> => {
-      while (flushedVersionRef.current < saveVersionRef.current) {
+      let writes = 0;
+      while (hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        if (!drain && writes >= 1) break;
+        writes += 1;
         const currentAccount = accountRef.current;
         const latestSave = latestSaveRef.current;
         const version = saveVersionRef.current;
@@ -410,28 +475,38 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         if (!currentAccount || !latestSave) return false;
 
         setSyncState("saving");
-        const { data, error } = await getSupabaseClient().rpc("save_game_progress", {
-          new_save: latestSave,
-          expected_revision: expectedRevision,
-          save_source_id: CLOUD_SOURCE_ID,
-        });
-        if (accountRef.current?.userId !== currentAccount.userId) return false;
-        if (error || !data) {
+        let response: { data: unknown; error: { message?: string } | null };
+        try {
+          response = await getSupabaseClient().rpc("save_game_progress", {
+            new_save: latestSave,
+            expected_revision: expectedRevision,
+            save_source_id: CLOUD_SOURCE_ID,
+          });
+        } catch {
+          // Fetch can reject directly in offline Safari, rather than returning
+          // a Supabase error. The copy in localStorage must remain recoverable.
+          if (accountRef.current?.userId !== currentAccount.userId) return false;
           setSyncState("error");
           scheduleSaveRetry();
           return false;
         }
 
-        const remote = data as GameSaveRow;
-        const acknowledged = isCommittedSave(
-          remote, expectedRevision, CLOUD_SOURCE_ID, latestSave,
-        );
-        if (!acknowledged) {
-          // Never overwrite newer progress from another device or browser tab.
+        if (accountRef.current?.userId !== currentAccount.userId) return false;
+        if (response.error || !response.data) {
+          setSyncState("error");
+          scheduleSaveRetry();
+          return false;
+        }
+
+        const remote = response.data as GameSaveRow;
+        if (!isCommittedSave(remote, expectedRevision, CLOUD_SOURCE_ID, latestSave)) {
+          // The server returned a newer revision owned by another device.
+          // Keep our pending copy and stop; never silently reset progress.
           conflictRef.current = true;
           setSyncState("conflict");
           return false;
         }
+
         cloudRevisionRef.current = Number(remote.revision);
         flushedVersionRef.current = version;
         retryAttemptRef.current = 0;
@@ -442,6 +517,22 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         } else if (latestSaveRef.current) {
           writePendingSave(currentAccount.userId, latestSaveRef.current, cloudRevisionRef.current);
         }
+      }
+
+      if (hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        // One server write per regular interval prevents overlapping requests and
+        // heat under heavy continuous taps. Explicit logout/reward drains all.
+        if (shouldArmCloudSaveTimer(
+          Boolean(saveTimerRef.current),
+          Boolean(retryTimerRef.current),
+          conflictRef.current,
+        )) {
+          saveTimerRef.current = setTimeout(() => {
+            saveTimerRef.current = null;
+            void flushProgressRef.current();
+          }, SAVE_DELAY_MS);
+        }
+        return false;
       }
       setSyncState("saved");
       return true;
@@ -468,10 +559,18 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     writePendingSave(currentAccount.userId, nextSave, cloudRevisionRef.current);
     saveVersionRef.current += 1;
     setSyncState("saving");
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      void flushProgress();
-    }, SAVE_DELAY_MS);
+    // A fixed throttle, NOT a trailing debounce: continuous tapping uploads
+    // regularly rather than postponing the first network write forever.
+    if (shouldArmCloudSaveTimer(
+      Boolean(saveTimerRef.current),
+      Boolean(retryTimerRef.current),
+      conflictRef.current,
+    ) && !promoInFlightRef.current) {
+      saveTimerRef.current = setTimeout(() => {
+        saveTimerRef.current = null;
+        void flushProgress();
+      }, SAVE_DELAY_MS);
+    }
   }, [flushProgress]);
 
   const discardLocalPendingAndReload = useCallback(() => {
@@ -592,31 +691,74 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     const currentAccount = accountRef.current;
     if (!currentAccount) return { message: "Сначала войди в аккаунт." };
     if (currentAccount.isAdmin) return { message: "Промокоды предназначены для другого игрока." };
-
+    if (promoInFlightRef.current) return { message: "Начисление уже выполняется." };
     const normalizedCode = normalizePromoCode(code);
     if (!/^[A-Z0-9_-]{3,32}$/.test(normalizedCode)) {
       return { message: "Проверь формат промокода." };
     }
 
-    if (!await flushProgress()) return { message: "Сначала дождитесь сохранения прогресса в облако." };
-    const { data, error } = await getSupabaseClient().rpc("redeem_promo_code", {
-      promo_code: normalizedCode,
-    });
-    if (error) return { message: error.message || "Не удалось применить промокод." };
+    promoInFlightRef.current = true;
+    try {
+      if (!await flushProgress(true)) {
+        return { message: "Сначала дождись сохранения прогресса в облако." };
+      }
+      const versionBeforeReward = saveVersionRef.current;
+      const { data, error } = await getSupabaseClient().rpc("redeem_promo_code", {
+        promo_code: normalizedCode,
+      });
+      if (accountRef.current?.userId !== currentAccount.userId) {
+        return { message: "Аккаунт изменился — проверь баланс после входа." };
+      }
+      if (error) return { message: error.message || "Не удалось применить промокод." };
 
-    const result = data as { amount?: unknown; save?: unknown } | null;
-    const amount = typeof result?.amount === "number" ? Math.max(0, Math.floor(result.amount)) : 0;
-    if (!amount || !result?.save) return { message: "Не удалось получить награду." };
+      const result = data as { amount?: unknown; save?: unknown } | null;
+      const amount = typeof result?.amount === "number" ? Math.max(0, Math.floor(result.amount)) : 0;
+      if (!amount || !hasSupportedSaveVersion(result?.save)) {
+        return { message: "Не удалось проверить ответ сервера. Обнови страницу для сверки баланса." };
+      }
 
-    const nextSave = sanitizeSave(result.save);
-    latestSaveRef.current = nextSave;
-    cloudRevisionRef.current += 1; // The redeem_promo_code RPC increments revision atomically.
-    writeLocalSave(currentAccount.userId, nextSave);
-    removePendingSave(currentAccount.userId);
-    saveVersionRef.current += 1;
-    flushedVersionRef.current = saveVersionRef.current;
-    setSyncState("saved");
-    return { amount, message: `Начислено ${amount.toLocaleString("ru-RU")} монет.` };
+      const serverSave = sanitizeSave(result!.save);
+      cloudRevisionRef.current += 1; // Promo RPC atomically advances cloud revision.
+      if (saveVersionRef.current !== versionBeforeReward && latestSaveRef.current) {
+        // Taps made while the reward RPC was in flight must survive. The
+        // promotional amount is merged into the newest local save, then
+        // re-uploaded with the server's new revision.
+        const local = latestSaveRef.current;
+        const combined = sanitizeSave({
+          ...local,
+          walletCoins: Math.min(Number.MAX_SAFE_INTEGER, local.walletCoins + amount),
+        });
+        latestSaveRef.current = combined;
+        saveVersionRef.current += 1;
+        writeLocalSave(currentAccount.userId, combined);
+        writePendingSave(currentAccount.userId, combined, cloudRevisionRef.current);
+        setSyncState("saving");
+      } else {
+        latestSaveRef.current = serverSave;
+        writeLocalSave(currentAccount.userId, serverSave);
+        removePendingSave(currentAccount.userId);
+        saveVersionRef.current += 1;
+        flushedVersionRef.current = saveVersionRef.current;
+        setSyncState("saved");
+      }
+      return { amount, message: `Начислено ${amount.toLocaleString("ru-RU")} монет.` };
+    } catch {
+      return { message: "Ошибка соединения. Проверь баланс после восстановления связи." };
+    } finally {
+      promoInFlightRef.current = false;
+      if (!conflictRef.current && hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        if (shouldArmCloudSaveTimer(
+          Boolean(saveTimerRef.current),
+          Boolean(retryTimerRef.current),
+          conflictRef.current,
+        )) {
+          saveTimerRef.current = setTimeout(() => {
+            saveTimerRef.current = null;
+            void flushProgressRef.current();
+          }, SAVE_DELAY_MS);
+        }
+      }
+    }
   }, [flushProgress]);
 
   useEffect(() => {
@@ -646,16 +788,21 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     }
     setLoginPending(true);
     setLoginError("");
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setLoginError("Неверный логин или пароль.");
-    setLoginPending(false);
+    try {
+      const { error } = await getSupabaseClient().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) setLoginError("Неверный логин или пароль.");
+    } catch {
+      setLoginError("Не удалось подключиться к серверу авторизации.");
+    } finally {
+      setLoginPending(false);
+    }
   }
 
   const signOut = useCallback(async () => {
-    if (!await flushProgress()) {
+    if (!await flushProgress(true)) {
       setSyncState(conflictRef.current ? "conflict" : "error");
       return; // Don't sign out while there are uncommitted changes.
     }
