@@ -1,0 +1,93 @@
+/*
+ * KNOPIK TAP mobile thermal profile.
+ * Static surfaces need no permanent GPU filters or constantly promoted layers.
+ * Gameplay and short action animations (tapping, saving, roulette, rewards)
+ * remain enabled.
+ */
+@media (pointer: coarse) {
+  /* Large frosted glass surfaces multiply offscreen render passes in Safari. */
+  .auth-card,
+  .game-shell .top-bar,
+  .game-shell .wallet-strip,
+  .game-shell .wallet-balance,
+  .game-shell .level-strip,
+  .game-shell .bottom-bar,
+  .game-shell .nav-panel,
+  .game-shell .quick-save-panel,
+  .game-shell .mood-indicator,
+  .game-shell .risk-info,
+  .game-shell .shop-card,
+  .modal-backdrop,
+  .mini-game-backdrop,
+  .tutorial-backdrop,
+  .update-center-backdrop,
+  .kn-release-notice {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* The normal, idle dog no longer repaints four infinite animation layers. */
+  .game-shell.state-calm:not(.is-emotion-shifting) .dog-images,
+  .game-shell.state-calm:not(.is-emotion-shifting) .dog-ears,
+  .game-shell.state-calm:not(.is-emotion-shifting) .dog-ear,
+  .game-shell.state-tired .dog-images,
+  .game-shell.state-tired .dog-ears,
+  .game-shell.state-tired .dog-ear,
+  .game-shell.state-warning .dog-images,
+  .game-shell.state-warning .dog-ears,
+  .game-shell.state-warning .dog-ear,
+  .game-shell.state-recovering:not(.is-emotion-shifting) .dog-images,
+  .game-shell.state-recovering:not(.is-emotion-shifting) .dog-ears,
+  .game-shell.state-recovering:not(.is-emotion-shifting) .dog-ear,
+  .game-shell .risk-ear-arrow:not(.active),
+  .game-shell .case-background-turn,
+  .game-shell .quick-buy-ready:not(:active) {
+    animation: none !important;
+  }
+
+  /* Promote only while an action animates; avoid permanently pinned layers. */
+  .dog-button,
+  .dog-ear,
+  .wallet-balance strong,
+  .emotion-strip {
+    will-change: auto;
+  }
+
+  /* Avoid giant blurred glows and GPU filters on the largest static artwork. */
+  .case-crate,
+  .case-big .case-crate,
+  .dog-hat,
+  .risk-pointer,
+  .case-reward-icon,
+  .case-reward-icon::after {
+    filter: none !important;
+  }
+
+  /* Long promo histories only paint items reaching the viewport. */
+  .promo-code-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 50px;
+  }
+}
+
+/* OS accessibility preference must also lower battery use on desktop. */
+@media (prefers-reduced-motion: reduce) {
+  .dog-images,
+  .dog-ears,
+  .dog-ear,
+  .risk-ear-arrow:not(.active),
+  .case-background-turn {
+    animation: none !important;
+  }
+}
+
+/* Background tabs should not continue painting ambient animations. */
+html[data-knopik-visible="false"] .dog-images,
+html[data-knopik-visible="false"] .dog-ears,
+html[data-knopik-visible="false"] .dog-ear,
+html[data-knopik-visible="false"] .case-opening,
+html[data-knopik-visible="false"] .case-background-turn,
+html[data-knopik-visible="false"] .risk-ear-arrow,
+html[data-knopik-visible="false"] .quick-buy-ready {
+  animation-play-state: paused !important;
+}

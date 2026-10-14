@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { MobilePerformanceLifecycle } from "./mobile-performance-lifecycle";
 import "./globals.css";
 import "./interface-v2.css";
 import "./update-center.css";
 import "./admin-panel.css";
 import "./cloud-save-warning.css";
+import "./mobile-performance.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
@@ -64,7 +66,7 @@ export default function RootLayout({
       <head>
         <link rel="preload" href={publicAsset("/knopik-calm-earless.webp")} as="image" type="image/webp" fetchPriority="high" />
       </head>
-      <body>{children}</body>
+      <body><MobilePerformanceLifecycle />{children}</body>
     </html>
   );
 }

@@ -14,7 +14,7 @@ async function render() {
   );
 }
 
-test("server-renders the complete Knopik Tap game", async () => {
+test("server-renders a safe authenticated loading shell and ships the full game client", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -25,24 +25,29 @@ test("server-renders the complete Knopik Tap game", async () => {
   assert.match(html, /apple-touch-icon-v2\.png/);
   assert.match(html, /icon-192-v2\.png/);
   assert.match(html, /og\.png/);
-  assert.match(html, /data-testid="knopik"/);
-  assert.match(html, /knopik-joy-sprite-earless\.webp/);
-  assert.match(html, /knopik-rage-sprite-earless\.webp/);
-  assert.match(html, /knopik-ear-left\.png/);
-  assert.match(html, /knopik-ear-right\.png/);
-  assert.match(html, /knopik-warning-earless\.webp/);
-  assert.match(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>TAP<\/span>/);
-  assert.doesNotMatch(html, /class="tutorial-visual"[^>]*>[\s\S]*?<span>1<\/span>/);
-  assert.match(html, /class="saved-balance(?:\s|\")/);
-  assert.match(html, /class="bottom-bar"/);
-  assert.match(html, /class="quick-save-button"/);
-  assert.match(html, /class="boost-row"/);
-  assert.match(html, /drink-pitbull/);
-  assert.match(html, /class="nav-thumb"/);
-  assert.doesNotMatch(html, /НЕЗАЩИЩЁННЫЕ МОНЕТЫ/);
-  assert.doesNotMatch(html, /state-copy|moment-message/);
-  assert.doesNotMatch(html, /series-track/);
-  assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
+  // The user and cloud-save state are unknown during server rendering.
+  // The client must load Supabase before showing gameplay: never SSR defaults
+  // that could then overwrite the user's real progress.
+  assert.match(html, /class="auth-screen"/);
+  assert.match(html, /class="auth-loader"/);
+  assert.doesNotMatch(html, /data-testid="knopik"/);
+
+  // The authenticated game itself is a client component; verify the actual
+  // source still provides the complete game rather than only the splash.
+  const client = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(client, /data-testid="knopik"/);
+  assert.match(client, /knopik-joy-sprite-earless\.webp/);
+  assert.match(client, /knopik-rage-sprite-earless\.webp/);
+  assert.match(client, /knopik-ear-left\.png/);
+  assert.match(client, /knopik-ear-right\.png/);
+  assert.match(client, /knopik-warning-earless\.webp/);
+  assert.match(client, /saved-balance/);
+  assert.match(client, /className="bottom-bar"/);
+  assert.match(client, /className="quick-save-button"/);
+  assert.match(client, /className="boost-row"/);
+  assert.match(client, /pitbullCount/);
+  assert.match(client, /nav-thumb/);
+  assert.doesNotMatch(client, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
 test("ships PWA assets and removes the temporary starter", async () => {

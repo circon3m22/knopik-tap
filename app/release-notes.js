@@ -8,10 +8,21 @@
  * @typedef {{ version: string, date: string, title: string, changes: readonly string[] }} GameRelease
  */
 
-export const GAME_VERSION = "1.0.2";
+export const GAME_VERSION = "1.0.3";
 
 /** @type {readonly GameRelease[]} */
 export const RELEASES = [
+  {
+    version: "1.0.3",
+    date: "2026-10-14",
+    title: "Оптимизация для телефона",
+    changes: [
+      "Снижена нагрузка от фоновых анимаций и размытия на мобильных экранах.",
+      "Уменьшено число визуальных частиц, звуков и вибраций при быстрых тапах — награды не меняются.",
+      "Обновлено сохранение прогресса во время непрерывной игры и при сворачивании.",
+      "Оптимизированы фоновые таймеры, ультра-тап и звуки слотов.",
+    ],
+  },
   {
     version: "1.0.2",
     date: "2026-10-13",
