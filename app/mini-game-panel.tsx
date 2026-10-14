@@ -121,9 +121,12 @@ export function MiniGamePanel({
     setReelAngles(outcome.reels.map((symbol, index) => (
       -SLOT_FACE_ORDER.indexOf(symbol) * 72 - (7 + index * 2) * 360
     )) as [number, number, number]);
+    // Slot payout and duration remain unchanged. In background tabs no sound
+    // is rendered, and phones produce fewer temporary audio nodes.
+    const tickMs = window.matchMedia("(pointer: coarse)").matches ? 180 : 120;
     intervalRef.current = setInterval(() => {
-      onTick();
-    }, 120);
+      if (!document.hidden) onTick();
+    }, tickMs);
     timerRef.current = setTimeout(() => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
