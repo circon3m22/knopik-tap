@@ -1,0 +1,500 @@
+/* Personal settings now share the full-screen visual language of the admin panel.
+   Scoped selectors deliberately override legacy bottom-sheet and iOS CSS. */
+.modal-backdrop.player-settings-backdrop {
+  z-index: 94;
+  padding: 0;
+  background: rgb(8 24 40 / 36%);
+}
+
+.modal-backdrop.player-settings-backdrop .settings-sheet.player-settings-sheet {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: 0;
+  padding:
+    calc(env(safe-area-inset-top) + 22px)
+    max(16px, env(safe-area-inset-left))
+    calc(env(safe-area-inset-bottom) + 34px);
+  color: #102a43;
+  background: #f0f5fa;
+  box-shadow: none;
+  scrollbar-width: thin;
+  scrollbar-color: #b9cad9 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.player-settings-sheet > * {
+  width: 100%;
+  max-width: 600px;
+  margin-inline: auto;
+}
+
+.player-settings-sheet .player-settings-heading {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 74px;
+}
+
+.player-settings-sheet .player-settings-heading .sheet-kicker {
+  margin: 0 0 6px;
+  color: #1478ed;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .1em;
+}
+
+.player-settings-sheet .player-settings-heading h2 {
+  margin: 0;
+  color: #102a43;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -.04em;
+}
+
+.player-settings-sheet .player-settings-heading .admin-close-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 13px;
+  padding: 0;
+  color: #5d7185;
+  background: #e2eaf2;
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.player-settings-sheet .player-settings-intro {
+  margin-top: 9px;
+  margin-bottom: 18px;
+  color: #60778b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.player-settings-sheet .settings-section-title {
+  margin-top: 22px;
+  margin-bottom: 9px;
+  padding: 0 3px;
+  color: #60778b;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.4;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet :is(
+  .account-settings,
+  .setting-row,
+  .promo-panel,
+  .cheat-row,
+  .settings-action,
+  .reset-confirm,
+  .stats-line
+) {
+  width: 100%;
+  margin-inline: auto;
+  border: 1px solid #dce6ef;
+  border-radius: 21px;
+  color: #102a43;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(18 49 77 / 6%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.player-settings-sheet .account-settings {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 0;
+  padding: 18px;
+}
+
+.player-settings-sheet .account-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 55px;
+}
+
+.player-settings-sheet .account-avatar {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  place-items: center;
+  border: 0;
+  border-radius: 17px;
+  color: #fff;
+  background: linear-gradient(145deg, #1688f4, #075ac8);
+  box-shadow: 0 8px 17px rgb(9 101 211 / 15%);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.player-settings-sheet .account-summary > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.player-settings-sheet .account-summary strong {
+  overflow-wrap: anywhere;
+  color: #102a43;
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.player-settings-sheet .account-summary > div span {
+  overflow: visible;
+  color: #64798b;
+  font-size: 11px;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.player-settings-sheet .settings-sign-out {
+  width: 100%;
+  min-height: 46px;
+  height: auto;
+  border: 1px solid #f6dedd;
+  border-radius: 13px;
+  padding: 12px 16px;
+  color: #b94039;
+  background: #fff2f1;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.player-settings-sheet .settings-sign-out:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.player-settings-sheet .setting-row {
+  display: flex;
+  min-height: 78px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+}
+
+.player-settings-sheet .setting-row > div {
+  min-width: 0;
+  gap: 5px;
+}
+
+.player-settings-sheet .setting-row strong {
+  color: #102a43;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.player-settings-sheet .setting-row > div span {
+  color: #64798b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.player-settings-sheet .switch {
+  width: 52px;
+  height: 32px;
+  min-height: 32px;
+  flex: 0 0 52px;
+  border-radius: 99px;
+  background: #bac8d6;
+  cursor: pointer;
+}
+
+.player-settings-sheet .switch[aria-checked="true"] {
+  background: #1478ed;
+}
+
+.player-settings-sheet .switch:focus-visible,
+.player-settings-sheet button:focus-visible,
+.player-settings-sheet input:focus-visible {
+  outline: 3px solid #72b6ff;
+  outline-offset: 3px;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .settings-action {
+  display: flex;
+  min-height: 58px;
+  height: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 10px;
+  border-radius: 18px;
+  padding: 14px 18px;
+  color: #0d5eaa;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: left;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.player-settings-sheet .settings-action span {
+  flex: 0 0 auto;
+  color: #52718b;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .settings-open-admin {
+  min-height: 58px;
+  border-color: #b8dbff;
+  color: #0b5fba;
+  background: #e5f2ff;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .promo-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.player-settings-sheet .promo-heading strong,
+.player-settings-sheet .cheat-row strong {
+  color: #102a43;
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.player-settings-sheet .promo-heading span,
+.player-settings-sheet .cheat-row > div span {
+  color: #64798b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.player-settings-sheet .promo-symbol {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #1687f7, #075aca);
+  font-size: 19px;
+}
+
+.player-settings-sheet .promo-redeem .promo-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.player-settings-sheet .promo-form label {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  color: #63798b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.player-settings-sheet .promo-form input,
+.player-settings-sheet .cheat-row input {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  min-height: 46px;
+  border: 1px solid #d5e2ed;
+  border-radius: 13px;
+  padding: 0 13px;
+  color: #102a43;
+  background: #f8fbff;
+  box-shadow: none;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.player-settings-sheet .promo-form button,
+.player-settings-sheet .cheat-row label button {
+  min-height: 46px;
+  height: auto;
+  border: 0;
+  border-radius: 13px;
+  padding: 10px 18px;
+  color: #fff;
+  background: #1478ed;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.player-settings-sheet .promo-message,
+.player-settings-sheet .cheat-row > small {
+  color: #28628b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .cheat-row {
+  display: grid;
+  gap: 14px;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 18px;
+}
+
+.player-settings-sheet .cheat-row > div {
+  gap: 5px;
+}
+
+.player-settings-sheet .cheat-row label {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .cheat-row.is-active {
+  border-color: #a9ddc2;
+  background: #f3fbf6;
+}
+
+.player-settings-sheet .cheat-row.is-active label button {
+  background: #b94039;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .danger-action {
+  border-color: #f4dbd8;
+  color: #bd443f;
+  background: #fff9f8;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .reset-confirm {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+  border-color: #f2d3cf;
+  padding: 18px;
+  color: #9d342d;
+  background: #fff5f4;
+}
+
+.player-settings-sheet .reset-confirm p {
+  margin: 0;
+  color: #a0433d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.player-settings-sheet .reset-confirm div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.player-settings-sheet .reset-confirm button {
+  min-height: 44px;
+  border: 1px solid #e2dad7;
+  border-radius: 13px;
+  padding: 9px 15px;
+  background: #fff;
+  color: #5d6570;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.player-settings-sheet .reset-confirm .confirm-reset {
+  border-color: #bd443f;
+  color: #fff;
+  background: #bd443f;
+}
+
+.modal-backdrop.player-settings-backdrop .player-settings-sheet .stats-line {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  min-height: 88px;
+  margin-top: 0;
+  padding: 16px 8px;
+}
+
+.player-settings-sheet .stats-line span {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  align-content: center;
+  gap: 7px;
+  border-right: 1px solid #e3eaf0;
+  padding: 2px 6px;
+  color: #64798b;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.player-settings-sheet .stats-line span:last-child {
+  border-right: 0;
+}
+
+.player-settings-sheet .stats-line strong {
+  color: #102a43;
+  font-size: clamp(16px, 5vw, 22px);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 430px) {
+  .player-settings-sheet .promo-redeem .promo-form,
+  .player-settings-sheet .cheat-row label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .player-settings-sheet .promo-redeem .promo-form button,
+  .player-settings-sheet .cheat-row label button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 370px) {
+  .modal-backdrop.player-settings-backdrop .settings-sheet.player-settings-sheet {
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .player-settings-sheet .player-settings-heading h2 {
+    font-size: 26px;
+  }
+
+  .player-settings-sheet .settings-action {
+    font-size: 13px;
+  }
+
+  .player-settings-sheet .stats-line span {
+    font-size: 9px;
+    padding-inline: 3px;
+  }
+}
