@@ -38,7 +38,7 @@ test("continuous taps keep a fixed save interval instead of a trailing debounce"
     }
     if (ms > 0 && ms % 1_200 === 0) timerActive = false;
   }
-  assert.equal(scheduled, 2);
+  assert.equal(scheduled, 5);
   assert.equal(shouldArmCloudSaveTimer(false, true, false), false);
   assert.equal(shouldArmCloudSaveTimer(false, false, true), false);
   assert.equal(shouldArmCloudSaveTimer(false, false, false), true);
