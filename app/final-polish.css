@@ -17,7 +17,7 @@
     transform:
       translate(calc(var(--flight-mid-x) - 50%), calc(var(--flight-mid-y) - 50%))
       scale(var(--flight-size))
-      rotate(calc(var(--flight-spin) * .45));
+      rotate(var(--flight-mid-spin));
   }
   80% { opacity: 1; }
   100% {
