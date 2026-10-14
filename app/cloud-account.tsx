@@ -653,31 +653,74 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     const currentAccount = accountRef.current;
     if (!currentAccount) return { message: "Сначала войди в аккаунт." };
     if (currentAccount.isAdmin) return { message: "Промокоды предназначены для другого игрока." };
-
+    if (promoInFlightRef.current) return { message: "Начисление уже выполняется." };
     const normalizedCode = normalizePromoCode(code);
     if (!/^[A-Z0-9_-]{3,32}$/.test(normalizedCode)) {
       return { message: "Проверь формат промокода." };
     }
 
-    if (!await flushProgress()) return { message: "Сначала дождитесь сохранения прогресса в облако." };
-    const { data, error } = await getSupabaseClient().rpc("redeem_promo_code", {
-      promo_code: normalizedCode,
-    });
-    if (error) return { message: error.message || "Не удалось применить промокод." };
+    promoInFlightRef.current = true;
+    try {
+      if (!await flushProgress(true)) {
+        return { message: "Сначала дождись сохранения прогресса в облако." };
+      }
+      const versionBeforeReward = saveVersionRef.current;
+      const { data, error } = await getSupabaseClient().rpc("redeem_promo_code", {
+        promo_code: normalizedCode,
+      });
+      if (accountRef.current?.userId !== currentAccount.userId) {
+        return { message: "Аккаунт изменился — проверь баланс после входа." };
+      }
+      if (error) return { message: error.message || "Не удалось применить промокод." };
 
-    const result = data as { amount?: unknown; save?: unknown } | null;
-    const amount = typeof result?.amount === "number" ? Math.max(0, Math.floor(result.amount)) : 0;
-    if (!amount || !result?.save) return { message: "Не удалось получить награду." };
+      const result = data as { amount?: unknown; save?: unknown } | null;
+      const amount = typeof result?.amount === "number" ? Math.max(0, Math.floor(result.amount)) : 0;
+      if (!amount || !hasSupportedSaveVersion(result?.save)) {
+        return { message: "Не удалось проверить ответ сервера. Обнови страницу для сверки баланса." };
+      }
 
-    const nextSave = sanitizeSave(result.save);
-    latestSaveRef.current = nextSave;
-    cloudRevisionRef.current += 1; // The redeem_promo_code RPC increments revision atomically.
-    writeLocalSave(currentAccount.userId, nextSave);
-    removePendingSave(currentAccount.userId);
-    saveVersionRef.current += 1;
-    flushedVersionRef.current = saveVersionRef.current;
-    setSyncState("saved");
-    return { amount, message: `Начислено ${amount.toLocaleString("ru-RU")} монет.` };
+      const serverSave = sanitizeSave(result!.save);
+      cloudRevisionRef.current += 1; // Promo RPC atomically advances cloud revision.
+      if (saveVersionRef.current !== versionBeforeReward && latestSaveRef.current) {
+        // Taps made while the reward RPC was in flight must survive. The
+        // promotional amount is merged into the newest local save, then
+        // re-uploaded with the server's new revision.
+        const local = latestSaveRef.current;
+        const combined = sanitizeSave({
+          ...local,
+          walletCoins: Math.min(Number.MAX_SAFE_INTEGER, local.walletCoins + amount),
+        });
+        latestSaveRef.current = combined;
+        saveVersionRef.current += 1;
+        writeLocalSave(currentAccount.userId, combined);
+        writePendingSave(currentAccount.userId, combined, cloudRevisionRef.current);
+        setSyncState("saving");
+      } else {
+        latestSaveRef.current = serverSave;
+        writeLocalSave(currentAccount.userId, serverSave);
+        removePendingSave(currentAccount.userId);
+        saveVersionRef.current += 1;
+        flushedVersionRef.current = saveVersionRef.current;
+        setSyncState("saved");
+      }
+      return { amount, message: `Начислено ${amount.toLocaleString("ru-RU")} монет.` };
+    } catch {
+      return { message: "Ошибка соединения. Проверь баланс после восстановления связи." };
+    } finally {
+      promoInFlightRef.current = false;
+      if (!conflictRef.current && hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        if (shouldArmCloudSaveTimer(
+          Boolean(saveTimerRef.current),
+          Boolean(retryTimerRef.current),
+          conflictRef.current,
+        )) {
+          saveTimerRef.current = setTimeout(() => {
+            saveTimerRef.current = null;
+            void flushProgressRef.current();
+          }, SAVE_DELAY_MS);
+        }
+      }
+    }
   }, [flushProgress]);
 
   useEffect(() => {
@@ -716,7 +759,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   }
 
   const signOut = useCallback(async () => {
-    if (!await flushProgress()) {
+    if (!await flushProgress(true)) {
       setSyncState(conflictRef.current ? "conflict" : "error");
       return; // Don't sign out while there are uncommitted changes.
     }
