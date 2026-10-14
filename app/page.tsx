@@ -892,15 +892,21 @@ function KnopikGame({
   }, []);
 
   const closeReleaseHistory = useCallback(() => setReleaseHistoryOpen(false), []);
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    setResetConfirmOpen(false);
+  }, []);
 
   useEffect(() => {
-    if (!adminOpen) return;
+    if (!adminOpen && !settingsOpen) return;
     const handleEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") setAdminOpen(false);
+      if (event.key !== "Escape") return;
+      if (adminOpen) setAdminOpen(false);
+      else closeSettings();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [adminOpen]);
+  }, [adminOpen, settingsOpen, closeSettings]);
 
   const signOutAccount = useCallback(async () => {
     setAccountPending(true);
@@ -3769,15 +3775,20 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
 
       {settingsOpen && (
         <div
-          className="modal-backdrop"
+          className="modal-backdrop player-settings-backdrop"
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget) selectNavigation(1);
+            if (event.target === event.currentTarget) closeSettings();
           }}
         >
-          <section className="sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-            <div className="sheet-heading">
-              <div><p className="sheet-kicker">KNOPIK</p><h2 id="settings-title">Настройки</h2></div>
+          <section className="sheet settings-sheet player-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div className="admin-panel-heading player-settings-heading">
+              <div>
+                <p className="sheet-kicker">KNOPIK TAP · ПРОФИЛЬ</p>
+                <h2 id="settings-title">Настройки</h2>
+              </div>
+              <button className="admin-close-button" type="button" onClick={closeSettings} aria-label="Закрыть настройки">×</button>
             </div>
+            <p className="admin-panel-intro player-settings-intro">Управление игрой и аккаунтом · версия {GAME_VERSION}</p>
 
             <p className="settings-section-title">Аккаунт</p>
             <div className="account-settings">

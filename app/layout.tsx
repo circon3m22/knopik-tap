@@ -6,6 +6,7 @@ import "./update-center.css";
 import "./admin-panel.css";
 import "./cloud-save-warning.css";
 import "./mobile-performance.css";
+import "./settings-panel.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
