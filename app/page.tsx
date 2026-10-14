@@ -1546,6 +1546,16 @@ function KnopikGame({
     ],
   );
 
+  useEffect(() => {
+    // Stop costly ultratap visuals and looping audio if the app is minimized.
+    // Cancelling a hidden hold never grants or subtracts coins.
+    const handleVisibility = () => {
+      if (document.hidden && holdingRef.current) finishHold(true);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [finishHold]);
+
   const showRiskNotice = useCallback((message: string) => {
     setRiskMessage(message);
     setRiskShake((current) => current + 1);
