@@ -1,4 +1,4 @@
-import { sanitizeSave, type SaveData } from "./game-logic";
+import { sanitizeSave, type SaveData } from "./game-logic.ts";
 
 export type UnsyncedSave = {
   save: SaveData;
