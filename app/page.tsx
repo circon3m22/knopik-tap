@@ -86,6 +86,16 @@ import {
 import { resolveMiniGameBet } from "./mini-game-engine";
 import { UpdateCenter } from "./update-center";
 import { GAME_VERSION } from "./release-notes.js";
+import {
+  appendVisualParticle,
+  DESKTOP_VISIBLE_PARTICLES,
+  MOBILE_HAPTIC_INTERVAL_MS,
+  MOBILE_PARTICLE_INTERVAL_MS,
+  MOBILE_SOUND_INTERVAL_MS,
+  MOBILE_VISIBLE_PARTICLES,
+  PROGRESS_SNAPSHOT_INTERVAL_MS,
+  shouldEmitFeedback,
+} from "./mobile-performance-policy";
 
 type TapParticle = {
   id: number;
@@ -219,10 +229,17 @@ const tutorialSlides = [
   },
 ];
 
+let lastShortVibrationAt = Number.NEGATIVE_INFINITY;
 function vibrate(pattern: number | number[], enabled: boolean) {
-  if (enabled && typeof navigator !== "undefined" && "vibrate" in navigator) {
-    navigator.vibrate(pattern);
+  if (!enabled || typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+  // The single-digit tap haptics can fire dozens of times a second on mobile.
+  // Coalesce only those; fatigue, bite and reward patterns stay unchanged.
+  if (typeof pattern === "number" && pattern <= 8) {
+    const now = performance.now();
+    if (!shouldEmitFeedback(now, lastShortVibrationAt, MOBILE_HAPTIC_INTERVAL_MS)) return;
+    lastShortVibrationAt = now;
   }
+  navigator.vibrate(pattern);
 }
 
 function tempoSceneColor(averageInterval: number, hasTaps: boolean) {
@@ -412,6 +429,9 @@ function KnopikGame({
   const lastTapAtRef = useRef<number | null>(null);
   const patienceRollRef = useRef(Math.random());
   const particleIdRef = useRef(0);
+  const isTouchScreenRef = useRef(false);
+  const lastTapEffectAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const lastTapSoundAtRef = useRef(Number.NEGATIVE_INFINITY);
   const soundRef = useRef<KnopikSoundEngine | null>(null);
   const holdStartRef = useRef(0);
   const holdPointRef = useRef({ x: 50, y: 50 });
@@ -442,6 +462,10 @@ function KnopikGame({
   const riskReturnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const riskTickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const riskMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestSnapshotRef = useRef<SaveData | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
   const riskPhaseRef = useRef<RiskPhase>("normal");
   const riskCommittedRef = useRef(false);
   const joySpriteImageRef = useRef<HTMLImageElement | null>(null);
@@ -454,6 +478,10 @@ function KnopikGame({
     left: { count: 0, lastAt: 0 },
     right: { count: 0, lastAt: 0 },
   });
+
+  useEffect(() => {
+    isTouchScreenRef.current = window.matchMedia("(pointer: coarse)").matches;
+  }, []);
 
   useEffect(() => {
     const watchImage = (
@@ -740,16 +768,6 @@ function KnopikGame({
 
   useEffect(() => {
     boostUntilRef.current = boostUntil;
-    if (!boostUntil) return;
-    const timer = setInterval(() => {
-      const now = Date.now();
-      setClock(now);
-      if (now >= boostUntilRef.current) {
-        boostUntilRef.current = 0;
-        setBoostUntil(0);
-      }
-    }, 1_000);
-    return () => clearInterval(timer);
   }, [boostUntil]);
 
   useEffect(() => {
@@ -904,11 +922,17 @@ function KnopikGame({
   }, [difficultyDraft, onUpdateDifficulty]);
 
   useEffect(() => {
-    if (!fatigueUntil) return;
-    const timer = setInterval(() => {
+    // One shared clock replaces the two independent boost/fatigue intervals.
+    // Rendering stops in background tabs but deadlines stay based on wall time.
+    if (!fatigueUntil && !boostUntil) return;
+    const tick = () => {
       const now = Date.now();
-      setClock(now);
-      if (now >= fatigueUntilRef.current) {
+      if (!document.hidden) setClock(now);
+      if (boostUntilRef.current && now >= boostUntilRef.current) {
+        boostUntilRef.current = 0;
+        setBoostUntil(0);
+      }
+      if (fatigueUntilRef.current && now >= fatigueUntilRef.current) {
         fatigueUntilRef.current = 0;
         setFatigueUntil(0);
         setRiskFatigueUntil((current) => (current <= now ? 0 : current));
@@ -917,9 +941,14 @@ function KnopikGame({
           resetSeries();
         }
       }
-    }, 1_000);
-    return () => clearInterval(timer);
-  }, [fatigueUntil, resetSeries, transitionTo]);
+    };
+    const timer = setInterval(tick, 1_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [fatigueUntil, boostUntil, resetSeries, transitionTo]);
 
   useEffect(
     () => () => {
@@ -1166,18 +1195,21 @@ function KnopikGame({
     amount: number,
     jackpot: boolean,
   ) => {
+    // Coin awards and tap statistics are never coalesced, only eye candy.
+    if (document.hidden) return;
+    const isMobile = isTouchScreenRef.current;
+    const now = performance.now();
+    if (isMobile && !jackpot &&
+        !shouldEmitFeedback(now, lastTapEffectAtRef.current, MOBILE_PARTICLE_INTERVAL_MS)) return;
+    lastTapEffectAtRef.current = now;
     const id = ++particleIdRef.current;
-    setParticles((current) => [
-      ...current.slice(-8),
-      { id, x, y, amount, jackpot },
-    ]);
-    setTimeout(
-      () =>
-        setParticles((current) =>
-          current.filter((particle) => particle.id !== id),
-        ),
-      650,
-    );
+    const visibleLimit = isMobile ? MOBILE_VISIBLE_PARTICLES : DESKTOP_VISIBLE_PARTICLES;
+    setParticles((current) => appendVisualParticle(current, { id, x, y, amount, jackpot }, visibleLimit));
+    setTimeout(() => {
+      setParticles((current) => current.some((particle) => particle.id === id)
+        ? current.filter((particle) => particle.id !== id)
+        : current);
+    }, 650);
   }, []);
 
   const registerTap = useCallback(
@@ -1243,7 +1275,11 @@ function KnopikGame({
         totalTaps: current.totalTaps + 1,
         bestStreak: Math.max(current.bestStreak, nextSeries),
       }));
-      getSound().tap(tempoRatio);
+      if (!isTouchScreenRef.current ||
+          shouldEmitFeedback(now, lastTapSoundAtRef.current, MOBILE_SOUND_INTERVAL_MS)) {
+        lastTapSoundAtRef.current = now;
+        getSound().tap(tempoRatio);
+      }
       vibrate(7, settingsRef.current.vibration);
 
       if (settingsRef.current.suliman) {
