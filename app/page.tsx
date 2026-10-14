@@ -3443,6 +3443,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                   "--flight-end-y": `${dy + (index % 3 - 1) * 3}px`,
                   "--flight-size": `${0.78 + (index % 4) * 0.09}`,
                   "--flight-spin": `${300 + (index % 5) * 75}deg`,
+                  "--flight-mid-spin": `${Math.round((300 + (index % 5) * 75) * .45)}deg`,
                 } as CSSProperties}
               >К</i>
             );
