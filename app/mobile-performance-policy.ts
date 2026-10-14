@@ -29,5 +29,5 @@ export function appendVisualParticle<T>(
   limit: number,
 ): T[] {
   const capacity = Math.max(1, Math.floor(limit));
-  return [...current.slice(-(capacity - 1)), next];
+  return [...(capacity > 1 ? current.slice(-(capacity - 1)) : []), next];
 }
