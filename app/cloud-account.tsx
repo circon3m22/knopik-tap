@@ -17,6 +17,11 @@ import {
 import { getSupabaseClient, usernameToEmail } from "./supabase-client";
 import { chooseCloudSave, isCommittedSave, savesMatch, type UnsyncedSave } from "./save-sync-protocol";
 import {
+  hasSupportedSaveVersion,
+  hasUnflushedProgress,
+  shouldArmCloudSaveTimer,
+} from "./save-queue-policy";
+import {
   DEFAULT_DIFFICULTY,
   clampDifficulty,
 } from "./difficulty-engine";
@@ -113,7 +118,7 @@ function readPendingSave(userId: string): PendingSave | null {
     const raw = localStorage.getItem(pendingSaveKey(userId));
     if (!raw) return null;
     const record = JSON.parse(raw) as Partial<PendingSave>;
-    if (!Number.isSafeInteger(record.baseRevision) || Number(record.baseRevision) < 0 || !record.save) return null;
+    if (!Number.isSafeInteger(record.baseRevision) || Number(record.baseRevision) < 0 || !hasSupportedSaveVersion(record.save)) return null;
     return {
       save: sanitizeSave(record.save),
       baseRevision: Number(record.baseRevision),
@@ -152,7 +157,9 @@ function backupPendingSave(userId: string) {
 function readExistingLocalSave(userId: string): SaveData | null {
   try {
     const raw = localStorage.getItem(localSaveKey(userId));
-    return raw ? sanitizeSave(JSON.parse(raw)) : null;
+    if (!raw) return null;
+    const candidate: unknown = JSON.parse(raw);
+    return hasSupportedSaveVersion(candidate) ? sanitizeSave(candidate) : null;
   } catch {
     return null;
   }
@@ -205,6 +212,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
   const flushedVersionRef = useRef(0);
   const cloudRevisionRef = useRef(0);
   const conflictRef = useRef(false);
+  const promoInFlightRef = useRef(false);
   const flushInFlightRef = useRef<Promise<boolean> | null>(null);
 
   const refreshPromoCodes = useCallback(async () => {
@@ -300,7 +308,7 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         setAuthLoading(false);
         return;
       }
-      if (!cloudSave.save || typeof cloudSave.save !== "object" || Array.isArray(cloudSave.save)) {
+      if (!hasSupportedSaveVersion(cloudSave.save)) {
         setLoginError("Облачное сохранение повреждено. Перезапись запрещена.");
         setAuthLoading(false);
         return;
@@ -383,6 +391,9 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
 
   const scheduleSaveRetry = useCallback(() => {
     if (conflictRef.current || retryTimerRef.current || !accountRef.current) return;
+    // Do not let a previous throttle bypass exponential backoff on a bad network.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
     retryAttemptRef.current += 1;
     const delay = Math.min(
       SAVE_RETRY_MAX_MS,
@@ -394,15 +405,31 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     }, delay);
   }, []);
 
-  const flushProgressRef = useRef<() => Promise<boolean>>(async () => false);
-  const flushProgress = useCallback(async (): Promise<boolean> => {
+  const flushProgressRef = useRef<(drain?: boolean) => Promise<boolean>>(async () => false);
+  const flushProgress = useCallback(async (drain = false): Promise<boolean> => {
+    if (conflictRef.current) return false;
+    // Promotional rewards are a server-side write; normal auto-save must not race it.
+    if (promoInFlightRef.current && !drain) return false;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = null;
-    if (flushInFlightRef.current) return flushInFlightRef.current;
-    if (conflictRef.current) return false;
+    if (retryTimerRef.current && drain) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    if (flushInFlightRef.current) {
+      const completed = await flushInFlightRef.current;
+      if (drain && completed && hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        return flushProgressRef.current(true);
+      }
+      return completed && !hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current);
+    }
 
     const operation = (async (): Promise<boolean> => {
-      while (flushedVersionRef.current < saveVersionRef.current) {
+      let writes = 0;
+      while (hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        if (!drain && writes >= 1) break;
+        writes += 1;
         const currentAccount = accountRef.current;
         const latestSave = latestSaveRef.current;
         const version = saveVersionRef.current;
@@ -410,28 +437,38 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         if (!currentAccount || !latestSave) return false;
 
         setSyncState("saving");
-        const { data, error } = await getSupabaseClient().rpc("save_game_progress", {
-          new_save: latestSave,
-          expected_revision: expectedRevision,
-          save_source_id: CLOUD_SOURCE_ID,
-        });
-        if (accountRef.current?.userId !== currentAccount.userId) return false;
-        if (error || !data) {
+        let response: { data: unknown; error: { message?: string } | null };
+        try {
+          response = await getSupabaseClient().rpc("save_game_progress", {
+            new_save: latestSave,
+            expected_revision: expectedRevision,
+            save_source_id: CLOUD_SOURCE_ID,
+          });
+        } catch {
+          // Fetch can reject directly in offline Safari, rather than returning
+          // a Supabase error. The copy in localStorage must remain recoverable.
+          if (accountRef.current?.userId !== currentAccount.userId) return false;
           setSyncState("error");
           scheduleSaveRetry();
           return false;
         }
 
-        const remote = data as GameSaveRow;
-        const acknowledged = isCommittedSave(
-          remote, expectedRevision, CLOUD_SOURCE_ID, latestSave,
-        );
-        if (!acknowledged) {
-          // Never overwrite newer progress from another device or browser tab.
+        if (accountRef.current?.userId !== currentAccount.userId) return false;
+        if (response.error || !response.data) {
+          setSyncState("error");
+          scheduleSaveRetry();
+          return false;
+        }
+
+        const remote = response.data as GameSaveRow;
+        if (!isCommittedSave(remote, expectedRevision, CLOUD_SOURCE_ID, latestSave)) {
+          // The server returned a newer revision owned by another device.
+          // Keep our pending copy and stop; never silently reset progress.
           conflictRef.current = true;
           setSyncState("conflict");
           return false;
         }
+
         cloudRevisionRef.current = Number(remote.revision);
         flushedVersionRef.current = version;
         retryAttemptRef.current = 0;
@@ -442,6 +479,22 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
         } else if (latestSaveRef.current) {
           writePendingSave(currentAccount.userId, latestSaveRef.current, cloudRevisionRef.current);
         }
+      }
+
+      if (hasUnflushedProgress(flushedVersionRef.current, saveVersionRef.current)) {
+        // One server write per regular interval prevents overlapping requests and
+        // heat under heavy continuous taps. Explicit logout/reward drains all.
+        if (shouldArmCloudSaveTimer(
+          Boolean(saveTimerRef.current),
+          Boolean(retryTimerRef.current),
+          conflictRef.current,
+        )) {
+          saveTimerRef.current = setTimeout(() => {
+            saveTimerRef.current = null;
+            void flushProgressRef.current();
+          }, SAVE_DELAY_MS);
+        }
+        return false;
       }
       setSyncState("saved");
       return true;
@@ -468,10 +521,18 @@ export function CloudAccountGate({ children }: CloudAccountGateProps) {
     writePendingSave(currentAccount.userId, nextSave, cloudRevisionRef.current);
     saveVersionRef.current += 1;
     setSyncState("saving");
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      void flushProgress();
-    }, SAVE_DELAY_MS);
+    // A fixed throttle, NOT a trailing debounce: continuous tapping uploads
+    // regularly rather than postponing the first network write forever.
+    if (shouldArmCloudSaveTimer(
+      Boolean(saveTimerRef.current),
+      Boolean(retryTimerRef.current),
+      conflictRef.current,
+    ) && !promoInFlightRef.current) {
+      saveTimerRef.current = setTimeout(() => {
+        saveTimerRef.current = null;
+        void flushProgress();
+      }, SAVE_DELAY_MS);
+    }
   }, [flushProgress]);
 
   const discardLocalPendingAndReload = useCallback(() => {
