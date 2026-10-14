@@ -772,9 +772,10 @@ function KnopikGame({
 
   useEffect(() => {
     if (!hydrated) return;
-    const saveTimer = setTimeout(() => {
-      try {
-        const nextSave = {
+    // Capture the latest gameplay state without writing localStorage or
+    // scheduling a new timer on every tap. Continuous taps still flush every
+    // ${PROGRESS_SNAPSHOT_INTERVAL_MS} ms instead of postponing indefinitely.
+    const nextSave = {
             version: SAVE_VERSION,
             vaultCoins,
             walletCoins: coins.walletCoins,
@@ -821,13 +822,14 @@ function KnopikGame({
             level: levelState.level,
             levelCoins: levelState.progressCoins,
           } as const;
-        onSave(nextSave);
-      } catch {
-        // The game remains playable when local storage is unavailable.
-      }
-    }, 450);
-
-    return () => clearTimeout(saveTimer);
+    latestSnapshotRef.current = nextSave;
+    if (snapshotTimerRef.current) return;
+    snapshotTimerRef.current = setTimeout(() => {
+      snapshotTimerRef.current = null;
+      const pending = latestSnapshotRef.current;
+      latestSnapshotRef.current = null;
+      if (pending) onSaveRef.current(pending);
+    }, PROGRESS_SNAPSHOT_INTERVAL_MS);
   }, [
     fatigueUntil,
     coins.walletCoins,
@@ -866,6 +868,28 @@ function KnopikGame({
     tutorialSeen,
     vaultCoins,
   ]);
+
+  useEffect(() => {
+    const flushPendingSnapshot = () => {
+      if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+      snapshotTimerRef.current = null;
+      const pending = latestSnapshotRef.current;
+      latestSnapshotRef.current = null;
+      // CloudAccountGate persists a local pending copy immediately; actual
+      // Supabase syncing is independently retried when connectivity returns.
+      if (pending) onSaveRef.current(pending);
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) flushPendingSnapshot();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", flushPendingSnapshot);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", flushPendingSnapshot);
+      flushPendingSnapshot();
+    };
+  }, []);
 
   const closeReleaseHistory = useCallback(() => setReleaseHistoryOpen(false), []);
 
