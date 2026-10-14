@@ -11,6 +11,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import {
   SAVE_KEY,
+  SAVE_VERSION,
   sanitizeSave,
   type SaveData,
 } from "./game-logic";
@@ -122,7 +123,7 @@ function hasNewerLocalSave(userId: string): boolean {
       const candidate = key === pendingSaveKey(userId) ? value.save : value;
       if (candidate && typeof candidate === "object") {
         const version = (candidate as { version?: unknown }).version;
-        if (typeof version === "number" && version > 15) return true;
+        if (typeof version === "number" && version > SAVE_VERSION) return true;
       }
     }
   } catch {
