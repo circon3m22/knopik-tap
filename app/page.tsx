@@ -774,7 +774,7 @@ function KnopikGame({
     if (!hydrated) return;
     // Capture the latest gameplay state without writing localStorage or
     // scheduling a new timer on every tap. Continuous taps still flush every
-    // ${PROGRESS_SNAPSHOT_INTERVAL_MS} ms instead of postponing indefinitely.
+    // The server-side upload runs on a fixed cadence, not a sliding debounce.
     const nextSave = {
             version: SAVE_VERSION,
             vaultCoins,
@@ -1789,7 +1789,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         amount: protectedCoins,
       });
       if (saveFlightTimerRef.current) clearTimeout(saveFlightTimerRef.current);
-      saveFlightTimerRef.current = setTimeout(() => setSaveFlight(null), 1_050);
+      saveFlightTimerRef.current = setTimeout(() => setSaveFlight(null), 1_360);
     }
 
     updateCoins((current) => ({ ...current, walletCoins: 0 }));
@@ -2741,7 +2741,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     : 0;
   const questComplete = Boolean(currentQuest && questProgress >= currentQuest.target);
   const claimQuestReward = () => {
-    if (!questComplete) return;
+    // Claiming while full previously advanced the quest but silently lost its case.
+    if (!questComplete || bigCases >= 99) return;
     setBigCases((current) => Math.min(99, current + 1));
     setQuestIndex((current) => Math.min(QUESTS.length, current + 1));
     getSound().levelUp();
@@ -3426,16 +3427,26 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             "--flight-end-y": `${saveFlight.endY - saveFlight.startY}px`,
           } as CSSProperties}
         >
-          {Array.from({ length: 9 }, (_, index) => (
-            <i
-              key={index}
-              style={{
-                "--flight-delay": `${index * 34}ms`,
-                "--flight-mid-x": `${(saveFlight.endX - saveFlight.startX) * 0.46 + (index - 4) * 4}px`,
-                "--flight-mid-y": `${(saveFlight.endY - saveFlight.startY) * 0.46 - 48 - (index % 4) * 12}px`,
-              } as CSSProperties}
-            >K</i>
-          ))}
+          {Array.from({ length: 16 }, (_, index) => {
+            const dx = saveFlight.endX - saveFlight.startX;
+            const dy = saveFlight.endY - saveFlight.startY;
+            // Two staggered waves, with deterministic curved paths and sizes.
+            const spread = (index * 7 % 17) - 8;
+            return (
+              <i
+                key={index}
+                style={{
+                  "--flight-delay": `${(index % 8) * 43 + Math.floor(index / 8) * 150}ms`,
+                  "--flight-mid-x": `${dx * 0.47 + spread * 4}px`,
+                  "--flight-mid-y": `${dy * 0.47 - 48 - (index % 5) * 13}px`,
+                  "--flight-end-x": `${dx + (index % 5 - 2) * 3}px`,
+                  "--flight-end-y": `${dy + (index % 3 - 1) * 3}px`,
+                  "--flight-size": `${0.78 + (index % 4) * 0.09}`,
+                  "--flight-spin": `${300 + (index % 5) * 75}deg`,
+                } as CSSProperties}
+              >К</i>
+            );
+          })}
           <strong>+{saveFlight.amount.toLocaleString("ru-RU")}</strong>
         </div>
       )}
@@ -3494,7 +3505,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               </div>
               {currentQuest && (
                 questComplete
-                  ? <button type="button" onClick={claimQuestReward}>Забрать</button>
+                  ? <button type="button" disabled={bigCases >= 99} onClick={claimQuestReward}>{bigCases >= 99 ? "Кейсы заполнены" : "Забрать"}</button>
                   : <b>{Math.min(questProgress, currentQuest.target)}/{currentQuest.target}</b>
               )}
             </div>
