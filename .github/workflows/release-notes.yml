@@ -23,6 +23,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Build app
         run: npm run build
+      - name: Run all gameplay and mobile-performance regression tests
+        run: node --test tests/*.test.mjs
       - name: Require release entry for game changes
         shell: bash
         env:
