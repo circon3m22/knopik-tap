@@ -50,4 +50,5 @@ test("bounded particle pool does not mutate previous React state", () => {
   const next = appendVisualParticle(old, { id: 4 }, 3);
   assert.deepEqual(old, [{ id: 1 }, { id: 2 }, { id: 3 }]);
   assert.deepEqual(next, [{ id: 2 }, { id: 3 }, { id: 4 }]);
+  assert.deepEqual(appendVisualParticle(old, { id: 4 }, 1), [{ id: 4 }]);
 });
