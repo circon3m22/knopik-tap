@@ -14,7 +14,7 @@ test("promo RPC uses a constrained security-definer gateway to private server co
     assert.match(sql, /create or replace function public\.redeem_promo_code\(promo_code text\)/i);
     assert.match(sql, /security definer/i);
     assert.match(sql, /set search_path = ''/i);
-    assert.match(sql, /auth\.uid\(\) is null/i);
+    assert.match(sql, /auth\.uid\(\)\)*\s+is null/i);
     assert.match(sql, /return private\.redeem_promo_code\(promo_code\)/i);
     assert.match(sql, /revoke (?:all|execute) on function public\.redeem_promo_code\(text\) from public, anon/i);
     assert.match(sql, /grant execute on function public\.redeem_promo_code\(text\) to authenticated/i);
