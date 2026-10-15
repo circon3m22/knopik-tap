@@ -2,8 +2,9 @@
 -- Applied to Supabase project uxxzvjwsexdoqcevzipu as migration create_one_time_promo_codes.
 
 create schema if not exists private;
-revoke all on schema private from public, anon;
-grant usage on schema private to authenticated;
+-- The public RPC is an authenticated-only SECURITY DEFINER gateway.
+-- Player accounts must not receive USAGE on the private schema.
+revoke all on schema private from public, anon, authenticated;
 
 create table if not exists public.promo_codes (
   id uuid primary key default gen_random_uuid(),
@@ -144,17 +145,22 @@ begin
 end;
 $$;
 
-revoke execute on function private.redeem_promo_code(text) from public, anon;
-grant execute on function private.redeem_promo_code(text) to authenticated;
+revoke execute on function private.redeem_promo_code(text) from public, anon, authenticated;
 
 create or replace function public.redeem_promo_code(promo_code text)
 returns jsonb
-language sql
-security invoker
+language plpgsql
+security definer
 set search_path = ''
-as $$
-  select private.redeem_promo_code(promo_code);
-$$;
+as $
+begin
+  if (select auth.uid()) is null then
+    raise exception using errcode = '28000', message = 'Сначала войди в аккаунт.';
+  end if;
+
+  return private.redeem_promo_code(promo_code);
+end;
+$;
 
 revoke execute on function public.redeem_promo_code(text) from public, anon;
 grant execute on function public.redeem_promo_code(text) to authenticated;
