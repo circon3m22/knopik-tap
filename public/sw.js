@@ -1,4 +1,4 @@
-const CACHE_NAME = "knopik-tap-release-1.0.5";
+const CACHE_NAME = "knopik-tap-release-1.0.6";
 const OWN_CACHE_PREFIX = "knopik-tap-release-";
 const BASE_PATH = new URL("./", self.location.href).pathname.replace(/\/$/, "");
 const asset = (path) => `${BASE_PATH}${path}`;
