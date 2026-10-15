@@ -8,10 +8,20 @@
  * @typedef {{ version: string, date: string, title: string, changes: readonly string[] }} GameRelease
  */
 
-export const GAME_VERSION = "1.0.5";
+export const GAME_VERSION = "1.0.6";
 
 /** @type {readonly GameRelease[]} */
 export const RELEASES = [
+  {
+    version: "1.0.6",
+    date: "2026-10-15",
+    title: "Исправление активации промокодов",
+    changes: [
+      "Исправлена активация промокодов на другом устройстве и аккаунте: ошибка доступа Supabase устранена.",
+      "Одноразовое начисление по-прежнему защищено от повторного использования.",
+      "Сохранения других игроков и закрытые таблицы остаются недоступны.",
+    ],
+  },
   {
     version: "1.0.5",
     date: "2026-10-14",
