@@ -24,6 +24,8 @@ type MiniGamePanelProps = {
   kind: MiniGameKind;
   balance: number;
   difficulty: number;
+  minWinChance: number;
+  rewardMultiplier: number;
   canChooseBet: boolean;
   stats: MiniGameStats;
   onCommitBet: (kind: MiniGameKind, bet: number) => boolean;
@@ -64,6 +66,8 @@ export function MiniGamePanel({
   kind,
   balance,
   difficulty,
+  minWinChance,
+  rewardMultiplier,
   canChooseBet,
   stats,
   onCommitBet,
@@ -117,7 +121,7 @@ export function MiniGamePanel({
 
   const spinSlots = () => {
     if (slotPhase !== "ready" || !commit()) return;
-    const outcome = createSlotOutcome(safeBet, sessionDifficulty);
+    const outcome = createSlotOutcome(safeBet, sessionDifficulty, Math.random, minWinChance);
     setSlotOutcome(null);
     setSlotPhase("spinning");
     setReelAngles(outcome.reels.map((symbol, index) => (
@@ -144,6 +148,7 @@ export function MiniGamePanel({
       sessionDifficulty,
       Math.random,
       previousMineIndex,
+      minWinChance,
     );
     const tiles: MineTile[] = Array.from({ length: 5 }, () => "hidden");
     tiles[outcome.mineIndex] = "mine";
@@ -248,7 +253,7 @@ export function MiniGamePanel({
             {slotOutcome && (
               <div className={`mini-result ${slotOutcome.payout > 0 ? "is-win" : "is-loss"}`} role="status">
                 <small>{slotOutcome.payout > 0 ? `ВЫИГРЫШ ×${slotOutcome.multiplier}` : "КОМБИНАЦИИ НЕТ"}</small>
-                <strong>{slotOutcome.payout > 0 ? `+${slotOutcome.payout.toLocaleString("ru-RU")}` : `−${safeBet.toLocaleString("ru-RU")}`}</strong>
+                <strong>{slotOutcome.payout > 0 ? `+${Math.floor(slotOutcome.payout * rewardMultiplier).toLocaleString("ru-RU")}` : `−${safeBet.toLocaleString("ru-RU")}`}</strong>
               </div>
             )}
             {slotPhase === "ready" && <button className="mini-primary" type="button" onClick={spinSlots}>Крутить барабаны</button>}
@@ -286,12 +291,12 @@ export function MiniGamePanel({
             {minePhase === "ready" && <p className="mine-hint">Выбери одну кнопку. Четыре безопасны, под одной спрятана мина.</p>}
             {minePhase === "safe" && (
               <div className="mine-actions">
-                <button type="button" onClick={cashOutMines}>Забрать {mineCurrentPayout.toLocaleString("ru-RU")}</button>
+                <button type="button" onClick={cashOutMines}>Забрать {Math.floor(mineCurrentPayout * rewardMultiplier).toLocaleString("ru-RU")}</button>
                 <button type="button" onClick={continueMines}>Идти дальше</button>
               </div>
             )}
             {minePhase === "lost" && <div className="mini-result is-loss"><small>МИНА</small><strong>−{safeBet.toLocaleString("ru-RU")}</strong></div>}
-            {minePhase === "cashed" && <div className="mini-result is-win"><small>МОНЕТЫ ЗАБРАНЫ</small><strong>+{mineCurrentPayout.toLocaleString("ru-RU")}</strong></div>}
+            {minePhase === "cashed" && <div className="mini-result is-win"><small>МОНЕТЫ ЗАБРАНЫ</small><strong>+{Math.floor(mineCurrentPayout * rewardMultiplier).toLocaleString("ru-RU")}</strong></div>}
             {(minePhase === "lost" || minePhase === "cashed") && <button className="mini-primary" type="button" onClick={onClose}>Вернуться к Кнопику</button>}
             <p className="mini-stats">ИГР {stats.minePlays} · ВЫВОДОВ {stats.mineWins} · МИН {stats.mineLosses}</p>
           </>
