@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useGameDialog } from "./use-game-dialog";
 import {
   MINE_MULTIPLIERS,
   SLOT_SYMBOL_LABELS,
@@ -84,10 +85,15 @@ export function MiniGamePanel({
   const [mineTiles, setMineTiles] = useState<MineTile[]>(
     () => Array.from({ length: 5 }, () => "hidden"),
   );
+  const [isCommitted, setIsCommitted] = useState(false);
   const committedRef = useRef(false);
   const resolvedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const actionBusyRef = useRef(false);
+  const finished = slotPhase === "result" || minePhase === "lost" || minePhase === "cashed";
+  const canClose = !isCommitted || finished;
+  const dialogRef = useGameDialog(onClose, canClose);
 
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -104,6 +110,7 @@ export function MiniGamePanel({
     if (!onCommitBet(kind, selectedBet)) return false;
     setLockedBet(selectedBet);
     committedRef.current = true;
+    setIsCommitted(true);
     return true;
   };
 
@@ -114,7 +121,8 @@ export function MiniGamePanel({
   };
 
   const spinSlots = () => {
-    if (slotPhase !== "ready" || !commit()) return;
+    if (slotPhase !== "ready" || actionBusyRef.current || !commit()) return;
+    actionBusyRef.current = true;
     const outcome = createSlotOutcome(safeBet, sessionDifficulty);
     setSlotOutcome(null);
     setSlotPhase("spinning");
@@ -138,8 +146,9 @@ export function MiniGamePanel({
   };
 
   const chooseMineTile = (selectedIndex: number) => {
-    if (minePhase !== "ready" && minePhase !== "playing") return;
+    if (actionBusyRef.current || (minePhase !== "ready" && minePhase !== "playing")) return;
     if (!commit()) return;
+    actionBusyRef.current = true;
     const outcome = createMinePickOutcome(
       selectedIndex,
       sessionDifficulty,
@@ -173,6 +182,7 @@ export function MiniGamePanel({
   const continueMines = () => {
     if (minePhase !== "safe") return;
     setMineTiles(Array.from({ length: 5 }, () => "hidden"));
+    actionBusyRef.current = false;
     setMinePhase("playing");
   };
 
@@ -182,16 +192,14 @@ export function MiniGamePanel({
     resolve(mineCurrentPayout, true);
   };
 
-  const finished = slotPhase === "result" || minePhase === "lost" || minePhase === "cashed";
-  const canClose = !committedRef.current || finished;
 
   return (
     <div className={`mini-game-backdrop mini-${kind}`}>
-      <section className="mini-game-panel" role="dialog" aria-modal="true" aria-labelledby="mini-game-title">
+      <section ref={dialogRef} tabIndex={-1} className="mini-game-panel" role="dialog" aria-modal="true" aria-labelledby="mini-game-title">
         <div className="mini-game-topline">
           <span className={`drink-icon ${kind === "slots" ? "drink-cola" : "drink-tea"}`} aria-hidden="true"><i /></span>
           <div>
-            <small>{kind === "slots" ? "КАКАО-КОЛА" : "ЧАЙ С БЕРГАМОТОМ"}</small>
+            <small>Игры Кнопика</small>
             <h2 id="mini-game-title">{kind === "slots" ? "Три барабана" : "Пять кнопок"}</h2>
           </div>
           {canClose && <button className="mini-close" type="button" aria-label="Закрыть мини-игру" onClick={onClose}>×</button>}
@@ -202,7 +210,7 @@ export function MiniGamePanel({
           <span><small>АКТИВНЫЙ БАЛАНС</small><strong>{balance.toLocaleString("ru-RU")}</strong></span>
         </div>
 
-        {canChooseBet && !committedRef.current && (
+        {canChooseBet && !isCommitted && (
           <div className="mini-bet-control">
             <input
               type="range"
@@ -254,7 +262,7 @@ export function MiniGamePanel({
             )}
             {slotPhase === "ready" && <button className="mini-primary" type="button" onClick={spinSlots}>Крутить барабаны</button>}
             {slotPhase === "spinning" && <button className="mini-primary" type="button" disabled>Вращение…</button>}
-            {slotPhase === "result" && <button className="mini-primary" type="button" onClick={onClose}>Вернуться к Кнопику</button>}
+            {slotPhase === "result" && <button className="mini-primary" type="button" onClick={onClose}>Вернуться в игры</button>}
             <p className="mini-stats">ИГР {stats.slotPlays} · ПОБЕД {stats.slotWins}</p>
           </>
         ) : (
@@ -284,7 +292,7 @@ export function MiniGamePanel({
                 </button>
               ))}
             </div>
-            {minePhase === "ready" && <p className="mine-hint">Выбери одну кнопку. Четыре безопасны, под одной спрятана мина.</p>}
+            {minePhase === "ready" && <p className="mine-hint">Выбери одну кнопку. После успеха можно забрать выигрыш или продолжить. Шанс зависит от сложности игры.</p>}
             {minePhase === "safe" && (
               <div className="mine-actions">
                 <button type="button" onClick={cashOutMines}>Забрать {mineCurrentPayout.toLocaleString("ru-RU")}</button>
@@ -293,7 +301,7 @@ export function MiniGamePanel({
             )}
             {minePhase === "lost" && <div className="mini-result is-loss"><small>МИНА</small><strong>−{safeBet.toLocaleString("ru-RU")}</strong></div>}
             {minePhase === "cashed" && <div className="mini-result is-win"><small>МОНЕТЫ ЗАБРАНЫ</small><strong>+{mineCurrentPayout.toLocaleString("ru-RU")}</strong></div>}
-            {(minePhase === "lost" || minePhase === "cashed") && <button className="mini-primary" type="button" onClick={onClose}>Вернуться к Кнопику</button>}
+            {(minePhase === "lost" || minePhase === "cashed") && <button className="mini-primary" type="button" onClick={onClose}>Вернуться в игры</button>}
             <p className="mini-stats">ИГР {stats.minePlays} · ВЫВОДОВ {stats.mineWins} · МИН {stats.mineLosses}</p>
           </>
         )}

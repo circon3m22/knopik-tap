@@ -41,7 +41,6 @@ import {
   type UltraStopResult,
 } from "./sound-engine";
 import {
-  MAX_LEVEL,
   addLevelCoins,
   levelMultiplier,
   levelProgressDetails,
@@ -96,6 +95,15 @@ import {
   PROGRESS_SNAPSHOT_INTERVAL_MS,
   shouldEmitFeedback,
 } from "./mobile-performance-policy";
+
+import { AdventurePath } from "./adventure-path";
+import { ArcadeLibrary } from "./arcade-library";
+import { CasinoGame } from "./casino-game";
+import { PracticeGame } from "./practice-game";
+import { GamepadIcon } from "./arcade-art";
+import { TapIcon } from "./tap-icon";
+import { ARCADE_GAMES, casinoBet, settleCasino, type ArcadeKind, type CasinoKind, type PracticeKind, type CasinoRound } from "./arcade-engine";
+import { ADVENTURE_STEPS, adventureLevel, cappedAdd, claimAdventureStep, sanitizeAdventure, stepProgress, type AdventureProgress } from "./adventure-engine";
 
 type TapParticle = {
   id: number;
@@ -224,8 +232,14 @@ const tutorialSlides = [
   {
     symbol: "SAVE",
     eyebrow: "ПРОГРЕСС",
-    title: "Развивай уровень и вовремя защищай добычу",
-    copy: "Уровни усиливают заработок, но сбрасываются после проигрыша. Монеты в сейфе сохраняются навсегда, хотя при переводе защищается только часть суммы.",
+    title: "Зарабатывай опыт и береги монеты",
+    copy: "В Пути Кнопика — 24 этапа и 30 уровней опыта. Обычный тап даёт 1 XP. Опыт не пропадает после проигрыша. В сейф попадает 50% активного баланса — эти монеты защищены.",
+  },
+  {
+    symbol: "PLAY",
+    eyebrow: "ИГРЫ",
+    title: "Все мини-игры в одном месте",
+    copy: "Открой Игры в нижнем меню. Точный тап и Память Кнопика бесплатны и помогают пройти путь. Игры на удачу — по желанию. Настройки доступны через профиль вверху.",
   },
 ];
 
@@ -343,6 +357,18 @@ function KnopikGame({
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<"food" | "clothes">("food");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gamesOpen, setGamesOpen] = useState(false);
+  const [journeyOpen, setJourneyOpen] = useState(false);
+  const [adventure, setAdventure] = useState<AdventureProgress>(() => sanitizeAdventure(undefined));
+  const adventureRef = useRef(adventure);
+  const [practiceGame, setPracticeGame] = useState<PracticeKind | null>(null);
+  const [casinoGame, setCasinoGame] = useState<CasinoKind | null>(null);
+  const [arcadeSession, setArcadeSession] = useState(0);
+  const arcadeSessionRef = useRef(0);
+  const casinoRoundRef = useRef<CasinoRound | null>(null);
+  const practiceResolvedRef = useRef(false);
+  const legacyTicketRef = useRef(false);
+
   const [adminOpen, setAdminOpen] = useState(false);
   const [releaseHistoryOpen, setReleaseHistoryOpen] = useState(false);
   const [casesOpen, setCasesOpen] = useState(false);
@@ -544,32 +570,6 @@ function KnopikGame({
     setRiskPhase(phase);
   }, []);
 
-  const updateCoins = useCallback(
-    (updater: (current: CoinState) => CoinState) => {
-      setCoins((current) => {
-        const next = updater(current);
-        coinsRef.current = next;
-        difficultyRef.current = difficultyWithBalancePenalty(
-          configuredDifficultyRef.current,
-          next.walletCoins,
-        );
-        return next;
-      });
-    },
-    [],
-  );
-
-  const updateStats = useCallback(
-    (updater: (current: GameStats) => GameStats) => {
-      setStats((current) => {
-        const next = updater(current);
-        statsRef.current = next;
-        return next;
-      });
-    },
-    [],
-  );
-
   const triggerLevelBurst = useCallback(() => {
     setLevelBurstKey((current) => current + 1);
     setLevelBurstVisible(true);
@@ -583,6 +583,33 @@ function KnopikGame({
       1_050,
     );
   }, [getSound]);
+
+  const updateAdventure = useCallback((updater: (current: AdventureProgress) => AdventureProgress) => {
+    const previous = adventureRef.current;
+    const next = updater(previous);
+    if (adventureLevel(next.xp).level > adventureLevel(previous.xp).level) triggerLevelBurst();
+    adventureRef.current = next;
+    setAdventure(next);
+  }, [triggerLevelBurst]);
+
+  // Update the authoritative ref before scheduling React, so rapid game actions
+  // cannot both spend the same pre-render balance. Updaters contain no side effects.
+  const updateCoins = useCallback((updater: (current: CoinState) => CoinState) => {
+    const next = updater(coinsRef.current);
+    coinsRef.current = next;
+    difficultyRef.current = difficultyWithBalancePenalty(configuredDifficultyRef.current, next.walletCoins);
+    setCoins(next);
+  }, []);
+
+  const updateStats = useCallback((updater: (current: GameStats) => GameStats) => {
+    const previous = statsRef.current;
+    const next = updater(previous);
+    statsRef.current = next;
+    setStats(next);
+    if (next.totalTaps > previous.totalTaps) {
+      updateAdventure(current => ({ ...current, xp: cappedAdd(current.xp, next.totalTaps - previous.totalTaps) }));
+    }
+  }, [updateAdventure]);
 
   const awardCoins = useCallback(
     (
@@ -614,11 +641,10 @@ function KnopikGame({
       setLevelState(result.state);
       if (result.levelsGained > 0) {
         setCommonCases((current) => Math.min(99, current + result.levelsGained));
-        triggerLevelBurst();
       }
       return earned;
     },
-    [triggerLevelBurst, updateCoins],
+    [updateCoins],
   );
 
   const clearRoundTimers = useCallback(() => {
@@ -681,6 +707,8 @@ function KnopikGame({
       boostUntilRef.current = saved.boostUntil > Date.now() ? saved.boostUntil : 0;
       fatigueUntilRef.current = activeFatigue;
       dogStateRef.current = activeFatigue > Date.now() ? "tired" : "calm";
+      adventureRef.current = saved.adventure;
+      setAdventure(saved.adventure);
       setCoins(loadedCoins);
       setVaultCoins(saved.vaultCoins);
       setFoodCount(saved.foodCount);
@@ -789,6 +817,7 @@ function KnopikGame({
     // The server-side upload runs on a fixed cadence, not a sliding debounce.
     const nextSave = {
             version: SAVE_VERSION,
+            adventure,
             vaultCoins,
             walletCoins: coins.walletCoins,
             foodCount,
@@ -843,6 +872,7 @@ function KnopikGame({
       if (pending) onSaveRef.current(pending);
     }, PROGRESS_SNAPSHOT_INTERVAL_MS);
   }, [
+    adventure,
     fatigueUntil,
     coins.walletCoins,
     boostUntil,
@@ -910,15 +940,16 @@ function KnopikGame({
   }, []);
 
   useEffect(() => {
-    if (!adminOpen && !settingsOpen) return;
+    if (!adminOpen && !settingsOpen && !shopOpen && !casesOpen) return;
     const handleEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (adminOpen) setAdminOpen(false);
-      else closeSettings();
+      else if (settingsOpen) closeSettings();
+      else { setShopOpen(false); setCasesOpen(false); }
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [adminOpen, settingsOpen, closeSettings]);
+  }, [adminOpen, settingsOpen, shopOpen, casesOpen, closeSettings]);
 
   const signOutAccount = useCallback(async () => {
     setAccountPending(true);
@@ -1659,6 +1690,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           riskTickTimerRef.current = null;
         }
         const mathematicallyWon = outcome.won;
+        updateAdventure(current => ({ ...current, xp: cappedAdd(current.xp, 10), casinoPlays: cappedAdd(current.casinoPlays, 1) }));
         setRiskResult(mathematicallyWon ? "win" : "lose");
         setRiskPayout(mathematicallyWon ? payout : 0);
         transitionRisk("result");
@@ -1702,6 +1734,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             setRiskResult(null);
             setRiskPayout(0);
             riskCommittedRef.current = false;
+            setGamesOpen(true);
           }, 340);
         }, RISK_RESULT_MS);
       }, spinDuration);
@@ -1718,6 +1751,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     transitionRisk,
     transitionTo,
     updateCoins,
+    updateAdventure,
   ]);
 
   const handlePointerDown = useCallback(
@@ -2065,6 +2099,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setShopOpen(false);
     setCasesOpen(false);
     setSettingsOpen(false);
+    legacyTicketRef.current = false;
     setMiniGameSession((current) => current + 1);
     setMiniGame(kind);
     getSound().itemUse("drink");
@@ -2075,7 +2110,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     const availableCoins = coinsRef.current.walletCoins;
     const bet = resolveMiniGameBet(availableCoins, requestedBet, mohawkEquipped);
     const hasItem = kind === "slots" ? colaCount > 0 : teaCount > 0;
-    if (!hasItem || bet < 1 || bet > availableCoins) return false;
+    if (!hasItem || legacyTicketRef.current || bet < 1 || bet > availableCoins) return false;
+    legacyTicketRef.current = true;
 
     if (kind === "slots") setColaCount((current) => Math.max(0, current - 1));
     else setTeaCount((current) => Math.max(0, current - 1));
@@ -2093,6 +2129,9 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   }, [colaCount, mohawkEquipped, resetSeries, teaCount, updateCoins]);
 
   const resolveMiniGame = useCallback((kind: MiniGameKind, payout: number, won: boolean) => {
+    if (!legacyTicketRef.current) return;
+    legacyTicketRef.current = false;
+    updateAdventure(current => ({ ...current, casinoPlays: cappedAdd(current.casinoPlays, 1), xp: cappedAdd(current.xp, 10) }));
     if (payout > 0) {
       updateCoins((current) => ({
         ...current,
@@ -2124,7 +2163,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       resetSeries();
       transitionTo("tired");
     }
-  }, [getSound, resetSeries, transitionTo, updateCoins]);
+  }, [getSound, resetSeries, transitionTo, updateCoins, updateAdventure]);
 
   const submitCheatCode = useCallback(() => {
     const normalizedCode = cheatCode.trim().toLowerCase();
@@ -2358,17 +2397,20 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   }, [getSound, hatLevel, hatOwned, hatUpgradeTokens, mohawkLevel, mohawkOwned, mohawkUpgradeTokens]);
 
   const selectNavigation = useCallback((index: number) => {
+    finishHold(true);
     setShopOpen(index === 0);
-    setCasesOpen(index === 2);
+    setCasesOpen(index === 4);
+    setGamesOpen(index === 2);
+    setJourneyOpen(index === 3);
     setSettingsOpen(false);
     setResetConfirmOpen(false);
-  }, []);
+  }, [finishHold]);
 
   const moveNavigationThumb = useCallback(
     (event: PointerEvent<HTMLElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
       const ratio = Math.min(0.999, Math.max(0, (event.clientX - rect.left) / rect.width));
-      selectNavigation(Math.floor(ratio * 3));
+      selectNavigation(Math.floor(ratio * 5));
     },
     [selectNavigation],
   );
@@ -2557,11 +2599,79 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setShopOpen(false);
     setCasesOpen(false);
     setSettingsOpen(false);
+    legacyTicketRef.current = false;
     setMiniGameSession((current) => current + 1);
     setMiniGame(kind);
     getSound().purchase();
     vibrate([16, 24, 34], settingsRef.current.vibration);
   }, [colaCount, getSound, miniGame, openMiniGame, teaCount, updateCoins]);
+
+  const openArcadeGame = (kind: ArcadeKind) => {
+    const game = ARCADE_GAMES.find(item => item.id === kind);
+    if (!game || adventureRef.current.claimedSteps < game.unlock || miniGame || casinoGame || practiceGame || riskPhaseRef.current !== "normal") return;
+    if (kind === "timing" || kind === "memory") {
+      arcadeSessionRef.current += 1;
+      setArcadeSession(arcadeSessionRef.current);
+      practiceResolvedRef.current = false;
+      setJourneyOpen(false);
+      setGamesOpen(true);
+      setPracticeGame(kind);
+      return;
+    }
+    if (kind === "coin" || kind === "dice" || kind === "tower") {
+      if (coinsRef.current.walletCoins < 1) return;
+      arcadeSessionRef.current += 1;
+      setArcadeSession(arcadeSessionRef.current);
+      casinoRoundRef.current = null;
+      setCasinoGame(kind);
+      return;
+    }
+    setGamesOpen(false);
+    if (kind === "roulette") handlePitbullItem();
+    else handleMiniGameItem(kind);
+  };
+
+  const startCasinoRound = (kind: CasinoKind, requested: number): CasinoRound | null => {
+    if (casinoRoundRef.current || casinoGame !== kind) return null;
+    const bet = casinoBet(coinsRef.current.walletCoins, requested);
+    if (bet < 1) return null;
+    const round: CasinoRound = { id: arcadeSessionRef.current, kind, bet, settled: false };
+    casinoRoundRef.current = round;
+    updateCoins(current => ({ walletCoins: current.walletCoins - bet, streakCoins: 0 }));
+    return round;
+  };
+  const resolveCasinoRound = (id: number, payout: number, won: boolean) => {
+    const result = settleCasino(casinoRoundRef.current, id, coinsRef.current.walletCoins, payout);
+    if (!result) return;
+    casinoRoundRef.current = result.round;
+    updateCoins(current => ({ ...current, walletCoins: result.balance }));
+    updateAdventure(current => ({ ...current, xp: cappedAdd(current.xp, 10), casinoPlays: cappedAdd(current.casinoPlays, 1),
+      coinWins: cappedAdd(current.coinWins, result.round.kind === "coin" && won ? 1 : 0),
+      diceWins: cappedAdd(current.diceWins, result.round.kind === "dice" && won ? 1 : 0),
+      towerWins: cappedAdd(current.towerWins, result.round.kind === "tower" && won ? 1 : 0),
+    }));
+    if (won) getSound().riskWin(); else getSound().riskLose();
+  };
+  const completePractice = (kind: PracticeKind, won: boolean) => {
+    if (practiceResolvedRef.current || practiceGame !== kind) return;
+    practiceResolvedRef.current = true;
+    updateAdventure(current => ({ ...current, xp: cappedAdd(current.xp, won ? 40 : 10), practicePlays: cappedAdd(current.practicePlays, 1),
+      timingWins: cappedAdd(current.timingWins, kind === "timing" && won ? 1 : 0), memoryWins: cappedAdd(current.memoryWins, kind === "memory" && won ? 1 : 0),
+    }));
+    if (won) { updateCoins(current => ({ ...current, walletCoins: cappedAdd(current.walletCoins, 25) })); getSound().levelUp(); }
+  };
+  const claimJourneyReward = () => {
+    const expected = adventure.claimedSteps;
+    if (adventureRef.current.claimedSteps !== expected) return;
+    if ((expected + 1) % 6 === 0 && commonCases >= 99) return;
+    const result = claimAdventureStep(adventureRef.current, { totalTaps: statsRef.current.totalTaps, vaultCoins }, expected);
+    if (!result) return;
+    const previousLevel = adventureLevel(adventureRef.current.xp).level;
+    updateAdventure(() => result.progress);
+    updateCoins(current => ({ ...current, walletCoins: cappedAdd(current.walletCoins, result.coins) }));
+    if (result.chapterComplete) setCommonCases(current => Math.min(99, current + 1));
+    if (adventureLevel(result.progress.xp).level === previousLevel) triggerLevelBurst();
+  };
 
   const handleVitaPowerItem = useCallback(() => {
     if (vitaPowerShield) return;
@@ -2644,6 +2754,13 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     setRiskMessage("");
     setRiskStats({ spins: 0, wins: 0, losses: 0, lastBet: 0 });
     setMiniGame(null);
+    setGamesOpen(false);
+    setJourneyOpen(false);
+    setPracticeGame(null);
+    setCasinoGame(null);
+    casinoRoundRef.current = null;
+    adventureRef.current = defaults.adventure;
+    setAdventure(defaults.adventure);
     setMiniGameStats({ slotPlays: 0, slotWins: 0, minePlays: 0, mineWins: 0, mineLosses: 0 });
     riskCommittedRef.current = false;
     transitionRisk("normal");
@@ -2683,9 +2800,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   const canFeedDog = isDogTired && foodCount > 0;
   const canQuickBuyFood = isDogTired && foodCount === 0 && coins.walletCoins >= DOG_FOOD_PRICE;
   const canQuickBuyDrink = drinkCount === 0 && riskPhase === "normal" && coins.walletCoins >= ZHIVCHIK_PRICE;
-  const canQuickBuyPitbull = pitbullCount === 0 && riskPhase === "normal" && dogState === "calm" && coins.walletCoins > PITBULL_PRICE;
-  const canQuickBuyCola = colaCount === 0 && riskPhase === "normal" && dogState === "calm" && miniGame === null && coins.walletCoins > COCOA_COLA_PRICE;
-  const canQuickBuyTea = teaCount === 0 && riskPhase === "normal" && dogState === "calm" && miniGame === null && coins.walletCoins > BERGAMOT_TEA_PRICE;
   const canQuickBuyVitaPower = !vitaPowerShield && vitaPowerCount === 0 && riskPhase === "normal" && coins.walletCoins >= VITA_POWER_PRICE;
   const canSave = !vaultLocked && coins.walletCoins >= 2;
   const saveAmount = Math.floor(coins.walletCoins / 2);
@@ -2733,9 +2847,9 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     riskMultiplier(riskChance) * (mohawkEquipped ? MOHAWK_RISK_BONUS + (mohawkLevel - 1) * .02 : 1) * 100,
   ) / 100;
   const riskMode = riskPhase !== "normal";
-  const navIndex = shopOpen ? 0 : casesOpen ? 2 : 1;
+  const navIndex = shopOpen ? 0 : casesOpen ? 4 : gamesOpen ? 2 : journeyOpen ? 3 : 1;
   const currentQuest = questIndex < QUESTS.length ? QUESTS[questIndex] : null;
-  const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins;
+  const questWins = riskStats.wins + miniGameStats.slotWins + miniGameStats.mineWins + adventure.timingWins + adventure.memoryWins + adventure.coinWins + adventure.diceWins + adventure.towerWins;
   const questProgress = currentQuest
     ? currentQuest.metric === "taps"
       ? stats.totalTaps
@@ -2761,8 +2875,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     vibrate([18, 24, 48], settingsRef.current.vibration);
   };
 
-  const tempoRatio =
-    seriesTaps > 0 ? calculateTempoRatio(averageInterval) : 0;
   const isHappy =
     dogState === "calm" && seriesTaps >= 3 && averageInterval <= 360;
   useEffect(() => {
@@ -2845,14 +2957,19 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
   const dogDisabled =
     dogState === "angry" ||
     dogState === "recovering" ||
-    miniGame !== null ||
+    miniGame !== null || gamesOpen || journeyOpen || casinoGame !== null || practiceGame !== null ||
     riskPhase === "transition" ||
     riskPhase === "spinning" ||
     riskPhase === "result";
-  const multiplier = levelMultiplier(levelState.level);
-  const levelBonus = Math.round((multiplier - 1) * 100);
+
   const levelDetails = levelProgressDetails(levelState);
   const levelProgress = levelDetails.progressRatio;
+  const journeyLevel = adventureLevel(adventure.xp);
+  const journeyStep = ADVENTURE_STEPS[adventure.claimedSteps];
+  const journeyAmount = stepProgress(adventure, { totalTaps: stats.totalTaps, vaultCoins });
+  const journeyReady = !!journeyStep && journeyAmount >= journeyStep.target;
+  const screenBlocked = gamesOpen || journeyOpen || casinoGame !== null || practiceGame !== null || miniGame !== null || settingsOpen || adminOpen || shopOpen || casesOpen || tutorialOpen || !!caseSequence;
+
   const paleCalm =
     riskPhase === "normal" &&
     dogState === "calm" &&
@@ -2879,16 +2996,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           : dogState === "calm"
             ? calmScene
             : "#1478ed";
-  const moodLabel =
-    dogState === "angry"
-      ? "СЕРДИТСЯ"
-      : dogState === "warning"
-        ? "НА ГРАНИ"
-        : dogState === "tired" || dogState === "recovering"
-          ? "ОТДЫХАЕТ"
-          : isHappy
-            ? "РАДУЕТСЯ"
-            : "СПОКОЕН";
 
   const handleInterfacePress = useCallback((event: PointerEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
@@ -2902,10 +3009,10 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
     const themeMeta = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]',
     );
-    document.documentElement.style.backgroundColor = currentScene;
-    document.body.style.backgroundColor = currentScene;
-    themeMeta?.setAttribute("content", currentScene);
-  }, [currentScene]);
+    document.documentElement.style.backgroundColor = riskMode ? currentScene : "#fcfdf9";
+    document.body.style.backgroundColor = riskMode ? currentScene : "#fcfdf9";
+    themeMeta?.setAttribute("content", riskMode ? currentScene : "#fcfdf9");
+  }, [currentScene, riskMode]);
 
   const gameStyle = {
     "--calm-scene": calmScene,
@@ -2921,7 +3028,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
 
   return (
     <main
-      className={`game-shell state-${dogState} ${
+      className={`game-shell tap-journey state-${dogState} ${
         fatigueRatio > 0 ? "has-fatigue" : ""
       } ${holding ? "is-holding" : ""} ${
         ultraActive ? "ultra-active" : ""
@@ -2981,7 +3088,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           </g>
         </svg>
       </div>
-      <div className="game-motion-layer">
+      <div className="game-motion-layer" inert={screenBlocked}>
       <header className="app-header">
         {syncState === "error" && (
           <div className="cloud-save-warning" role="alert">
@@ -2993,45 +3100,25 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           <button
               className="account-identity"
               type="button"
-              aria-label={account.isAdmin ? "Открыть админ-панель" : "Открыть аккаунт и настройки"}
+              aria-label="Открыть аккаунт и настройки"
               onClick={() => {
                 setShopOpen(false);
                 setCasesOpen(false);
-                if (account.isAdmin) setAdminOpen(true);
-                else setSettingsOpen(true);
+                setSettingsOpen(true);
               }}
             >
-              <span className="account-shortcut" aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+              <span className="account-shortcut" aria-hidden="true"><TapIcon kind="profile" /></span>
               <strong>{account.username}</strong>
               {account.isAdmin && <span className="admin-header-chip">ADMIN</span>}
           </button>
           <div className="wordmark brand-lockup" aria-label="Knopik Tap"><strong>KNOPIK</strong></div>
-          <div className="status-cluster" aria-label={`Статус Кнопика: ${moodLabel}`}>
-            <strong>{moodLabel}</strong>
-            <span className={`mood-indicator mood-${dogState}`} aria-hidden="true"><i /></span>
-          </div>
+          <button className="header-games-button" type="button" onClick={() => selectNavigation(2)} aria-label="Открыть игры"><GamepadIcon /><span>Игры</span></button>
         </div>
         {!riskMode ? (
-          <div
-            className="level-strip"
-            aria-label={`Уровень ${levelState.level} из ${MAX_LEVEL}`}
-          >
-            <div className="level-title">
-              <span>LVL</span>
-              <strong>{levelState.level}<small>из {MAX_LEVEL}</small></strong>
-            </div>
-            <div className="level-progress-block">
-              <div className="level-progress-copy">
-                <span>{levelState.level >= MAX_LEVEL ? "МАКСИМУМ" : "ДО НОВОГО УРОВНЯ"}</span>
-                <strong>{levelState.level >= MAX_LEVEL ? "ГОТОВО" : `${levelDetails.coinsToNext.toLocaleString("ru-RU")} монет`}</strong>
-              </div>
-              <div className="level-track"><span /></div>
-            </div>
-            <div className="level-reward">
-              <small>БОНУС</small>
-              <strong>+{levelBonus}%</strong>
-            </div>
-          </div>
+          <button className="journey-progress-card" type="button" onClick={() => selectNavigation(3)} aria-label={`Уровень ${journeyLevel.level}. Открыть путь Кнопика`}>
+            <span className="journey-level"><TapIcon kind="xp" /><b>{journeyLevel.level}</b></span>
+            <span className="journey-progress-copy"><strong>Уровень {journeyLevel.level}</strong><span>{journeyLevel.level >= 30 ? "Максимальный уровень" : `${journeyLevel.remaining.toLocaleString("ru-RU")} XP до уровня ${journeyLevel.level + 1}`}</span><progress value={journeyLevel.ratio} max="1" aria-label="Опыт" /></span><span className="journey-chevron"><TapIcon kind="arrow" /></span>
+          </button>
         ) : (
           <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
             <span className="risk-strip-label">СЕКТОР {riskChance}%</span>
@@ -3052,20 +3139,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
         )}
-        {!riskMode && (
-          <div className={`quest-strip ${questComplete ? "is-complete" : ""}`}>
-            <span className="quest-symbol" aria-hidden="true">✓</span>
-            <span className="quest-copy">
-              <small>{currentQuest ? `ЗАДАНИЕ ${questIndex + 1} ИЗ ${QUESTS.length}` : "ВСЕ ЗАДАНИЯ ВЫПОЛНЕНЫ"}</small>
-              <strong>{currentQuest?.title ?? "Новые задания появятся позже"}</strong>
-            </span>
-            {currentQuest && (
-              questComplete
-                ? <button type="button" onClick={claimQuestReward}>Забрать кейс</button>
-                : <b>{Math.min(questProgress, currentQuest.target).toLocaleString("ru-RU")}/{currentQuest.target.toLocaleString("ru-RU")}</b>
-            )}
-          </div>
-        )}
+        {!riskMode && <button className={`journey-next-step ${journeyReady ? "is-ready" : ""}`} onClick={() => selectNavigation(3)}><span aria-hidden="true"><TapIcon kind={journeyStep?.action === "vault" ? "safe" : journeyReady ? "chest" : "star"} /></span><span><small>{`Этап ${Math.min(24, adventure.claimedSteps + 1)} / 24`}</small><strong>{journeyStep?.title ?? "Этапы пройдены"}</strong></span><b>{journeyReady ? "Забрать" : "›"}</b></button>}
         {riskPhase === "selecting" && mohawkEquipped && (
           <div className="risk-bet-control" aria-label="Размер ставки рулетки">
             <span><small>СТАВКА</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
@@ -3083,33 +3157,18 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         )}
         <div className="boost-row" aria-label="Предметы Кнопика">
           <button className={`inventory-item inventory-food ${foodCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={!canFeedDog && !canQuickBuyFood} onClick={handleFoodItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/food.png")} alt="" draggable={false} />
+            <TapIcon className="buff-icon-image" kind="food" />
             <span className="inventory-copy"><strong>Корм</strong><small>Убрать усталость</small></span>
             <b className={`inventory-count ${canQuickBuyFood ? "is-price" : ""}`}>{canQuickBuyFood ? null : foodCount}</b>
           </button>
           <button className={`inventory-item inventory-zhivchik ${drinkCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(drinkCount < 1 && !canQuickBuyDrink) || riskMode} onClick={handleDrinkItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/zhivchik.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Живчик"}</strong><small>×4 на 60 секунд</small></span>
+            <TapIcon className="buff-icon-image" kind="energy" />
+            <span className="inventory-copy"><strong>{boostSeconds > 0 ? `×4 · ${boostSeconds}с` : "Буст"}</strong><small>×4 на 60 секунд</small></span>
             <b className={`inventory-count ${canQuickBuyDrink ? "is-price" : ""}`}>{canQuickBuyDrink ? null : drinkCount}</b>
           </button>
-          <button className={`inventory-item inventory-pitbull ${pitbullCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(pitbullCount < 1 && !canQuickBuyPitbull) || riskMode || dogState !== "calm"} onClick={handlePitbullItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/pitbull.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Питбуль</strong><small>Играть в рулетку</small></span>
-            <b className={`inventory-count ${canQuickBuyPitbull ? "is-price" : ""}`}>{canQuickBuyPitbull ? null : pitbullCount}</b>
-          </button>
-          <button className={`inventory-item inventory-cola ${colaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(colaCount < 1 && !canQuickBuyCola) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("slots")}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/cocoa-cola.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Какао</strong><small>Открыть слоты</small></span>
-            <b className={`inventory-count ${canQuickBuyCola ? "is-price" : ""}`}>{canQuickBuyCola ? null : colaCount}</b>
-          </button>
-          <button className={`inventory-item inventory-tea ${teaCount === 0 ? "is-quick-buy" : ""}`} type="button" disabled={(teaCount < 1 && !canQuickBuyTea) || riskMode || dogState !== "calm" || miniGame !== null} onClick={() => handleMiniGameItem("mines")}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/bergamot-tea.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>Бергамот</strong><small>Пять кнопок</small></span>
-            <b className={`inventory-count ${canQuickBuyTea ? "is-price" : ""}`}>{canQuickBuyTea ? null : teaCount}</b>
-          </button>
           <button className={`inventory-item inventory-vita ${vitaPowerCount === 0 && !vitaPowerShield ? "is-quick-buy" : ""} ${vitaPowerShield ? "is-active" : ""}`} type="button" disabled={vitaPowerShield || (vitaPowerCount < 1 && !canQuickBuyVitaPower) || riskMode} onClick={handleVitaPowerItem}>
-            <img className="buff-icon-image" src={publicAsset("/buffs/pepsi.png")} alt="" draggable={false} />
-            <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Пепси"}</strong><small>Защита баланса</small></span>
+            <TapIcon className="buff-icon-image" kind="shield" />
+            <span className="inventory-copy"><strong>{vitaPowerShield ? "ЩИТ" : "Щит"}</strong><small>Защита баланса</small></span>
             <b className={`inventory-count ${canQuickBuyVitaPower ? "is-price" : ""}`}>{vitaPowerShield ? "✓" : canQuickBuyVitaPower ? null : vitaPowerCount}</b>
           </button>
         </div>
@@ -3349,7 +3408,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             className={`wallet-balance ${balanceVariant}`}
             aria-label={`Активные монеты ${coins.walletCoins}`}
           >
-            <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+            <span className="coin-mark" aria-hidden="true"><TapIcon kind="coin" /></span>
             <div>
               <small>АКТИВНЫЕ МОНЕТЫ</small>
               <strong className="balance-number" key={`balance-${balancePulse}`}>
@@ -3358,7 +3417,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             </div>
           </div>
           {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
-          <div className="vault-row">
+          <div className="vault-row tap-vault-row">
             <button
               className="quick-save-button"
               type="button"
@@ -3366,17 +3425,22 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
               onClick={saveAllToVault}
             >
-              <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span>ПЕРЕНЕСТИ В СЕЙФ</span>
-              <small>50% БАЛАНСА</small>
+              <TapIcon className="vault-card-art" kind="safe" />
+              <span className="vault-card-copy">
+                <span className="vault-card-label">В сейф · 50%</span>
+                <strong className="vault-card-value">{saveAmount.toLocaleString("ru-RU")}</strong>
+              </span>
             </button>
             <div
               ref={savedBalanceRef}
               className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
-              <span className="safe-icon" aria-hidden="true"><i /></span>
-              <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+              <TapIcon className="vault-card-art" kind="safe" />
+              <span className="vault-card-copy">
+                <span className="vault-card-label">В сейфе</span>
+                <strong className="vault-card-value">{vaultCoins.toLocaleString("ru-RU")}</strong>
+              </span>
             </div>
           </div>
         </div>
@@ -3395,19 +3459,23 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       >
         <span className="nav-thumb" aria-hidden="true" />
         <button className={navIndex === 0 ? "active" : ""} type="button" onClick={() => clickNavigation(0)}>
-          <span className="shop-icon" aria-hidden="true"><i /></span>
+          <TapIcon kind="shop" />
           <span>Магазин</span>
         </button>
         <button className={`home-nav ${navIndex === 1 ? "active" : ""}`} type="button" onClick={() => clickNavigation(1)}>
-          <span className="home-icon" aria-hidden="true"><i /></span>
-          <span>Играть</span>
+          <TapIcon kind="home" />
+          <span>Кнопик</span>
         </button>
-        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}>
-          <span className="case-nav-icon" aria-hidden="true"><i /></span>
-          <span>Кейсы</span>
-        </button>
+        <button className={navIndex === 2 ? "active" : ""} type="button" onClick={() => clickNavigation(2)}><GamepadIcon /><span>Игры</span></button>
+        <button className={navIndex === 3 ? "active" : ""} type="button" onClick={() => clickNavigation(3)}><TapIcon kind="path" /><span>Путь</span></button>
+        <button className={navIndex === 4 ? "active" : ""} type="button" onClick={() => clickNavigation(4)}><TapIcon kind="chest" /><span>Кейсы</span></button>
       </footer>
       </div>
+
+      {gamesOpen && <ArcadeLibrary hidden={!!practiceGame || !!casinoGame} balance={coins.walletCoins} claimedSteps={adventure.claimedSteps} legacyUnavailable={dogState !== "calm" || isDogResting ? "Рулетка, слоты и мины доступны после отдыха." : ""} tickets={{ roulette: pitbullCount, slots: colaCount, mines: teaCount }} onPlay={openArcadeGame} onClose={() => setGamesOpen(false)} onJourney={() => { setGamesOpen(false); setJourneyOpen(true); }} />}
+      {journeyOpen && <AdventurePath progress={adventure} totalTaps={stats.totalTaps} vaultCoins={vaultCoins} rewardBlocked={(adventure.claimedSteps + 1) % 6 === 0 && commonCases >= 99} onClaim={claimJourneyReward} onClose={() => setJourneyOpen(false)} onAction={action => { setJourneyOpen(false); if (action === "timing" || action === "memory") openArcadeGame(action); }} />}
+      {practiceGame && <PracticeGame key={`practice-${arcadeSession}`} kind={practiceGame} onComplete={completePractice} onClose={() => setPracticeGame(null)} onTick={() => getSound().riskTick()} />}
+      {casinoGame && <CasinoGame key={`casino-${arcadeSession}`} kind={casinoGame} balance={coins.walletCoins} onStart={startCasinoRound} onResolve={resolveCasinoRound} onClose={() => { if (casinoRoundRef.current && !casinoRoundRef.current.settled) return; setCasinoGame(null); casinoRoundRef.current = null; }} onTick={() => getSound().riskTick()} />}
 
       {miniGame && (
         <MiniGamePanel
@@ -3419,7 +3487,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           stats={miniGameStats}
           onCommitBet={commitMiniGameBet}
           onResolve={resolveMiniGame}
-          onClose={() => setMiniGame(null)}
+          onClose={() => { if (legacyTicketRef.current) return; setMiniGame(null); setGamesOpen(true); }}
           onTick={() => {
             getSound().riskTick();
             vibrate(5, settingsRef.current.vibration);
@@ -3490,11 +3558,12 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             <div className="cases-heading">
               <div><p className="sheet-kicker">НАГРАДЫ</p><h2 id="cases-title">Кейсы</h2></div>
               <span><strong>{commonCases + bigCases}</strong><small>доступно</small></span>
+              <button className="tap-icon-button" aria-label="Закрыть кейсы" onClick={() => selectNavigation(1)}><TapIcon kind="close" /></button>
             </div>
             <div className="case-list">
               <article className="case-card case-common-card">
                 <div className="case-miniature" aria-hidden="true"><i /><b>3</b></div>
-                <div><small>ЗА НОВЫЙ УРОВЕНЬ</small><h3>Обычный кейс</h3><p>Три награды: монеты, бафы или улучшения.</p></div>
+                <div><small>ЗА ПРОХОЖДЕНИЕ И МАСТЕРСТВО</small><h3>Обычный кейс</h3><p>Три награды: монеты, бафы или улучшения.</p></div>
                 <div className="case-card-actions">
                   <button type="button" disabled={commonCases < 1} onClick={() => openCase("common")}>Открыть · {commonCases}</button>
                   <button type="button" disabled={coins.walletCoins < COMMON_CASE_PRICE || commonCases >= 99} onClick={buyCommonCase}>Купить · {COMMON_CASE_PRICE.toLocaleString("ru-RU")}</button>
@@ -3615,8 +3684,9 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               <div className="sheet-heading"><h2 id="shop-title">Магазин</h2></div>
               <div className="shop-wallet">
                 <span><strong>{coins.walletCoins.toLocaleString("ru-RU")}</strong></span>
-                <span className="coin-mark" aria-hidden="true"><i>К</i></span>
+                <span className="coin-mark" aria-hidden="true"><TapIcon kind="coin" /></span>
               </div>
+              <button className="tap-icon-button" aria-label="Закрыть магазин" onClick={() => selectNavigation(1)}><TapIcon kind="close" /></button>
             </div>
 
             <div className="shop-categories" role="tablist" aria-label="Разделы магазина">
@@ -3956,6 +4026,8 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
                 <div><button type="button" onClick={() => setResetConfirmOpen(false)}>Отмена</button><button className="confirm-reset" type="button" onClick={resetProgress}>Сбросить прогресс</button></div>
               </div>
             )}
+            <p className="settings-section-title">Путь Кнопика</p>
+            <div className="journey-account-stats"><span>Уровень <b>{journeyLevel.level} / 30</b></span><span>Опыт <b>{adventure.xp.toLocaleString("ru-RU")} XP</b></span><span>Этапы <b>{adventure.claimedSteps} / 24</b></span><span>Игры на навык <b>{adventure.practicePlays}</b></span><span>Бонус мастерства к тапам <b>+{Math.round((levelMultiplier(levelState.level) - 1) * 100)}%</b></span></div>
             <p className="settings-section-title">Статистика</p>
             <div className="stats-line"><span>ЛУЧШАЯ СЕРИЯ <strong>{stats.bestStreak}</strong></span><span>ТАПОВ <strong>{stats.totalTaps}</strong></span><span>УКУСОВ <strong>{stats.totalBites}</strong></span></div>
           </section>
@@ -4102,7 +4174,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         userId={account.userId}
         returningPlayer={initialSave.tutorialSeen}
         canShowAnnouncement={
-          !tutorialOpen && !settingsOpen && !adminOpen && !shopOpen && !casesOpen &&
+          !tutorialOpen && !settingsOpen && !adminOpen && !shopOpen && !casesOpen && !gamesOpen && !journeyOpen && !practiceGame && !casinoGame &&
           !caseSequence && miniGame === null && riskPhase === "normal"
         }
         historyOpen={releaseHistoryOpen}
