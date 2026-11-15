@@ -1,3 +1,5 @@
+import { sanitizeAdventure, type AdventureProgress } from "./adventure-engine.ts";
+
 export type DogState = "calm" | "tired" | "warning" | "angry" | "recovering";
 
 export type CoinState = {
@@ -19,7 +21,8 @@ export type GameStats = {
 };
 
 export type SaveData = {
-  version: 15;
+  version: 16;
+  adventure: AdventureProgress;
   vaultCoins: number;
   walletCoins: number;
   foodCount: number;
@@ -67,11 +70,12 @@ export type SaveData = {
 };
 
 export const SAVE_KEY = "knopik-tap:save";
-export const SAVE_VERSION = 15 as const;
+export const SAVE_VERSION = 16 as const;
 
 export function createDefaultSave(): SaveData {
   return {
     version: SAVE_VERSION,
+    adventure: sanitizeAdventure(undefined),
     vaultCoins: 0,
     walletCoins: 0,
     foodCount: 0,
@@ -167,6 +171,7 @@ export function sanitizeSave(value: unknown): SaveData {
 
   return {
     version: SAVE_VERSION,
+    adventure: sanitizeAdventure(isVersion(16) ? candidate.adventure : undefined, { level: candidate.level, totalTaps: candidate.totalTaps }),
     vaultCoins:
       isVersion(5)
         ? safeInteger(candidate.vaultCoins)

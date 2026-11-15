@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sanitizeSave } from "../app/game-logic.ts";
+import { SAVE_VERSION, sanitizeSave } from "../app/game-logic.ts";
 import {
   FATIGUE_DURATION_MS,
   FATIGUE_DURATION_MIN_MS,
@@ -210,7 +210,7 @@ test("new drink inventories and mini-game stats migrate into the current save", 
     mineWins: 5,
     mineLosses: 2,
   });
-  assert.equal(saved.version, 15);
+  assert.equal(saved.version, SAVE_VERSION);
   assert.equal(saved.colaCount, 14);
   assert.equal(saved.teaCount, 3);
   assert.equal(saved.slotPlays, 8);

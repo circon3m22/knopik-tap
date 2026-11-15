@@ -8,6 +8,7 @@ import "./cloud-save-warning.css";
 import "./mobile-performance.css";
 import "./settings-panel.css";
 import "./final-polish.css";
+import "./journey.css";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/$/, "") ?? "";
 const siteUrl =
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(new URL(siteUrl).origin),
   title: "KNOPIK TAP",
   description:
-    "Тапай Кнопика, собирай монеты, покупай напитки и испытывай удачу в рулетке.",
+    "Тапай Кнопика, проходи этапы, повышай уровень и открывай новые мини-игры.",
   applicationName: "Knopik Tap",
   manifest: publicAsset("/manifest.webmanifest"),
   formatDetection: { telephone: false },
