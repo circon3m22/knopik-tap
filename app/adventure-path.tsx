@@ -77,10 +77,13 @@ export function AdventurePath({
             />
           </div>
         </div>
-        <p className="journey-xp-help">
-          Обычный тап — 1 XP. Завершённая игра — 10 XP, победа в испытании — 40
-          XP. Опыт не тратится вместе с монетами.
-        </p>
+        <details className="journey-xp-help">
+          <summary>Как начисляется опыт</summary>
+          <p>
+            Обычный тап — 1 XP. Завершённая игра — 10 XP, победа в испытании —
+            40 XP. Опыт не тратится вместе с монетами.
+          </p>
+        </details>
         <div className="chapter-tabs" role="group" aria-label="Главы">
           {CHAPTERS.map((c, i) => (
             <button
@@ -96,7 +99,6 @@ export function AdventurePath({
         <div className={`chapter-banner tone-${CHAPTERS[chapter].color}`}>
           <span>Глава {chapter + 1}</span>
           <h3>{CHAPTERS[chapter].title}</h3>
-          <p>{CHAPTERS[chapter].subtitle}</p>
         </div>
         <ol className="journey-nodes" start={chapter * 6 + 1}>
           {ADVENTURE_STEPS.slice(chapter * 6, chapter * 6 + 6).map((s, i) => {
@@ -152,7 +154,7 @@ export function AdventurePath({
           {current ? (
             <>
               <span className="tap-eyebrow">
-                Следующий шаг · {progress.claimedSteps + 1}/24
+                Этап · {progress.claimedSteps + 1}/24
               </span>
               <h3>{current.title}</h3>
               <p>
@@ -202,11 +204,7 @@ export function AdventurePath({
             </>
           ) : (
             <>
-              <h3>Ты прошёл весь путь!</h3>
-              <p>
-                Кнопик гордится тобой. Продолжай играть и повышать уровень до
-                30.
-              </p>
+              <h3>Все этапы пройдены</h3>
               <button className="tap-primary" onClick={onClose}>
                 К Кнопику
               </button>

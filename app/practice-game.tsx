@@ -105,9 +105,7 @@ export function PracticeGame({
     const next = score + (hit ? 1 : 0);
     setScore(next);
     setRound(round + 1);
-    setMessage(
-      hit ? "Отлично, получилось!" : "Ничего страшного. Следующая попытка!",
-    );
+    setMessage(hit ? "Попадание" : "Промах");
     if (round === 2) {
       change("finished");
       if (!completeRef.current) {
@@ -170,8 +168,8 @@ export function PracticeGame({
         <h3>
           {phase === "finished"
             ? score >= 2
-              ? "Вот это мастерство!"
-              : "Хорошая тренировка!"
+              ? "Испытание пройдено"
+              : "Испытание не пройдено"
             : kind === "timing"
               ? calm
                 ? "Нажми зелёную плитку"
@@ -180,7 +178,7 @@ export function PracticeGame({
                 ? "Смотри и запоминай"
                 : phase === "playing"
                   ? "Теперь твоя очередь"
-                  : "Четыре плитки. Один узор."}
+                  : "Запомни последовательность"}
         </h3>
         {kind === "timing" ? (
           calm ? (
@@ -275,7 +273,7 @@ export function PracticeGame({
               +{score >= 2 ? 40 : 10} XP{score >= 2 ? " и 25 монет" : ""}
             </div>
             <button className="tap-primary" onClick={onClose}>
-              Отлично
+              Готово
             </button>
           </>
         )}

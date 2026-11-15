@@ -2996,16 +2996,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
           : dogState === "calm"
             ? calmScene
             : "#1478ed";
-  const moodLabel =
-    dogState === "angry"
-      ? "СЕРДИТСЯ"
-      : dogState === "warning"
-        ? "НА ГРАНИ"
-        : dogState === "tired" || dogState === "recovering"
-          ? "ОТДЫХАЕТ"
-          : isHappy
-            ? "РАДУЕТСЯ"
-            : "СПОКОЕН";
 
   const handleInterfacePress = useCallback((event: PointerEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
@@ -3127,7 +3117,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
         {!riskMode ? (
           <button className="journey-progress-card" type="button" onClick={() => selectNavigation(3)} aria-label={`Уровень ${journeyLevel.level}. Открыть путь Кнопика`}>
             <span className="journey-level"><TapIcon kind="xp" /><b>{journeyLevel.level}</b></span>
-            <span className="journey-progress-copy"><strong>Маленький шаг — большое дело</strong><span>{journeyLevel.level >= 30 ? "Максимальный уровень" : `${journeyLevel.remaining.toLocaleString("ru-RU")} XP до уровня ${journeyLevel.level + 1}`}</span><progress value={journeyLevel.ratio} max="1" aria-label="Опыт" /></span><span className="journey-chevron"><TapIcon kind="arrow" /></span>
+            <span className="journey-progress-copy"><strong>Уровень {journeyLevel.level}</strong><span>{journeyLevel.level >= 30 ? "Максимальный уровень" : `${journeyLevel.remaining.toLocaleString("ru-RU")} XP до уровня ${journeyLevel.level + 1}`}</span><progress value={journeyLevel.ratio} max="1" aria-label="Опыт" /></span><span className="journey-chevron"><TapIcon kind="arrow" /></span>
           </button>
         ) : (
           <div className="risk-strip" aria-label={`Шанс выигрыша ${riskChance}%`}>
@@ -3149,7 +3139,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             <strong className="risk-multiplier">×{selectedRiskMultiplier}</strong>
           </div>
         )}
-        {!riskMode && <button className={`journey-next-step ${journeyReady ? "is-ready" : ""}`} onClick={() => selectNavigation(3)}><span aria-hidden="true"><TapIcon kind={journeyStep?.action === "vault" ? "safe" : journeyReady ? "chest" : "star"} /></span><span><small>{journeyReady ? "Награда ждёт" : `Этап ${Math.min(24, adventure.claimedSteps + 1)} из 24`}</small><strong>{journeyStep?.title ?? "Весь путь пройден!"}</strong></span><b>{journeyReady ? "Забрать" : "›"}</b></button>}
+        {!riskMode && <button className={`journey-next-step ${journeyReady ? "is-ready" : ""}`} onClick={() => selectNavigation(3)}><span aria-hidden="true"><TapIcon kind={journeyStep?.action === "vault" ? "safe" : journeyReady ? "chest" : "star"} /></span><span><small>{`Этап ${Math.min(24, adventure.claimedSteps + 1)} / 24`}</small><strong>{journeyStep?.title ?? "Этапы пройдены"}</strong></span><b>{journeyReady ? "Забрать" : "›"}</b></button>}
         {riskPhase === "selecting" && mohawkEquipped && (
           <div className="risk-bet-control" aria-label="Размер ставки рулетки">
             <span><small>СТАВКА</small><strong>{Math.min(coins.walletCoins, Math.max(1, riskBetAmount)).toLocaleString("ru-RU")}</strong></span>
@@ -3187,7 +3177,6 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       <section
         className="game-stage"
       >
-        {!riskMode && <div className="knopik-greeting"><span className={`greeting-mood mood-${dogState}`}>{moodLabel}</span><h1>{dogState === "calm" ? "Привет, я Кнопик!" : dogState === "tired" ? "Чуть-чуть передохнём?" : "Я скоро вернусь!"}</h1><p>{dogState === "calm" ? "Тапай, играй, открывай новое." : "А пока можно потренировать память и точность."}</p></div>}
         <div className="dog-stage">
           <div className={`dog-orbit ${vitaPowerShield ? "has-vita-shield" : ""}`}>
           {isDogResting && (
@@ -3428,7 +3417,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
             </div>
           </div>
           {riskMessage && <p className="risk-notice" key={`risk-notice-${riskShake}`}>{riskMessage}</p>}
-          <div className="vault-row">
+          <div className="vault-row tap-vault-row">
             <button
               className="quick-save-button"
               type="button"
@@ -3436,17 +3425,22 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
               aria-label={`Перенести в сейф ${saveAmount.toLocaleString("ru-RU")} монет`}
               onClick={saveAllToVault}
             >
-              <span className="safe-icon" aria-hidden="true"><TapIcon kind="safe" /></span>
-              <span>В сейф</span>
-              <small>50% баланса</small>
+              <TapIcon className="vault-card-art" kind="safe" />
+              <span className="vault-card-copy">
+                <span className="vault-card-label">В сейф · 50%</span>
+                <strong className="vault-card-value">{saveAmount.toLocaleString("ru-RU")}</strong>
+              </span>
             </button>
             <div
               ref={savedBalanceRef}
               className={`saved-balance ${saveFlight ? "receiving-coins" : ""}`}
               aria-label={`Баланс сейфа ${vaultCoins} монет`}
             >
-              <span className="safe-icon" aria-hidden="true"><TapIcon kind="safe" /></span>
-              <span><small>В СЕЙФЕ</small><strong>{vaultCoins.toLocaleString("ru-RU")}</strong></span>
+              <TapIcon className="vault-card-art" kind="safe" />
+              <span className="vault-card-copy">
+                <span className="vault-card-label">В сейфе</span>
+                <strong className="vault-card-value">{vaultCoins.toLocaleString("ru-RU")}</strong>
+              </span>
             </div>
           </div>
         </div>
@@ -3478,7 +3472,7 @@ setRiskRotation(1_800 + outcome.finalAngle - winningDegrees / 2);
       </footer>
       </div>
 
-      {gamesOpen && <ArcadeLibrary hidden={!!practiceGame || !!casinoGame} balance={coins.walletCoins} claimedSteps={adventure.claimedSteps} legacyUnavailable={dogState !== "calm" || isDogResting ? "Кнопик пока отдыхает. Игры на навык, монетка, кубик и башня доступны без ожидания." : ""} tickets={{ roulette: pitbullCount, slots: colaCount, mines: teaCount }} onPlay={openArcadeGame} onClose={() => setGamesOpen(false)} onJourney={() => { setGamesOpen(false); setJourneyOpen(true); }} />}
+      {gamesOpen && <ArcadeLibrary hidden={!!practiceGame || !!casinoGame} balance={coins.walletCoins} claimedSteps={adventure.claimedSteps} legacyUnavailable={dogState !== "calm" || isDogResting ? "Рулетка, слоты и мины доступны после отдыха." : ""} tickets={{ roulette: pitbullCount, slots: colaCount, mines: teaCount }} onPlay={openArcadeGame} onClose={() => setGamesOpen(false)} onJourney={() => { setGamesOpen(false); setJourneyOpen(true); }} />}
       {journeyOpen && <AdventurePath progress={adventure} totalTaps={stats.totalTaps} vaultCoins={vaultCoins} rewardBlocked={(adventure.claimedSteps + 1) % 6 === 0 && commonCases >= 99} onClaim={claimJourneyReward} onClose={() => setJourneyOpen(false)} onAction={action => { setJourneyOpen(false); if (action === "timing" || action === "memory") openArcadeGame(action); }} />}
       {practiceGame && <PracticeGame key={`practice-${arcadeSession}`} kind={practiceGame} onComplete={completePractice} onClose={() => setPracticeGame(null)} onTick={() => getSound().riskTick()} />}
       {casinoGame && <CasinoGame key={`casino-${arcadeSession}`} kind={casinoGame} balance={coins.walletCoins} onStart={startCasinoRound} onResolve={resolveCasinoRound} onClose={() => { if (casinoRoundRef.current && !casinoRoundRef.current.settled) return; setCasinoGame(null); casinoRoundRef.current = null; }} onTick={() => getSound().riskTick()} />}

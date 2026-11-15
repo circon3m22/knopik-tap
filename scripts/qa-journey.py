@@ -82,7 +82,7 @@ def saved(page, row):
 
 def library(page):
     page.get_by_role('button', name='Открыть игры', exact=True).click()
-    expect(page.get_by_role('heading', name='Во что сыграем?')).to_be_visible()
+    expect(page.get_by_role('heading', name='Игры')).to_be_visible()
 
 def launch(page, title):
     page.locator('.arcade-card').filter(has_text=title).click()
@@ -102,10 +102,13 @@ with sync_playwright() as p:
         context, page, row, calls = new_page(browser, (width,height), legacy=True)
         geometry = page.evaluate('''() => {
           const box = selector => { const r=document.querySelector(selector).getBoundingClientRect(); return {y:r.y,bottom:r.bottom,width:r.width}; };
-          return { width:document.documentElement.scrollWidth, viewport:innerWidth, dog:box('.dog-button'), wallet:box('.wallet-balance'), nav:box('.bottom-bar') };
+          return { width:document.documentElement.scrollWidth, viewport:innerWidth, dog:box('.dog-button'), wallet:box('.wallet-balance'), nav:box('.bottom-bar'), transfer:box('.quick-save-button'), vault:box('.saved-balance') };
         }''')
         assert geometry['width'] <= width, geometry
         assert geometry['dog']['bottom'] <= geometry['wallet']['y'] + 2, geometry
+        assert abs(geometry['transfer']['y'] - geometry['vault']['y']) < 1, geometry
+        assert abs(geometry['transfer']['bottom'] - geometry['vault']['bottom']) < 1, geometry
+        assert abs(geometry['transfer']['width'] - geometry['vault']['width']) < 1, geometry
         assert page.locator('.bottom-bar .tap-icon').count() == 5
         page.screenshot(path=str(out / f'home-{width}.png'), full_page=True)
         library(page)
@@ -118,7 +121,7 @@ with sync_playwright() as p:
         page.get_by_role('button', name='Все игры', exact=True).click()
         page.screenshot(path=str(out / f'games-{width}.png'), full_page=True)
         page.keyboard.press('Escape')
-        expect(page.get_by_role('heading', name='Во что сыграем?')).not_to_be_visible()
+        expect(page.get_by_role('heading', name='Игры')).not_to_be_visible()
         page.get_by_role('button', name='Путь', exact=True).click()
         assert page.locator('.journey-nodes li').count() == 6
         page.screenshot(path=str(out / f'path-{width}.png'), full_page=True)
@@ -146,7 +149,13 @@ with sync_playwright() as p:
     page.get_by_role('button',name='Магазин',exact=True).click()
     page.screenshot(path=str(out/'shop-large-balance.png'),full_page=True)
     page.get_by_role('button',name='Закрыть магазин',exact=True).click()
-    record('large balance on a narrow phone does not cover the shop exit')
+    page.get_by_role('button',name='Перенести в сейф 4 999 999 999 монет').click()
+    state=saved(page,row)
+    assert state['walletCoins']==0 and state['vaultCoins']==5_000_004_999
+    cards=page.locator('.tap-vault-row > *').evaluate_all('(items) => items.map(e => ({h:e.getBoundingClientRect().height,w:e.getBoundingClientRect().width,y:e.getBoundingClientRect().y}))')
+    assert abs(cards[0]['h']-cards[1]['h']) < 1 and abs(cards[0]['w']-cards[1]['w']) < 1, cards
+    page.screenshot(path=str(out/'vault-large-balance.png'),full_page=True)
+    record('large balance: shop exit, aligned vault cards and correct 50% transfer')
     context.close()
 
     context,page,row,calls = new_page(browser, progress=0)
@@ -160,7 +169,7 @@ with sync_playwright() as p:
     context,page,row,calls = new_page(browser,progress=5)
     page.get_by_role('button',name='Путь',exact=True).click()
     page.get_by_role('button',name='Забрать награду',exact=True).click()
-    expect(page.locator('.chapter-banner h3')).to_have_text('Поймай волну')
+    expect(page.locator('.chapter-banner h3')).to_have_text('Точность')
     state=saved(page,row)
     assert state['adventure']['claimedSteps']==6 and state['commonCases']==1
     record('chapter checkpoint awards one case and advances to the next chapter')

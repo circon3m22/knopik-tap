@@ -187,10 +187,10 @@ export function CasinoGame({
             <h3>
               {phase === "result"
                 ? won
-                  ? "Вершина взята!"
-                  : "На этот раз ловушка"
+                  ? "Башня пройдена"
+                  : "Ловушка"
                 : phase === "safe"
-                  ? "Этаж пройден!"
+                  ? "Этаж пройден"
                   : `Выбери плитку · этаж ${floor + 1}`}
             </h3>
             <div className="tower-tiles">
@@ -297,7 +297,7 @@ export function CasinoGame({
             className={`casino-result ${won ? "is-win" : "is-loss"}`}
             role="status"
           >
-            <h3>{won ? "Получилось!" : "В этот раз не совпало"}</h3>
+            <h3>{won ? "Выигрыш" : "Проигрыш"}</h3>
             <strong>
               {paid
                 ? `Выплата ${paid.toLocaleString("ru-RU")}`

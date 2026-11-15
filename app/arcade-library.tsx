@@ -48,9 +48,14 @@ export function ArcadeLibrary({
       >
         <header className="tap-screen-heading">
           <div>
-            <span className="tap-eyebrow">Клуб Кнопика</span>
-            <h2 id="arcade-title">{game ? game.title : "Во что сыграем?"}</h2>
+            <h2 id="arcade-title">{game ? game.title : "Игры"}</h2>
           </div>
+          {!game && (
+            <span className="arcade-wallet">
+              <TapIcon kind="coin" />
+              {balance.toLocaleString("ru-RU")}
+            </span>
+          )}
           <button
             className="tap-icon-button"
             aria-label="Закрыть игры"
@@ -75,7 +80,6 @@ export function ArcadeLibrary({
                 ? "На навык · бесплатно"
                 : "На удачу · игровые монеты"}
             </span>
-            <h3>{game.subtitle}</h3>
             <p className="game-rules">{game.rules}</p>
             {legacy && (
               <p className="game-entry">
@@ -86,11 +90,10 @@ export function ArcadeLibrary({
             {locked ? (
               <>
                 <p className="arcade-lock-copy">
-                  Откроется после этапа {game.unlock}. Сейчас пройдено{" "}
-                  {claimedSteps}.
+                  Доступно после этапа {game.unlock}.
                 </p>
                 <button className="tap-primary" onClick={onJourney}>
-                  Открыть путь Кнопика
+                  Открыть этапы
                 </button>
               </>
             ) : (
@@ -107,8 +110,7 @@ export function ArcadeLibrary({
                 </button>
                 {game.category === "luck" && balance <= entry && (
                   <p className="arcade-lock-copy">
-                    Нужны монеты на вход и ставку. Их можно заработать с
-                    Кнопиком или в играх на навык.
+                    Недостаточно монет на вход и ставку.
                   </p>
                 )}
               </>
@@ -124,17 +126,6 @@ export function ArcadeLibrary({
           </div>
         ) : (
           <>
-            <div className="arcade-welcome">
-              <p>
-                Маленькая игра.
-                <br />
-                <strong>Большое настроение.</strong>
-              </p>
-              <span className="arcade-wallet">
-                <TapIcon kind="coin" />
-                {balance.toLocaleString("ru-RU")}
-              </span>
-            </div>
             <div
               className="arcade-filters"
               role="group"
@@ -178,7 +169,6 @@ export function ArcadeLibrary({
                       )}
                     </div>
                     <strong>{g.title}</strong>
-                    <span>{g.subtitle}</span>
                     <small>
                       {g.category === "skill" ? "Бесплатно · +XP" : "На удачу"}
                     </small>
@@ -186,9 +176,6 @@ export function ArcadeLibrary({
                 );
               })}
             </div>
-            <p className="arcade-footnote">
-              Игры на навык помогают пройти путь. Игры на удачу — по желанию.
-            </p>
           </>
         )}
       </section>
