@@ -1,13 +1,8 @@
-# Knopik TAP
+# vinext-starter
 
-Игра с Кнопиком: тапы, поэтапное прохождение, опыт, усиления и библиотека мини-игр.
-Обновление **1.1.0** добавляет 24 этапа, 30 уровней опыта,
-пять новых игр и собственные цветные значки интерфейса.
-
-[Механики обновления и проверки](docs/journey-1.1.0.md) ·
-[Процесс выпуска](docs/RELEASE_PROCESS.md).
-
-Built with [vinext](https://github.com/cloudflare/vinext), React and Next.js.
+A clean full-stack starter running on
+[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
+Drizzle support.
 
 ## Prerequisites
 
